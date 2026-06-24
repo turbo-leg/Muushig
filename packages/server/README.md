@@ -19,17 +19,19 @@ Configure via `.env` (see `../../.env.example`): `PORT`, optional `REDIS_URL`
 
 ## Room: `muushig`
 
-Phase machine: `waiting → swap → playing → finished`, looping `playing → swap`
-between rounds until a player reaches a winning score.
+Phase machine: `waiting → decision → swap → playing → finished`, looping
+`playing → decision` between rounds until a player reaches a winning score.
 
 | Message                     | Effect                                                       |
 | --------------------------- | ------------------------------------------------------------ |
 | `ready`                     | Toggle ready in the lobby                                    |
 | `start`                     | Host-only; deals the first round once all are ready          |
-| `swap` `{ indices }`        | Exchange up to 5 cards during the swap phase                 |
-| `resign`                    | Sit the round out (swap phase only)                          |
+| `stay`                      | Choose to play the round (decision phase)                    |
+| `resign`                    | Sit the round out (decision phase)                           |
+| `swap` `{ indices }`        | Exchange up to 5 cards (swap phase, stayers only)            |
 | `playCard` `{ suit, rank }` | Play a card on your turn                                     |
 | `rematch`                   | Vote to reset scores and return to the lobby (when finished) |
 
-Turn and swap timers auto-advance play (timeouts play the first legal card);
-both are configurable per-room and disabled in tests.
+Decision, swap, and turn timers auto-advance play (decision/swap timeouts keep a
+player in with their dealt cards; turn timeout plays the first legal card). All
+are configurable per-room and disabled in tests.

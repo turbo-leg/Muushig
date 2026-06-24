@@ -4,6 +4,7 @@ import { parseCard, parseIndices, sanitizeString } from './roomHelpers';
 
 const DEFAULT_TURN_TIME_MS = 30_000;
 const DEFAULT_SWAP_TIME_MS = 60_000;
+const DEFAULT_DECISION_TIME_MS = 30_000;
 const RATE_LIMIT_MAX = 15; // messages per window
 const RATE_LIMIT_WINDOW_MS = 1_000;
 
@@ -19,21 +20,26 @@ interface CreateOptions extends JoinOptions {
   discordInstanceId?: string;
   turnTimeLimit?: number;
   swapTimeLimit?: number;
+  decisionTimeLimit?: number;
 }
 
 /**
  * Authoritative Colyseus room for a Muushig game. Owns the real {@link GameState}
  * and delegates every rule decision to {@link MuushigEngine}; clients only send
- * intents (`ready`, `start`, `swap`, `resign`, `playCard`, `rematch`).
+ * intents (`ready`, `start`, `stay`, `resign`, `swap`, `playCard`, `rematch`).
  *
- * Phase machine: `waiting → swap → playing → finished`, looping
- * `playing → swap` between rounds until a player reaches a winning score.
+ * Phase machine: `waiting → decision → swap → playing → finished`, looping
+ * `playing → decision` between rounds until a player reaches a winning score.
+ * In `decision` each player chooses to stay or resign; in `swap` the stayers
+ * draw replacements.
  */
 export class MuushigRoom extends Room<GameState> {
   private turnTimer: Delayed | null = null;
   private swapTimer: Delayed | null = null;
+  private decisionTimer: Delayed | null = null;
   private turnTimeLimit = DEFAULT_TURN_TIME_MS;
   private swapTimeLimit = DEFAULT_SWAP_TIME_MS;
+  private decisionTimeLimit = DEFAULT_DECISION_TIME_MS;
   private discordInstanceId: string | null = null;
   private rematchVotes = new Set<string>();
   private rateLimit = new Map<string, number[]>();
@@ -50,6 +56,8 @@ export class MuushigRoom extends Room<GameState> {
 
     if (typeof options.turnTimeLimit === 'number') this.turnTimeLimit = options.turnTimeLimit;
     if (typeof options.swapTimeLimit === 'number') this.swapTimeLimit = options.swapTimeLimit;
+    if (typeof options.decisionTimeLimit === 'number')
+      this.decisionTimeLimit = options.decisionTimeLimit;
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
@@ -57,8 +65,11 @@ export class MuushigRoom extends Room<GameState> {
 
     this.onMessage('ready', (client) => this.guard(client, () => this.handleReady(client)));
     this.onMessage('start', (client) => this.guard(client, () => this.handleStart(client)));
+    this.onMessage('stay', (client) => this.guard(client, () => this.handleDecide(client, true)));
+    this.onMessage('resign', (client) =>
+      this.guard(client, () => this.handleDecide(client, false)),
+    );
     this.onMessage('swap', (client, msg) => this.guard(client, () => this.handleSwap(client, msg)));
-    this.onMessage('resign', (client) => this.guard(client, () => this.handleResign(client)));
     this.onMessage('playCard', (client, msg) =>
       this.guard(client, () => this.handlePlayCard(client, msg)),
     );
@@ -105,6 +116,7 @@ export class MuushigRoom extends Room<GameState> {
   onDispose(): void {
     this.clearTurnTimer();
     this.clearSwapTimer();
+    this.clearDecisionTimer();
   }
 
   // ──────────────────────────── Handlers ────────────────────────────
@@ -126,6 +138,16 @@ export class MuushigRoom extends Room<GameState> {
     this.startGame();
   }
 
+  private handleDecide(client: Client, stay: boolean): void {
+    if (this.state.phase !== 'decision') return;
+    try {
+      MuushigEngine.decide(this.state, client.sessionId, stay);
+    } catch {
+      return;
+    }
+    this.afterDecision();
+  }
+
   private handleSwap(client: Client, msg: unknown): void {
     if (this.state.phase !== 'swap') return;
     const indices = parseIndices((msg as { indices?: unknown })?.indices);
@@ -133,16 +155,6 @@ export class MuushigRoom extends Room<GameState> {
       MuushigEngine.swapCards(this.state, client.sessionId, indices);
     } catch {
       return; // illegal swap (already swapped / resigned) — ignore
-    }
-    this.maybeBeginPlay();
-  }
-
-  private handleResign(client: Client): void {
-    if (this.state.phase !== 'swap') return;
-    try {
-      MuushigEngine.resign(this.state, client.sessionId);
-    } catch {
-      return;
     }
     this.maybeBeginPlay();
   }
@@ -182,10 +194,21 @@ export class MuushigRoom extends Room<GameState> {
   private startGame(): void {
     MuushigEngine.initializeGame(this.state, [...this.state.seatOrder]);
     this.syncMetadata();
-    this.startSwapTimer();
+    this.startDecisionTimer();
   }
 
-  /** Advances to trick play once every player has swapped or resigned. */
+  /** Advances decision → swap once everyone has chosen to stay or resign. */
+  private afterDecision(): void {
+    if (!MuushigEngine.allDecided(this.state)) return;
+    this.clearDecisionTimer();
+    MuushigEngine.beginSwap(this.state);
+    this.syncMetadata();
+    // If everyone resigned, beginPlay finishes the round immediately.
+    this.maybeBeginPlay();
+    if (this.state.phase === 'swap') this.startSwapTimer();
+  }
+
+  /** Advances to trick play once every staying player has swapped. */
   private maybeBeginPlay(): void {
     if (!MuushigEngine.allSwapsComplete(this.state)) return;
     this.clearSwapTimer();
@@ -214,6 +237,7 @@ export class MuushigRoom extends Room<GameState> {
   private concludeRound(): void {
     this.clearTurnTimer();
     this.clearSwapTimer();
+    this.clearDecisionTimer();
     MuushigEngine.scoreRound(this.state);
 
     if (MuushigEngine.isGameOver(this.state)) {
@@ -225,10 +249,23 @@ export class MuushigRoom extends Room<GameState> {
 
     MuushigEngine.dealRound(this.state);
     this.syncMetadata();
-    this.startSwapTimer();
+    this.startDecisionTimer();
   }
 
   // ──────────────────────────── Timers ────────────────────────────
+
+  private startDecisionTimer(): void {
+    this.clearDecisionTimer();
+    if (this.decisionTimeLimit <= 0) return;
+    this.decisionTimer = this.clock.setTimeout(() => {
+      // Anyone who didn't choose defaults to staying (plays their dealt hand).
+      for (const id of this.state.seatOrder) {
+        const p = this.state.players.get(id)!;
+        if (!p.hasDecided) p.hasDecided = true;
+      }
+      this.afterDecision();
+    }, this.decisionTimeLimit);
+  }
 
   private startSwapTimer(): void {
     this.clearSwapTimer();
@@ -275,6 +312,11 @@ export class MuushigRoom extends Room<GameState> {
   private clearSwapTimer(): void {
     this.swapTimer?.clear();
     this.swapTimer = null;
+  }
+
+  private clearDecisionTimer(): void {
+    this.decisionTimer?.clear();
+    this.decisionTimer = null;
   }
 
   // ──────────────────────────── Utilities ────────────────────────────

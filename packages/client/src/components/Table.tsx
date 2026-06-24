@@ -34,6 +34,7 @@ export function Table({ state, sessionId, send }: Props) {
       isReady: p?.isReady ?? false,
       isHost: id === state.hostId,
       isTurn: phase === 'playing' && state.currentTurn === id,
+      hasDecided: p?.hasDecided ?? false,
       hasResigned: p?.hasResigned ?? false,
       isMe: id === sessionId,
     });
@@ -68,6 +69,7 @@ export function Table({ state, sessionId, send }: Props) {
   const meReady = me?.isReady ?? false;
   const allReady = seats.length > 0 && seats.every((s) => s.isReady);
   const canStart = isHost && seats.length >= MIN_PLAYERS && allReady;
+  const meDecided = meRaw?.hasDecided ?? false;
   const canSwap = phase === 'swap' && !!meRaw && !meRaw.hasSwapped && !meRaw.hasResigned;
   const isMyTurn = phase === 'playing' && state.currentTurn === sessionId;
 
@@ -103,6 +105,7 @@ export function Table({ state, sessionId, send }: Props) {
   };
   const onReady = () => act(() => send('ready'));
   const onStart = () => act(() => send('start'));
+  const onStay = () => act(() => send('stay'));
   const onKeep = () => act(() => send('swap', { indices: [] }));
   const onResign = () => act(() => send('resign'));
   const onRematch = () => act(() => send('rematch'));
@@ -135,7 +138,7 @@ export function Table({ state, sessionId, send }: Props) {
   useEffect(() => {
     const p = prev.current;
     if (p.init) {
-      if (phase === 'swap' && p.phase === 'waiting') {
+      if (phase === 'decision' && p.phase === 'waiting') {
         playSfx('deal');
         window.setTimeout(() => playSfx('trump'), 350);
       }
@@ -168,7 +171,7 @@ export function Table({ state, sessionId, send }: Props) {
           </div>
         ) : (
           <>
-            {trumpCard && <TrumpIndicator card={trumpCard} revealed={phase === 'swap'} />}
+            {trumpCard && <TrumpIndicator card={trumpCard} revealed={phase === 'decision'} />}
             <Trick plays={trick} trumpSuit={state.trumpSuit} />
           </>
         )}
@@ -193,6 +196,7 @@ export function Table({ state, sessionId, send }: Props) {
           canStart={canStart}
           meReady={meReady}
           needPlayers={seats.length < MIN_PLAYERS}
+          meDecided={meDecided}
           canSwap={canSwap}
           isMyTurn={isMyTurn}
           selectedCount={selected.size}
@@ -201,6 +205,7 @@ export function Table({ state, sessionId, send }: Props) {
           muted={muted}
           onReady={onReady}
           onStart={onStart}
+          onStay={onStay}
           onSwap={onSwap}
           onKeep={onKeep}
           onResign={onResign}

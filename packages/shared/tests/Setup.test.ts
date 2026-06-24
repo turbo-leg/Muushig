@@ -23,7 +23,7 @@ describe('initializeGame', () => {
     }
   });
 
-  test('deals 5 cards each, turns up a trump, and opens in swap phase', () => {
+  test('deals 5 cards each, turns up a trump, and opens in the decision phase', () => {
     const state = new GameState();
     MuushigEngine.initializeGame(state, ['a', 'b', 'c', 'd', 'e'], makeRng(99));
 
@@ -32,7 +32,7 @@ describe('initializeGame', () => {
     }
     expect(state.trumpCard.suit).not.toBe('None');
     expect(state.trumpSuit).toBe(state.trumpCard.suit);
-    expect(state.phase).toBe('swap');
+    expect(state.phase).toBe('decision');
     expect(state.currentTurn).toBe('a');
   });
 
@@ -76,6 +76,7 @@ describe('initializeGame', () => {
     expect(state.players.get('b')!.score).toBe(12);
     expect(state.players.get('a')!.tricksWon).toBe(0);
     expect(state.players.get('a')!.hasResigned).toBe(false);
-    expect(state.phase).toBe('swap');
+    expect(state.players.get('a')!.hasDecided).toBe(false);
+    expect(state.phase).toBe('decision');
   });
 });

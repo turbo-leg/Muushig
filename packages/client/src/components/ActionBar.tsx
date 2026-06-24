@@ -7,6 +7,7 @@ interface Props {
   canStart: boolean;
   meReady: boolean;
   needPlayers: boolean;
+  meDecided: boolean;
   canSwap: boolean;
   isMyTurn: boolean;
   selectedCount: number;
@@ -15,9 +16,10 @@ interface Props {
   muted: boolean;
   onReady: () => void;
   onStart: () => void;
+  onStay: () => void;
+  onResign: () => void;
   onSwap: () => void;
   onKeep: () => void;
-  onResign: () => void;
   onRematch: () => void;
   onToggleMute: () => void;
 }
@@ -81,6 +83,20 @@ export function ActionBar(props: Props) {
           </>
         )}
 
+        {phase === 'decision' &&
+          (props.meDecided ? (
+            <span className="font-body text-small text-starlight-muted">
+              Waiting for other players to decide…
+            </span>
+          ) : (
+            <>
+              <Button onClick={props.onStay}>Stay & play</Button>
+              <Button variant="secondary" onClick={props.onResign}>
+                Resign
+              </Button>
+            </>
+          ))}
+
         {phase === 'swap' &&
           (canSwap ? (
             <>
@@ -89,9 +105,6 @@ export function ActionBar(props: Props) {
               </Button>
               <Button variant="secondary" onClick={props.onKeep}>
                 Keep cards
-              </Button>
-              <Button variant="secondary" onClick={props.onResign}>
-                Resign
               </Button>
             </>
           ) : (

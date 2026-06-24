@@ -30,6 +30,7 @@ describe('Seat', () => {
     isReady: true,
     isHost: true,
     isTurn: false,
+    hasDecided: false,
     hasResigned: false,
     isMe: false,
   };
@@ -48,6 +49,7 @@ describe('ActionBar', () => {
     canStart: false,
     meReady: false,
     needPlayers: false,
+    meDecided: false,
     canSwap: false,
     isMyTurn: false,
     selectedCount: 0,
@@ -56,6 +58,7 @@ describe('ActionBar', () => {
     muted: false,
     onReady: vi.fn(),
     onStart: vi.fn(),
+    onStay: vi.fn(),
     onSwap: vi.fn(),
     onKeep: vi.fn(),
     onResign: vi.fn(),

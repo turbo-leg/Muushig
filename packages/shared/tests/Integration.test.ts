@@ -16,7 +16,10 @@ describe('full round integration', () => {
     const state = new GameState();
     MuushigEngine.initializeGame(state, ids, makeRng(playerCount * 17 + 1));
 
-    // Swap phase: everyone keeps their cards (swap zero), then begin play.
+    // Decision phase: everyone stays. Then swap phase: keep all cards.
+    for (const id of ids) MuushigEngine.decide(state, id, true);
+    expect(MuushigEngine.allDecided(state)).toBe(true);
+    MuushigEngine.beginSwap(state);
     for (const id of ids) MuushigEngine.swapCards(state, id, []);
     expect(MuushigEngine.allSwapsComplete(state)).toBe(true);
     MuushigEngine.beginPlay(state);

@@ -41,6 +41,18 @@ export function Seat({ seat, phase }: Props) {
         >
           {seat.isReady ? 'Ready' : 'Waiting'}
         </span>
+      ) : phase === 'decision' ? (
+        <span
+          className={`text-small font-semibold ${
+            seat.hasResigned
+              ? 'text-danger'
+              : seat.hasDecided
+                ? 'text-success'
+                : 'text-starlight-faint'
+          }`}
+        >
+          {seat.hasResigned ? 'Resigned' : seat.hasDecided ? 'Staying' : 'Deciding…'}
+        </span>
       ) : seat.hasResigned ? (
         <span className="text-small font-semibold text-danger">Resigned</span>
       ) : (

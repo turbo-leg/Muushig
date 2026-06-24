@@ -26,7 +26,12 @@ async function waitUntil(pred: () => boolean, timeoutMs = 4000): Promise<void> {
 
 // Rooms in tests run with timers disabled so flows are driven explicitly.
 function createRoom(options: Record<string, unknown> = {}) {
-  return colyseus.createRoom('muushig', { turnTimeLimit: 0, swapTimeLimit: 0, ...options });
+  return colyseus.createRoom('muushig', {
+    turnTimeLimit: 0,
+    swapTimeLimit: 0,
+    decisionTimeLimit: 0,
+    ...options,
+  });
 }
 
 type AnyRoom = Awaited<ReturnType<typeof createRoom>>;
@@ -59,14 +64,20 @@ function playTurn(room: AnyRoom, clients: AnyClient[]): void {
   clientFor(clients, turnId).send('playCard', { suit: card.suit, rank: card.rank });
 }
 
-// Sends empty swaps for every active player, then plays the round to conclusion.
+// Drives a round to conclusion: everyone stays, keeps their cards, then plays.
 async function playOneRound(room: AnyRoom, clients: AnyClient[]): Promise<void> {
-  for (const id of [...room.state.seatOrder]) {
-    if (!room.state.players.get(id)!.hasResigned) {
-      clientFor(clients, id).send('swap', { indices: [] });
-    }
+  if (room.state.phase === 'decision') {
+    for (const id of [...room.state.seatOrder]) clientFor(clients, id).send('stay');
+    await waitUntil(() => room.state.phase !== 'decision');
   }
-  await waitUntil(() => room.state.phase !== 'swap');
+  if (room.state.phase === 'swap') {
+    for (const id of [...room.state.seatOrder]) {
+      if (!room.state.players.get(id)!.hasResigned) {
+        clientFor(clients, id).send('swap', { indices: [] });
+      }
+    }
+    await waitUntil(() => room.state.phase !== 'swap');
+  }
 
   while (room.state.phase === 'playing') {
     const before = totalCardsInHands(room);
@@ -107,7 +118,7 @@ describe('MuushigRoom — lobby', () => {
 });
 
 describe('MuushigRoom — start & deal', () => {
-  test('host start deals 5 cards each, turns up a trump, and enters swap phase', async () => {
+  test('host start deals 5 cards each, turns up a trump, and enters the decision phase', async () => {
     const room = await createRoom();
     const c1 = await colyseus.connectTo(room);
     const c2 = await colyseus.connectTo(room);
@@ -120,7 +131,7 @@ describe('MuushigRoom — start & deal', () => {
     );
 
     c1.send('start');
-    await waitUntil(() => room.state.phase === 'swap');
+    await waitUntil(() => room.state.phase === 'decision');
 
     for (const id of [...room.state.seatOrder]) {
       expect(room.state.players.get(id)!.hand.length).toBe(HAND_SIZE);
@@ -156,7 +167,7 @@ describe('MuushigRoom — start & deal', () => {
       [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
     );
     c1.send('start');
-    await waitUntil(() => room.state.phase === 'swap');
+    await waitUntil(() => room.state.phase !== 'waiting');
 
     await expect(colyseus.connectTo(room)).rejects.toBeTruthy();
   });
@@ -173,7 +184,7 @@ describe('MuushigRoom — round flow', () => {
       [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
     );
     clients[0]!.send('start');
-    await waitUntil(() => room.state.phase === 'swap');
+    await waitUntil(() => room.state.phase === 'decision');
     return { room, clients };
   }
 
@@ -181,8 +192,8 @@ describe('MuushigRoom — round flow', () => {
     const { room, clients } = await startedRoom(3);
     await playOneRound(room, clients);
 
-    // No winner yet (scores start at 15) → a new round is dealt.
-    expect(room.state.phase).toBe('swap');
+    // No winner yet (scores start at 15) → a new round is dealt (back to decision).
+    expect(room.state.phase).toBe('decision');
     expect(room.state.tricksPlayed).toBe(0);
     for (const id of [...room.state.seatOrder]) {
       expect(room.state.players.get(id)!.hand.length).toBe(HAND_SIZE);
@@ -191,10 +202,15 @@ describe('MuushigRoom — round flow', () => {
 
   test('a resigning player sits out and the round still resolves', async () => {
     const { room, clients } = await startedRoom(3);
-    clients[2]!.send('resign');
-    await waitUntil(() => room.state.players.get(clients[2]!.sessionId)!.hasResigned);
 
-    // Remaining players swap to trigger the swap→play transition.
+    // Decision phase: one player resigns, the others stay.
+    clients[2]!.send('resign');
+    clients[0]!.send('stay');
+    clients[1]!.send('stay');
+    await waitUntil(() => room.state.phase === 'swap');
+    expect(room.state.players.get(clients[2]!.sessionId)!.hasResigned).toBe(true);
+
+    // Stayers keep their cards, triggering the swap → play transition.
     clients[0]!.send('swap', { indices: [] });
     clients[1]!.send('swap', { indices: [] });
     await waitUntil(() => room.state.phase !== 'swap');
@@ -204,7 +220,7 @@ describe('MuushigRoom — round flow', () => {
       playTurn(room, clients);
       await waitUntil(() => totalCardsInHands(room) < before || room.state.phase !== 'playing');
     }
-    expect(['swap', 'finished']).toContain(room.state.phase);
+    expect(['decision', 'finished']).toContain(room.state.phase);
   });
 
   test('ends the game and broadcasts gameOver when a player reaches zero', async () => {

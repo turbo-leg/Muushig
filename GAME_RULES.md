@@ -69,6 +69,8 @@ multiple players cross zero in the same round, the player with the **lowest
 
 ## Implementation notes
 
+- The pre-round runs as two phases: a **decision** phase where every player
+  chooses to stay or resign, then a **swap** phase where the stayers draw.
 - Seat order is fixed for now; `seatOrder[0]` leads the opening trick (treated as
   the player to the dealer's left). Rotating the dealer between games is a
   possible future refinement.
