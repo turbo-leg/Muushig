@@ -100,6 +100,7 @@ export class MuushigEngine {
       const p = state.players.get(id)!;
       p.hand.splice(0, p.hand.length);
       p.tricksWon = 0;
+      p.hasDecided = false;
       p.hasSwapped = false;
       p.hasResigned = false;
     }
@@ -127,6 +128,43 @@ export class MuushigEngine {
     state.tricksPlayed = 0;
     state.leaderId = state.seatOrder[0]!;
     state.currentTurn = state.seatOrder[0]!;
+    state.phase = 'decision';
+  }
+
+  // ──────────────────────────── Decision phase ────────────────────────────
+
+  /**
+   * Records a player's pre-round choice: stay (play) or resign. Made in the
+   * `decision` phase, before any cards are swapped.
+   */
+  static decide(state: GameState, playerId: string, stay: boolean): void {
+    if (state.phase !== 'decision')
+      throw new Error('Decisions are only made in the decision phase');
+    const player = state.players.get(playerId);
+    if (!player) throw new Error(`Unknown player ${playerId}`);
+    player.hasDecided = true;
+    player.hasResigned = !stay;
+  }
+
+  /** True once every player has chosen to stay or resign. */
+  static allDecided(state: GameState): boolean {
+    for (const id of state.seatOrder) {
+      if (!state.players.get(id)!.hasDecided) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Transitions `decision → swap`. Resigned players are marked as having
+   * completed their swap so they don't block the swap → play transition.
+   */
+  static beginSwap(state: GameState): void {
+    if (state.phase !== 'decision')
+      throw new Error('Can only begin swapping from the decision phase');
+    for (const id of state.seatOrder) {
+      const p = state.players.get(id)!;
+      if (p.hasResigned) p.hasSwapped = true;
+    }
     state.phase = 'swap';
   }
 
@@ -164,19 +202,7 @@ export class MuushigEngine {
     return count;
   }
 
-  /**
-   * Resigns a player before the round is played, avoiding the shut-out penalty.
-   * Only legal during the swap phase. A resigned player sits the round out.
-   */
-  static resign(state: GameState, playerId: string): void {
-    if (state.phase !== 'swap') throw new Error('Players may only resign before the round begins');
-    const player = state.players.get(playerId);
-    if (!player) throw new Error(`Unknown player ${playerId}`);
-    player.hasResigned = true;
-    player.hasSwapped = true; // does not block the swap→play transition
-  }
-
-  /** True once every player has either swapped or resigned. */
+  /** True once every staying player has swapped (resigned players are pre-marked). */
   static allSwapsComplete(state: GameState): boolean {
     for (const id of state.seatOrder) {
       if (!state.players.get(id)!.hasSwapped) return false;

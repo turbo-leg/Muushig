@@ -17,10 +17,13 @@ export class Player extends Schema {
   /** Tricks won in the current round (reset each round). */
   @type('number') tricksWon: number = 0;
 
+  /** Whether this player has made their stay/resign choice this round. */
+  @type('boolean') hasDecided: boolean = false;
+
   /** Whether this player has taken their (optional) swap this round. */
   @type('boolean') hasSwapped: boolean = false;
 
-  /** Resigned before the round began — sits the round out. */
+  /** Resigned during the decision phase — sits the round out. */
   @type('boolean') hasResigned: boolean = false;
 
   @type('boolean') isReady: boolean = false;

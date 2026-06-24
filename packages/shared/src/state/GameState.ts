@@ -3,7 +3,7 @@ import { Player } from './Player';
 import { Card } from './Card';
 import { TrickPlay } from './TrickPlay';
 
-export type Phase = 'waiting' | 'swap' | 'playing' | 'finished';
+export type Phase = 'waiting' | 'decision' | 'swap' | 'playing' | 'finished';
 
 export class GameState extends Schema {
   @type({ map: Player }) players = new MapSchema<Player>();

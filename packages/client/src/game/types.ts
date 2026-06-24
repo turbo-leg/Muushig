@@ -12,6 +12,7 @@ export interface SeatVM {
   isReady: boolean;
   isHost: boolean;
   isTurn: boolean;
+  hasDecided: boolean;
   hasResigned: boolean;
   isMe: boolean;
 }
@@ -22,4 +23,4 @@ export interface TrickPlayVM {
   card: CardVM;
 }
 
-export type Phase = 'waiting' | 'swap' | 'playing' | 'finished';
+export type Phase = 'waiting' | 'decision' | 'swap' | 'playing' | 'finished';
