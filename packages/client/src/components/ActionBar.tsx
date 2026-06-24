@@ -64,16 +64,12 @@ export function ActionBar(props: Props) {
       <div className="flex flex-1 flex-wrap items-center justify-center gap-3">
         {phase === 'waiting' && (
           <>
-            <Button variant="secondary" onClick={props.onReady}>
-              {meReady ? 'Not ready' : 'Ready up'}
+            <Button variant="secondary" sub="Бэлэн" onClick={props.onReady}>
+              {meReady ? 'Not ready' : 'Ready'}
             </Button>
             {isHost ? (
-              <Button onClick={props.onStart} disabled={!canStart}>
-                {canStart
-                  ? 'Deal the cards'
-                  : needPlayers
-                    ? 'Need 2+ players'
-                    : 'Waiting for all ready'}
+              <Button sub="Хуваах" onClick={props.onStart} disabled={!canStart}>
+                {canStart ? 'Deal' : needPlayers ? 'Need 2+' : 'Not yet'}
               </Button>
             ) : (
               <span className="font-hand text-lg text-cream/80">Waiting for the host to deal…</span>
@@ -86,8 +82,10 @@ export function ActionBar(props: Props) {
             <span className="font-hand text-lg text-cream/80">Waiting for others to decide…</span>
           ) : (
             <>
-              <Button onClick={props.onStay}>Stay &amp; play</Button>
-              <Button variant="secondary" onClick={props.onResign}>
+              <Button sub="Мөрцөх" onClick={props.onStay}>
+                Bid
+              </Button>
+              <Button variant="secondary" sub="Дуусгах" onClick={props.onResign}>
                 Fold
               </Button>
             </>
@@ -96,11 +94,11 @@ export function ActionBar(props: Props) {
         {phase === 'swap' &&
           (canSwap ? (
             <>
-              <Button onClick={props.onSwap} disabled={props.selectedCount === 0}>
-                {props.selectedCount > 0 ? `Swap ${props.selectedCount}` : 'Pick cards to swap'}
+              <Button sub="Солих" onClick={props.onSwap} disabled={props.selectedCount === 0}>
+                {props.selectedCount > 0 ? `Swap ${props.selectedCount}` : 'Swap'}
               </Button>
-              <Button variant="secondary" onClick={props.onKeep}>
-                Keep cards
+              <Button variant="secondary" sub="Үлдээх" onClick={props.onKeep}>
+                Keep
               </Button>
             </>
           ) : (
@@ -118,7 +116,9 @@ export function ActionBar(props: Props) {
             <span className="font-hand text-3xl text-amber">
               {props.isWinner ? 'You win!' : `${props.winnerNames.join(', ') || 'Someone'} wins`}
             </span>
-            <Button onClick={props.onRematch}>Play again</Button>
+            <Button sub="Дахин" onClick={props.onRematch}>
+              Play again
+            </Button>
           </div>
         )}
       </div>

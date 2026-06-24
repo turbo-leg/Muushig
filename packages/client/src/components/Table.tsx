@@ -7,6 +7,7 @@ import { Trick } from './Trick';
 import { TrumpIndicator } from './TrumpIndicator';
 import { Hand } from './Hand';
 import { ActionBar } from './ActionBar';
+import { TitleBanner } from './TitleBanner';
 import { initAudio, isMuted, play as playSfx, toggleMuted } from '../audio/sound';
 
 interface Props {
@@ -27,6 +28,7 @@ export function Table({ state, sessionId, send }: Props) {
     seats.push({
       id,
       username: p?.username ?? 'Player',
+      avatarUrl: p?.avatarUrl ?? '',
       score: p?.score ?? 15,
       tricksWon: p?.tricksWon ?? 0,
       handCount: p?.hand.length ?? 0,
@@ -153,6 +155,8 @@ export function Table({ state, sessionId, send }: Props) {
 
   return (
     <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 p-3">
+      <TitleBanner />
+
       <div className="flex flex-wrap items-start justify-center gap-2">
         {opponents.map((s) => (
           <Seat key={s.id} seat={s} phase={phase} />
@@ -162,8 +166,8 @@ export function Table({ state, sessionId, send }: Props) {
       <div className="wood-surface relative flex flex-1 flex-col items-center justify-center gap-5 rounded-[28px] border-4 border-wood-dark p-5 shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_0_40px_rgba(0,0,0,0.35)]">
         {phase === 'waiting' ? (
           <div className="parchment flex max-w-xs -rotate-2 flex-col items-center gap-1 px-8 py-5 text-center">
-            <h1 className="font-hand text-6xl leading-none text-ink">Муушиг</h1>
-            <p className="font-hand text-xl text-ink-soft">cards by the fire</p>
+            <p className="font-hand text-3xl leading-tight text-ink">Pull up a stool</p>
+            <p className="font-hand text-xl text-ink-soft">ready up to deal the cards</p>
           </div>
         ) : (
           <>
