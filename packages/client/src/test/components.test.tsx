@@ -24,6 +24,7 @@ describe('Seat', () => {
   const seat: SeatVM = {
     id: 'p1',
     username: 'Golden Falcon',
+    avatarUrl: '',
     score: 15,
     tricksWon: 0,
     handCount: 5,
@@ -69,8 +70,8 @@ describe('ActionBar', () => {
   test('host start is disabled until all are ready, ready fires callback', async () => {
     const onReady = vi.fn();
     render(<ActionBar {...base} onReady={onReady} />);
-    expect(screen.getByRole('button', { name: /waiting for all ready/i })).toBeDisabled();
-    await userEvent.click(screen.getByRole('button', { name: /ready up/i }));
+    expect(screen.getByRole('button', { name: /not yet/i })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: /ready/i }));
     expect(onReady).toHaveBeenCalledOnce();
   });
 

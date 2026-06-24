@@ -6,6 +6,7 @@ export interface CardVM {
 export interface SeatVM {
   id: string;
   username: string;
+  avatarUrl: string;
   score: number;
   tricksWon: number;
   handCount: number;

@@ -100,21 +100,23 @@ body {
 /* ──────────────────────────── Carved wood buttons ──────────────────────────── */
 
 .btn-wood {
+  position: relative;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.05rem;
   font-family: var(--font-hand);
   font-weight: 700;
-  font-size: 1.15rem;
   line-height: 1;
   color: var(--color-cream);
-  min-height: 44px;
-  padding: 0.5rem 1.4rem;
+  min-height: 52px;
+  min-width: 124px;
+  padding: 0.45rem 1.5rem;
   cursor: pointer;
-  /* Organic, carved outline — never a perfect rectangle. */
+  /* Carved wooden plank — rounded ends, a touch of hand-made asymmetry. */
   border: 2px solid var(--color-wood-dark);
-  border-radius: 16px 9px 18px 10px / 10px 17px 9px 16px;
+  border-radius: 13px 11px 13px 11px / 11px 13px 11px 13px;
   background-color: var(--color-wood);
   background-image: linear-gradient(180deg, #7a5a42 0%, #5c4033 60%, #4a3328 100%);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
@@ -163,6 +165,70 @@ body {
     inset 0 -3px 6px rgba(120, 60, 10, 0.4),
     0 4px 0 #8a4e18,
     0 6px 11px rgba(0, 0, 0, 0.4);
+}
+
+/* Four nail heads pressed into the plank corners (both variants). */
+.btn-wood::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 5px 5px, rgba(0, 0, 0, 0.5) 1.5px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 5px) 5px, rgba(0, 0, 0, 0.5) 1.5px, transparent 2.4px),
+    radial-gradient(circle at 5px calc(100% - 5px), rgba(0, 0, 0, 0.5) 1.5px, transparent 2.4px),
+    radial-gradient(
+      circle at calc(100% - 5px) calc(100% - 5px),
+      rgba(0, 0, 0, 0.5) 1.5px,
+      transparent 2.4px
+    );
+}
+.btn-wood__en {
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+}
+.btn-wood__sub {
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.82;
+}
+
+/* ──────────────────────────── Placards ──────────────────────────── */
+
+/* A torn-parchment player/bot placard with a stitched inner border. */
+.placard {
+  position: relative;
+  background-color: var(--color-parchment);
+  background-image:
+    var(--tex-parchment),
+    radial-gradient(circle at 18% 12%, rgba(120, 80, 40, 0.13), transparent 55%),
+    radial-gradient(circle at 85% 92%, rgba(120, 80, 40, 0.1), transparent 52%);
+  border: 2px solid #6b4a33;
+  border-radius: 13px 9px 14px 10px / 9px 14px 9px 13px;
+  box-shadow:
+    inset 0 0 0 2px rgba(107, 74, 51, 0) /* spacer */,
+    inset 0 0 18px rgba(120, 80, 40, 0.16),
+    0 3px 7px rgba(0, 0, 0, 0.4);
+}
+/* Dashed "stitch" line just inside the edge. */
+.placard::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1.5px dashed rgba(107, 74, 51, 0.55);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Avatar slot — drop in a portrait via <img> or background-image. */
+.avatar-slot {
+  background-color: var(--color-parchment-deep);
+  background-size: cover;
+  background-position: center;
+  border: 2px solid #6b4a33;
+  border-radius: 10px 8px 10px 7px / 8px 10px 7px 10px;
+  overflow: hidden;
 }
 
 /* ──────────────────────────── Playing cards ──────────────────────────── */
