@@ -1,5 +1,6 @@
 node_modules/
 dist/
+*.tsbuildinfo
 
 # Env files — never commit secrets. .env.example is the tracked template.
 .env
