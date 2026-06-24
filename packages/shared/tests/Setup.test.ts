@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { MuushigEngine, HAND_SIZE } from '../src/engine/MuushigEngine';
+import { MuushigEngine, HAND_SIZE, STOCK_SIZE } from '../src/engine/MuushigEngine';
 import { STARTING_SCORE } from '../src/state/Player';
 import { GameState } from '../src/state/GameState';
 import { makeRng } from './helpers';
@@ -36,19 +36,21 @@ describe('initializeGame', () => {
     expect(state.currentTurn).toBe('a');
   });
 
-  test('stock holds the remaining cards (exactly 6 with five players)', () => {
-    const five = new GameState();
-    MuushigEngine.initializeGame(five, ['a', 'b', 'c', 'd', 'e'], makeRng(3));
-    expect(five.stock).toHaveLength(6); // 32 - 25 dealt - 1 trump
-
-    const three = new GameState();
-    MuushigEngine.initializeGame(three, ['a', 'b', 'c'], makeRng(3));
-    expect(three.stock).toHaveLength(32 - 3 * HAND_SIZE - 1);
+  test('stock is always exactly 6 cards, regardless of player count', () => {
+    for (const ids of [
+      ['a', 'b'],
+      ['a', 'b', 'c'],
+      ['a', 'b', 'c', 'd', 'e'],
+    ]) {
+      const state = new GameState();
+      MuushigEngine.initializeGame(state, ids, makeRng(3));
+      expect(state.stock).toHaveLength(STOCK_SIZE);
+    }
   });
 
-  test('every dealt + trump + stock card is unique (conservation)', () => {
+  test('dealt + trump + stock cards are all distinct (no card appears twice)', () => {
     const state = new GameState();
-    MuushigEngine.initializeGame(state, ['a', 'b', 'c', 'd', 'e'], makeRng(123));
+    MuushigEngine.initializeGame(state, ['a', 'b', 'c'], makeRng(123));
 
     const keys: string[] = [];
     for (const id of state.seatOrder) {
@@ -57,8 +59,9 @@ describe('initializeGame', () => {
     keys.push(state.trumpCard.key);
     for (const card of state.stock) keys.push(card.key);
 
-    expect(keys).toHaveLength(32);
-    expect(new Set(keys).size).toBe(32);
+    // 3 players: 15 dealt + 1 trump + 6 stock = 22 cards in play, all unique.
+    expect(keys).toHaveLength(3 * HAND_SIZE + 1 + STOCK_SIZE);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   test('dealRound preserves cumulative scores across rounds', () => {

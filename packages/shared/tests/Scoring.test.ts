@@ -57,6 +57,22 @@ describe('scoreRound()', () => {
     expect(MuushigEngine.isGameOver(state)).toBe(true);
   });
 
+  test('when several players cross zero, the lowest score wins (winners ordered best-first)', () => {
+    const state = roundState();
+    state.players.get('a')!.score = 2;
+    state.players.get('a')!.tricksWon = 3; // 2 - 3 = -1
+    state.players.get('b')!.score = 4;
+    state.players.get('b')!.tricksWon = 5; // 4 - 5 = -1
+    state.players.get('cc')!.score = 1;
+    state.players.get('cc')!.tricksWon = 5; // 1 - 5 = -4 (lowest → winner)
+
+    const { winners } = MuushigEngine.scoreRound(state);
+
+    expect(winners[0]).toBe('cc'); // most negative wins the tie
+    expect([...state.winners][0]).toBe('cc');
+    expect(state.phase).toBe('finished');
+  });
+
   test('no winner leaves the game unfinished', () => {
     const state = roundState();
     state.players.get('a')!.tricksWon = 1;
