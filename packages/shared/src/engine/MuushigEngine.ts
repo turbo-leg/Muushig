@@ -5,6 +5,8 @@ import { GameState } from '../state/GameState';
 
 /** Cards dealt to each player. */
 export const HAND_SIZE = 5;
+/** Face-down cards available to draw from during the swap phase (the "tal"). */
+export const STOCK_SIZE = 6;
 /** Maximum cards a player may exchange during the swap phase. */
 export const MAX_SWAP = 5;
 /** Penalty added to a player's score for taking zero tricks in a round. */
@@ -114,9 +116,10 @@ export class MuushigEngine {
     state.trumpCard = trump;
     state.trumpSuit = trump.suit;
 
-    // Remainder is the face-down stock.
+    // Exactly STOCK_SIZE cards form the face-down stock; any further undealt
+    // cards are set aside (out of play) for the round.
     state.stock.splice(0, state.stock.length);
-    state.stock.push(...deck);
+    state.stock.push(...deck.slice(deck.length - STOCK_SIZE));
 
     // Reset trick/turn bookkeeping.
     state.currentTrick.splice(0, state.currentTrick.length);
@@ -228,9 +231,13 @@ export class MuushigEngine {
   }
 
   /**
-   * Legal cards a player may play. If the player holds any card that would beat
-   * the current best card, they MUST play one of those; otherwise any card is
-   * legal. The leader (empty trick) may play anything.
+   * Legal cards a player may play, following Muushig's strict order:
+   *  1. If you hold the led suit, you MUST play it — and if you hold a led-suit
+   *     card higher than the highest led-suit card on the table, you must play a
+   *     higher one. (You may not trump while holding the led suit.)
+   *  2. Otherwise, if you hold a trump, you MUST play a trump.
+   *  3. Otherwise you may play (slough) anything.
+   * The leader (empty trick) may play anything.
    */
   static legalMoves(
     hand: Card[],
@@ -239,9 +246,20 @@ export class MuushigEngine {
     trumpSuit: string,
   ): Card[] {
     if (currentTrick.length === 0) return [...hand];
-    const best = MuushigEngine.currentBestCard(currentTrick, ledSuit, trumpSuit)!;
-    const beating = hand.filter((c) => MuushigEngine.beats(c, best, ledSuit, trumpSuit));
-    return beating.length > 0 ? beating : [...hand];
+
+    const ledCards = hand.filter((c) => c.suit === ledSuit);
+    if (ledCards.length > 0) {
+      const highestLedOnTable = Math.max(
+        ...currentTrick.filter((p) => p.card.suit === ledSuit).map((p) => p.card.rank),
+      );
+      const higher = ledCards.filter((c) => c.rank > highestLedOnTable);
+      return higher.length > 0 ? higher : ledCards;
+    }
+
+    const trumps = hand.filter((c) => c.suit === trumpSuit);
+    if (trumps.length > 0) return trumps;
+
+    return [...hand];
   }
 
   /** The currently-winning card among the cards played so far in the trick. */
@@ -352,14 +370,10 @@ export class MuushigEngine {
 
   /**
    * Applies end-of-round scoring: each player lowers their score by the number
-   * of tricks they won; a player who took no tricks gains the shut-out penalty.
-   * Resigned players are unaffected. Players reaching 0 or below are recorded as
-   * winners and the game is marked finished.
-   *
-   * NOTE: the source rules' description of resign scoring is contradictory (it
-   * says resigning "reduces your points by the number of tricks you'd taken").
-   * Pending clarification from a native player, a resigned player's score is
-   * left unchanged. See GAME_RULES.md.
+   * of tricks they won; a player who stayed but took no tricks gains the
+   * shut-out penalty. A resigned player's score is unchanged. Players reaching 0
+   * or below win; if several cross in the same round, the lowest (most negative)
+   * score wins, so `winners` is ordered best-first.
    */
   static scoreRound(state: GameState): RoundScore {
     const deltas: Record<string, number> = {};
@@ -376,15 +390,17 @@ export class MuushigEngine {
       deltas[id] = delta;
     }
 
-    const winners: string[] = [];
-    for (const id of state.seatOrder) {
-      if (state.players.get(id)!.score <= 0) {
-        winners.push(id);
-        if (!state.winners.includes(id)) state.winners.push(id);
-      }
-    }
+    // Winners ordered by score ascending (lowest negative wins ties).
+    const winners = state.seatOrder
+      .filter((id) => state.players.get(id)!.score <= 0)
+      .slice()
+      .sort((a, b) => state.players.get(a)!.score - state.players.get(b)!.score);
 
-    if (winners.length > 0) state.phase = 'finished';
+    if (winners.length > 0) {
+      state.winners.splice(0, state.winners.length);
+      state.winners.push(...winners);
+      state.phase = 'finished';
+    }
     return { deltas, winners };
   }
 

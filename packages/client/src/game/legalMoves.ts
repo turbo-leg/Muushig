@@ -39,7 +39,12 @@ export function currentBest(
   return best;
 }
 
-/** Cards the player may legally play right now (empty trick ⇒ anything). */
+/**
+ * Cards the player may legally play right now (empty trick ⇒ anything), in
+ * strict Muushig order: follow the led suit and over-beat the highest led card
+ * if able; else you must trump; else slough anything. Mirrors
+ * MuushigEngine.legalMoves — the server remains authoritative.
+ */
 export function legalMoves(
   hand: CardLike[],
   trick: PlayLike[],
@@ -47,9 +52,20 @@ export function legalMoves(
   trumpSuit: string,
 ): CardLike[] {
   if (trick.length === 0) return [...hand];
-  const best = currentBest(trick, ledSuit, trumpSuit)!;
-  const beating = hand.filter((c) => beats(c, best, ledSuit, trumpSuit));
-  return beating.length > 0 ? beating : [...hand];
+
+  const ledCards = hand.filter((c) => c.suit === ledSuit);
+  if (ledCards.length > 0) {
+    const highestLedOnTable = Math.max(
+      ...trick.filter((p) => p.card.suit === ledSuit).map((p) => p.card.rank),
+    );
+    const higher = ledCards.filter((c) => c.rank > highestLedOnTable);
+    return higher.length > 0 ? higher : ledCards;
+  }
+
+  const trumps = hand.filter((c) => c.suit === trumpSuit);
+  if (trumps.length > 0) return trumps;
+
+  return [...hand];
 }
 
 export function cardKey(c: CardLike): string {

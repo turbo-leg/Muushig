@@ -1,14 +1,14 @@
 # Muushig (Муушиг) — Rules
 
-Muushig is a Mongolian trick-taking card game for **2–5 players**, at its best
-with five. This document describes the rules as implemented by
-`@muushig/shared`, and explicitly calls out the assumptions and open questions
-where the source rules are ambiguous.
+Muushig is a fast-paced Mongolian trick-taking game for **2–5 players**. Unlike
+most card games the goal is inverted: you start with a **penalty score of 15**
+and race to bring it down to **exactly zero (or below)**. This document
+describes the authoritative ruleset as implemented by `@muushig/shared`.
 
 ## Deck
 
-A 32-card deck: ranks **7, 8, 9, 10, Jack, Queen, King, Ace** in each of the four
-suits (♠ ♥ ♦ ♣). Within a suit, rank order from low to high is:
+A stripped **32-card** deck — ranks **7, 8, 9, 10, J, Q, K, A** in each of the
+four suits (2–6 removed). Rank order, low → high:
 
 ```
 7 < 8 < 9 < 10 < J < Q < K < A
@@ -16,63 +16,61 @@ suits (♠ ♥ ♦ ♣). Within a suit, rank order from low to high is:
 
 ## Setup
 
-1. Each player is dealt **5 cards**.
-2. One card is turned face up — the **trump card**. Its suit is the **trump
-   suit** for the round.
-3. The remaining cards form the **stock**.
+1. Each player is dealt **5 cards**, one at a time.
+2. The next card is flipped **face-up**; its suit is the **trump suit** (beats
+   all other suits) for the round.
+3. Exactly **6 cards** form the face-down **stock** (the _tal_). Any remaining
+   undealt cards are **set aside** (out of play for the round).
+4. Every player starts the game at **15 points**.
 
-With 5 players the deal works out exactly: 5×5 = 25 dealt + 1 trump + 6 stock = 32. With fewer players the stock is correspondingly larger
-(`stock = 32 − players×5 − 1`).
+## Strategy phase — stay or resign
 
-## The swap
+Before any card is played, each player decides whether to **stay** or **resign**
+(in clockwise order from the dealer's left):
 
-After the deal, each player may replace **up to 5** of their cards with cards
-from the stock. If the stock runs out, the remaining players keep their
-originally dealt cards.
-
-> **Assumption:** the turned-up trump card itself is _not_ part of the
-> swappable stock in this implementation; only the face-down stock is drawn
-> from. (Tracked as an open question — see issues.)
+- **Resign:** you sit the round out. Your score is **unchanged** — this protects
+  a weak hand from the shut-out penalty, but forfeits the chance to score.
+- **Stay → the draw:** a one-time option to discard any number of your cards (up
+  to all 5) and draw replacements from the 6-card stock. If the stock runs out,
+  the remaining players play with what they have. (The face-up trump card is not
+  part of the stock and cannot be drawn.)
 
 ## Playing tricks
 
-The first player **leads** a card. Going around in turn, each other player must,
-_if able_:
+The player to the dealer's left leads the first trick with any card. Going
+clockwise, each player must obey this strict order:
 
-- play a card of the **same (led) suit that is higher** than the current
-  highest card on the table, **or**
-- play a **trump**.
+1. **Follow suit.** If you hold the led suit, you must play it — and if you hold
+   a led-suit card higher than the highest led-suit card on the table, you must
+   play a higher one. You may **not** trump while holding the led suit.
+2. **Trump.** If you have no card of the led suit, you must play a trump if you
+   have one.
+3. **Slough.** If you have neither the led suit nor a trump, play anything (it
+   cannot win the trick).
 
-Only if a player has no such card may they play anything else. The player who
-played the **highest card wins the trick** (trump beats led suit; led suit beats
-off-suit; ties broken by rank), and leads the next trick.
-
-The engine enforces this as: _if you hold any card that would currently beat the
-winning card, you are required to play one of them._
+The **highest trump wins**; if no trump was played, the **highest card of the
+led suit wins**. The winner collects the trick and leads the next one. A round
+is 5 tricks.
 
 ## Scoring
 
-- Everyone starts at **15 points**.
-- The first player to reduce their score to **0 (or below)** wins.
-- You **lower your score by 1 for each trick you win**.
-- **Shut-out penalty:** a player who takes **zero tricks** in a round gains
+At the end of the round each player's score changes:
+
+- **−1 point per trick won.**
+- **Resigned:** score unchanged.
+- **Shut-out penalty:** a player who **stayed but won zero tricks** gains
   **+5 points**.
-- **Resigning:** if you expect to be shut out, you may **resign before the round
-  begins** to avoid the +5 penalty. A resigned player sits the round out and
-  plays no cards.
 
-> **Open question (documented in code):** the source description says resigning
-> "reduces your points by the number of tricks you'd taken," which is
-> contradictory for a player who resigns and therefore takes no tricks. The
-> current implementation treats a resigned player as: no shut-out penalty, no
-> score change. This is flagged for clarification with a native Muushig player
-> before finalizing. See `MuushigEngine.scoreRound`.
+## Winning
 
-## Assumptions summary
+The first player to reduce their score from 15 down to **0 or below** wins. If
+multiple players cross zero in the same round, the player with the **lowest
+(most negative) score** wins — so the engine reports winners ordered best-first.
 
-| Area            | Assumption                                                 | Status                        |
-| --------------- | ---------------------------------------------------------- | ----------------------------- |
-| First leader    | `seatOrder[0]` leads the first trick                       | to confirm                    |
-| Swap source     | only face-down stock is swappable, not the turned-up trump | to confirm                    |
-| Resign scoring  | no penalty, no reduction                                   | **needs native-player input** |
-| Trick reduction | −1 per trick won                                           | to confirm                    |
+## Implementation notes
+
+- Seat order is fixed for now; `seatOrder[0]` leads the opening trick (treated as
+  the player to the dealer's left). Rotating the dealer between games is a
+  possible future refinement.
+- The engine is pure and deterministic (injectable RNG); the Colyseus server is
+  authoritative and the client mirrors only the legal-move rule for UI hinting.

@@ -110,6 +110,39 @@ describe('legalMoves()', () => {
     expect(legal.map((card) => card.key)).toEqual(['Spades:7']);
   });
 
+  test('must follow suit even when it cannot win — may NOT trump while holding the led suit', () => {
+    const state = buildPlayingState(
+      { a: [c(Suit.Hearts, Rank.King)], b: [c(Suit.Hearts, Rank.Seven), c(Suit.Spades, Rank.Ace)] },
+      TRUMP, // Spades is trump; b holds the Ace of trumps but also a Heart
+    );
+    MuushigEngine.playCard(state, 'a', c(Suit.Hearts, Rank.King));
+
+    const legal = MuushigEngine.legalMoves(
+      [...state.players.get('b')!.hand] as Card[],
+      [...state.currentTrick] as TrickPlay[],
+      state.ledSuit,
+      TRUMP,
+    );
+    // Must follow the led Heart, cannot play the trump Ace.
+    expect(legal.map((card) => card.key)).toEqual(['Hearts:7']);
+  });
+
+  test('among led-suit cards, must play one higher than the highest led card on the table', () => {
+    const state = buildPlayingState(
+      { a: [c(Suit.Hearts, Rank.King)], b: [c(Suit.Hearts, Rank.Eight), c(Suit.Hearts, Rank.Ace)] },
+      TRUMP,
+    );
+    MuushigEngine.playCard(state, 'a', c(Suit.Hearts, Rank.King));
+
+    const legal = MuushigEngine.legalMoves(
+      [...state.players.get('b')!.hand] as Card[],
+      [...state.currentTrick] as TrickPlay[],
+      state.ledSuit,
+      TRUMP,
+    );
+    expect(legal.map((card) => card.key)).toEqual(['Hearts:14']); // Ace beats King; the 8 cannot
+  });
+
   test('a follower who cannot beat may play any card', () => {
     const state = buildPlayingState(
       {

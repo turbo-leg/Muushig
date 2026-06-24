@@ -35,6 +35,12 @@ describe('legalMoves()', () => {
     expect(legalMoves(hand, trick, 'Hearts', TRUMP).map(cardKey)).toEqual(['Spades:7']);
   });
 
+  test('must follow suit and may NOT trump while holding the led suit', () => {
+    const hand = [c('Hearts', 7), c('Spades', 14)]; // holds led Heart + trump Ace
+    const trick = [{ card: c('Hearts', 13) }];
+    expect(legalMoves(hand, trick, 'Hearts', TRUMP).map(cardKey)).toEqual(['Hearts:7']);
+  });
+
   test('may play anything when unable to beat', () => {
     const hand = [c('Diamonds', 8), c('Clubs', 9)];
     const trick = [{ card: c('Hearts', 13) }];
