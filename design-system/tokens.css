@@ -1,0 +1,129 @@
+/*
+ * Muushig — "Tengri Nights" design tokens.
+ * Framework-agnostic CSS custom properties. Import once at the app root.
+ * See ART_DIRECTION.md for rationale and usage.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ── Color ──────────────────────────────────────────────── */
+  --color-night: #0a0e27;
+  --color-void: #11183a;
+  --color-void-raised: #19224d;
+
+  --color-khokh: #3aa0d6;
+  --color-khokh-soft: #6fc0e6;
+
+  --color-gold: #d4af37;
+  --color-gold-soft: #ebcb6a;
+
+  --color-aurora: #7c5cff;
+
+  --color-starlight: #e8ecf8;
+  --color-starlight-muted: #a9b2ce;
+  --color-starlight-faint: #5c6790;
+
+  --color-success: #46c28e;
+  --color-danger: #e5544b;
+
+  /* Semantic aliases */
+  --bg-app: var(--color-night);
+  --bg-surface: var(--color-void);
+  --bg-raised: var(--color-void-raised);
+  --text-primary: var(--color-starlight);
+  --text-secondary: var(--color-starlight-muted);
+  --text-disabled: var(--color-starlight-faint);
+  --accent-primary: var(--color-gold); /* CTA / trump / winner */
+  --accent-secondary: var(--color-khokh); /* focus / info */
+  --border-hairline: rgba(92, 103, 144, 0.45); /* starlight-faint @ 45% */
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Manrope', system-ui, -apple-system, sans-serif;
+
+  --text-display: 3.05rem;
+  --text-h1: 2.44rem;
+  --text-h2: 1.95rem;
+  --text-h3: 1.56rem;
+  --text-body: 1rem;
+  --text-small: 0.8rem;
+
+  --leading-tight: 1.15;
+  --leading-body: 1.6;
+
+  /* ── Spacing (4px ramp) ─────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Radius ─────────────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-card: 14px;
+  --radius-lg: 20px;
+
+  /* ── Elevation & glow ───────────────────────────────────── */
+  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --glow-gold: 0 0 24px rgba(212, 175, 55, 0.35);
+  --glow-khokh: 0 0 24px rgba(58, 160, 214, 0.35);
+  --card-inner-glow: inset 0 0 24px rgba(212, 175, 55, 0.08);
+
+  /* ── Z-index scale ──────────────────────────────────────── */
+  --z-bg: 0;
+  --z-table: 10;
+  --z-cards: 20;
+  --z-active: 25;
+  --z-toast: 40;
+  --z-modal: 50;
+  --z-reveal: 60;
+
+  /* ── Motion ─────────────────────────────────────────────── */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1); /* ease-out */
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0); /* ease-in */
+  --dur-press: 120ms;
+  --dur-play: 260ms;
+  --dur-gather: 320ms;
+  --dur-reveal: 700ms;
+
+  color-scheme: dark;
+}
+
+/* Base */
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display);
+  line-height: var(--leading-tight);
+}
+
+/* Tabular numerals for scores / timers */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Disable all ambient + signature motion when requested */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
