@@ -44,6 +44,12 @@ See [GAME_RULES.md](./GAME_RULES.md) for the full ruleset and the assumptions /
 open questions baked into the engine. Architecture notes are in
 [ARCHITECTURE.md](./ARCHITECTURE.md).
 
+## Design
+
+The client's visual system — **"Tengri Nights" (Eternal Blue Sky)** — is
+documented in [design-system/](./design-system/), with ready-to-use CSS and
+Tailwind tokens.
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md). Work is issue-driven: one branch per
