@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/*
+ * Muushig "Tengri Nights" theme.
+ * Tailwind v4 reads these @theme tokens to generate utilities
+ * (bg-night, text-gold, font-display, rounded-card, shadow-glow-gold, ...).
+ * Source of truth: /design-system/ART_DIRECTION.md
+ */
+@theme {
+  --color-night: #0a0e27;
+  --color-void: #11183a;
+  --color-void-raised: #19224d;
+
+  --color-khokh: #3aa0d6;
+  --color-khokh-soft: #6fc0e6;
+
+  --color-gold: #d4af37;
+  --color-gold-soft: #ebcb6a;
+
+  --color-aurora: #7c5cff;
+
+  --color-starlight: #e8ecf8;
+  --color-starlight-muted: #a9b2ce;
+  --color-starlight-faint: #5c6790;
+
+  --color-success: #46c28e;
+  --color-danger: #e5544b;
+
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+
+  --radius-card: 14px;
+
+  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --shadow-glow-gold: 0 0 24px rgba(212, 175, 55, 0.35);
+  --shadow-glow-khokh: 0 0 24px rgba(58, 160, 214, 0.35);
+
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-night);
+  color: var(--color-starlight);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Disable ambient + signature motion when the user prefers reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
