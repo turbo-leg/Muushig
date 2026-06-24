@@ -7,7 +7,6 @@ import { Trick } from './Trick';
 import { TrumpIndicator } from './TrumpIndicator';
 import { Hand } from './Hand';
 import { ActionBar } from './ActionBar';
-import { SoyomboMark } from './SoyomboMark';
 import { initAudio, isMuted, play as playSfx, toggleMuted } from '../audio/sound';
 
 interface Props {
@@ -160,14 +159,11 @@ export function Table({ state, sessionId, send }: Props) {
         ))}
       </div>
 
-      <div className="relative flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-starlight-faint/30 bg-void/50 p-4 shadow-panel">
+      <div className="wood-surface relative flex flex-1 flex-col items-center justify-center gap-5 rounded-[28px] border-4 border-wood-dark p-5 shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_0_40px_rgba(0,0,0,0.35)]">
         {phase === 'waiting' ? (
-          <div className="flex flex-col items-center gap-2 text-center">
-            <SoyomboMark className="w-10" />
-            <h1 className="font-display text-display leading-none text-starlight">Муушиг</h1>
-            <p className="font-body text-small uppercase tracking-[0.2em] text-starlight-muted">
-              Eternal Blue Sky
-            </p>
+          <div className="parchment flex max-w-xs -rotate-2 flex-col items-center gap-1 px-8 py-5 text-center">
+            <h1 className="font-hand text-6xl leading-none text-ink">Муушиг</h1>
+            <p className="font-hand text-xl text-ink-soft">cards by the fire</p>
           </div>
         ) : (
           <>

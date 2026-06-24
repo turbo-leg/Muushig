@@ -18,13 +18,15 @@ export default function App() {
       <Background />
       {status === 'connecting' && (
         <Centered>
-          <p className="text-center font-body text-starlight-muted">Connecting to the steppe…</p>
+          <p className="text-center font-hand text-2xl text-cream/80">Settling in by the fire…</p>
         </Centered>
       )}
 
       {status === 'error' && (
         <Centered>
-          <p className="text-center font-body text-danger">{error ?? 'Connection failed'}</p>
+          <p className="text-center font-hand text-2xl text-danger">
+            {error ?? 'Connection failed'}
+          </p>
         </Centered>
       )}
 
