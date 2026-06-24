@@ -14,6 +14,7 @@ consistent line weight and palette (parchment `#F5E6D3`, wood `#5C4033`, amber
 ## 1. Must-have (this is 90% of the look)
 
 ### A. The ger interior background — 1 image
+
 The central scene: yurt walls (khana lattice), the wood stove with fire glow,
 kettle, oil lamp, folded bedding, warm light.
 
@@ -23,6 +24,7 @@ kettle, oil lamp, folded bedding, warm light.
   Keep the center/table area relatively uncluttered — live cards render on top.
 
 ### B. Card faces — 32 images + 1 back
+
 Ranks **7, 8, 9, 10, J, Q, K, A** × suits **♠ ♥ ♦ ♣**. Court cards as Mongolian
 figures (archer/warrior J, lady Q, khan K), pip cards with a clear rank + suit.
 
@@ -35,6 +37,7 @@ figures (archer/warrior J, lady Q, khan K), pip cards with a clear rank + suit.
   parchment. Keep rank/suit legible in the **top-left corner** at small sizes.
 
 ### C. Avatar portraits — ~6–8 images
+
 The inked character heads in each placard (old man, woman, young warrior, …).
 
 - **Hook:** per-seat `avatarUrl` (renders into `.avatar-slot`).
@@ -48,16 +51,16 @@ The inked character heads in each placard (old man, woman, young warrior, …).
 
 ## 2. Nice-to-have (polish — CSS placeholders already approximate these)
 
-| Asset | Hook | File | Spec |
-| --- | --- | --- | --- |
-| **Title logo** "МУУШИГ" (hand-lettered) | swap the `<TitleBanner>` text for an `<img>` | `/assets/title.webp` | ~1000×240, PNG transparent |
-| **Ulzii endless-knot** ornament | replace `UlziiKnot` SVG | `/assets/knot.webp` | ~400×80, PNG transparent (mirror for right side) |
-| **Card back pattern** | `--card-back` | `/assets/cards/back.webp` | 500×700 PNG (listed above) |
-| **Wood plank button** (with grain + nails) | `--tex-wood-btn` (I'll add) on `.btn-wood` | `/assets/plank.webp` + `plank-amber.webp` | ~280×104, PNG, 9-slice-safe edges |
-| **Placard frame** (torn leather + stitching) | background-image on `.placard` | `/assets/placard.webp` | ~340×120, PNG transparent center, 9-slice |
-| **Page paper texture** (aged border behind everything) | `--tex-parchment` / body bg | `/assets/paper.webp` | 2048×2048, tileable, WebP |
-| **Decorative hands** holding cards (L/R) | new optional overlay imgs | `/assets/hand-left.webp`, `hand-right.webp` | ~700×900, PNG transparent |
-| **Draw-pile leather slot** (empty stock) | optional frame near center | `/assets/stock-slot.webp` | ~220×150, PNG transparent |
+| Asset                                                  | Hook                                         | File                                        | Spec                                             |
+| ------------------------------------------------------ | -------------------------------------------- | ------------------------------------------- | ------------------------------------------------ |
+| **Title logo** "МУУШИГ" (hand-lettered)                | swap the `<TitleBanner>` text for an `<img>` | `/assets/title.webp`                        | ~1000×240, PNG transparent                       |
+| **Ulzii endless-knot** ornament                        | replace `UlziiKnot` SVG                      | `/assets/knot.webp`                         | ~400×80, PNG transparent (mirror for right side) |
+| **Card back pattern**                                  | `--card-back`                                | `/assets/cards/back.webp`                   | 500×700 PNG (listed above)                       |
+| **Wood plank button** (with grain + nails)             | `--tex-wood-btn` (I'll add) on `.btn-wood`   | `/assets/plank.webp` + `plank-amber.webp`   | ~280×104, PNG, 9-slice-safe edges                |
+| **Placard frame** (torn leather + stitching)           | background-image on `.placard`               | `/assets/placard.webp`                      | ~340×120, PNG transparent center, 9-slice        |
+| **Page paper texture** (aged border behind everything) | `--tex-parchment` / body bg                  | `/assets/paper.webp`                        | 2048×2048, tileable, WebP                        |
+| **Decorative hands** holding cards (L/R)               | new optional overlay imgs                    | `/assets/hand-left.webp`, `hand-right.webp` | ~700×900, PNG transparent                        |
+| **Draw-pile leather slot** (empty stock)               | optional frame near center                   | `/assets/stock-slot.webp`                   | ~220×150, PNG transparent                        |
 
 ---
 
@@ -79,7 +82,7 @@ Same for avatars: a small pool (`bot-1…bot-N`) assigned round-robin to bots.
 - Keep a consistent **5:7** card ratio and a consistent margin so faces line up.
 - One shared paper/ink texture across cards + placards reads as a cohesive set.
 
-> Layout note: matching the reference *exactly* also means the left-rail button
+> Layout note: matching the reference _exactly_ also means the left-rail button
 > column + side placards layout. The current build is responsive (buttons bottom,
 > opponents top) — say the word and I'll add the fixed left-rail landscape layout
 > to mirror the reference 1:1 on wide screens.
