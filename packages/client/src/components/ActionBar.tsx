@@ -30,7 +30,7 @@ function MuteButton({ muted, onClick }: { muted: boolean; onClick: () => void })
       type="button"
       onClick={onClick}
       aria-label={muted ? 'Unmute sound' : 'Mute sound'}
-      className="grid h-11 w-11 cursor-pointer place-items-center rounded-md text-starlight-muted transition-colors duration-200 hover:bg-void-raised hover:text-starlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-khokh"
+      className="grid h-11 w-11 cursor-pointer place-items-center rounded-full text-cream/80 transition-colors duration-200 hover:bg-wood-light/40 hover:text-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
     >
       <svg
         viewBox="0 0 24 24"
@@ -70,29 +70,25 @@ export function ActionBar(props: Props) {
             {isHost ? (
               <Button onClick={props.onStart} disabled={!canStart}>
                 {canStart
-                  ? 'Start game'
+                  ? 'Deal the cards'
                   : needPlayers
                     ? 'Need 2+ players'
                     : 'Waiting for all ready'}
               </Button>
             ) : (
-              <span className="font-body text-small text-starlight-muted">
-                Waiting for the host to start…
-              </span>
+              <span className="font-hand text-lg text-cream/80">Waiting for the host to deal…</span>
             )}
           </>
         )}
 
         {phase === 'decision' &&
           (props.meDecided ? (
-            <span className="font-body text-small text-starlight-muted">
-              Waiting for other players to decide…
-            </span>
+            <span className="font-hand text-lg text-cream/80">Waiting for others to decide…</span>
           ) : (
             <>
-              <Button onClick={props.onStay}>Stay & play</Button>
+              <Button onClick={props.onStay}>Stay &amp; play</Button>
               <Button variant="secondary" onClick={props.onResign}>
-                Resign
+                Fold
               </Button>
             </>
           ))}
@@ -101,32 +97,28 @@ export function ActionBar(props: Props) {
           (canSwap ? (
             <>
               <Button onClick={props.onSwap} disabled={props.selectedCount === 0}>
-                {props.selectedCount > 0 ? `Swap ${props.selectedCount}` : 'Select cards to swap'}
+                {props.selectedCount > 0 ? `Swap ${props.selectedCount}` : 'Pick cards to swap'}
               </Button>
               <Button variant="secondary" onClick={props.onKeep}>
                 Keep cards
               </Button>
             </>
           ) : (
-            <span className="font-body text-small text-starlight-muted">
-              Waiting for other players to swap…
-            </span>
+            <span className="font-hand text-lg text-cream/80">Waiting for others to swap…</span>
           ))}
 
         {phase === 'playing' && (
-          <span
-            className={`font-body text-small ${isMyTurn ? 'font-semibold text-gold' : 'text-starlight-muted'}`}
-          >
-            {isMyTurn ? 'Your turn — play a card' : 'Waiting for the current player…'}
+          <span className={`font-hand text-lg ${isMyTurn ? 'text-amber' : 'text-cream/80'}`}>
+            {isMyTurn ? 'Your turn — throw a card' : 'Waiting for the current player…'}
           </span>
         )}
 
         {phase === 'finished' && (
           <div className="flex flex-col items-center gap-2">
-            <span className="font-display text-h3 text-gold">
+            <span className="font-hand text-3xl text-amber">
               {props.isWinner ? 'You win!' : `${props.winnerNames.join(', ') || 'Someone'} wins`}
             </span>
-            <Button onClick={props.onRematch}>Rematch</Button>
+            <Button onClick={props.onRematch}>Play again</Button>
           </div>
         )}
       </div>

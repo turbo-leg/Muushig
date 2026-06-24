@@ -1,43 +1,45 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Kalam:wght@400;700&display=swap');
 @import 'tailwindcss';
 
 /*
- * Muushig "Tengri Nights" theme.
- * Tailwind v4 reads these @theme tokens to generate utilities
- * (bg-night, text-gold, font-display, rounded-card, shadow-glow-gold, ...).
- * Source of truth: /design-system/ART_DIRECTION.md
+ * Muushig — "Cozy Hand-Drawn Tavern" theme.
+ * Warm parchment + wood + amber, handwriting type. Tailwind v4 reads these
+ * @theme tokens to generate utilities (bg-wood, text-ink, text-amber, ...).
+ *
+ * ── Swapping in real art ──
+ * Every texture is a CSS variable with a hand-built gradient fallback. To use
+ * your watercolor / wood-grain images later, just set the variable to a url():
+ *   :root        { --tex-wood: url('/assets/table.jpg'); }
+ *   .room        { --tex-room: url('/assets/tavern.jpg'); }
+ *   <PlayingCard art="/assets/cards/AS.png" />   (sets --card-art per card)
+ * No markup changes are needed.
  */
 @theme {
-  --color-night: #0a0e27;
-  --color-void: #11183a;
-  --color-void-raised: #19224d;
+  --color-parchment: #f5e6d3;
+  --color-parchment-deep: #e7d2b3;
+  --color-wood: #5c4033;
+  --color-wood-dark: #3e2a20;
+  --color-wood-light: #7a5a42;
+  --color-amber: #d98e04;
+  --color-amber-deep: #a8631f;
+  --color-ember: #f2a65a;
+  --color-ink: #3a2a1e;
+  --color-ink-soft: #6b4f3a;
+  --color-cream: #f5e6d3;
+  --color-success: #5c7a4a;
+  --color-danger: #a33b2a;
 
-  --color-khokh: #3aa0d6;
-  --color-khokh-soft: #6fc0e6;
+  --font-hand: 'Caveat', 'Kalam', cursive;
+  --font-body: 'Caveat', 'Kalam', cursive;
+}
 
-  --color-gold: #d4af37;
-  --color-gold-soft: #ebcb6a;
-
-  --color-aurora: #7c5cff;
-
-  --color-starlight: #e8ecf8;
-  --color-starlight-muted: #a9b2ce;
-  --color-starlight-faint: #5c6790;
-
-  --color-success: #46c28e;
-  --color-danger: #e5544b;
-
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-body: 'Manrope', system-ui, sans-serif;
-
-  --radius-card: 14px;
-
-  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.55);
-  --shadow-glow-gold: 0 0 24px rgba(212, 175, 55, 0.35);
-  --shadow-glow-khokh: 0 0 24px rgba(58, 160, 214, 0.35);
-
-  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+:root {
+  /* Override these with url(...) to drop in real art. */
+  --tex-room: none;
+  --tex-wood: none;
+  --tex-parchment: none;
+  --card-art: none;
+  --card-back: none;
 }
 
 html,
@@ -48,9 +50,10 @@ body,
 
 body {
   margin: 0;
-  background-color: var(--color-night);
-  color: var(--color-starlight);
+  background-color: var(--color-wood-dark);
+  color: var(--color-ink);
   font-family: var(--font-body);
+  font-size: 18px; /* handwriting reads small — bump the base */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -58,7 +61,187 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Tengri motion ── (durations neutralized by reduced-motion below) */
+/* ──────────────────────────── Surfaces ──────────────────────────── */
+
+/* The tavern room backdrop (dark wood + hearth glow). */
+.room {
+  background-color: var(--color-wood-dark);
+  background-image:
+    var(--tex-room), radial-gradient(70% 55% at 50% 8%, rgba(242, 166, 90, 0.28), transparent 70%),
+    radial-gradient(120% 120% at 50% 120%, rgba(0, 0, 0, 0.55), transparent 60%);
+  background-size: cover;
+}
+
+/* A planked wooden surface (the table). */
+.wood-surface {
+  background-color: var(--color-wood);
+  background-image:
+    var(--tex-wood),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 16px),
+    radial-gradient(circle at 30% 20%, rgba(0, 0, 0, 0.16), transparent 65%);
+  background-size: cover, auto, auto, cover;
+}
+
+/* Aged parchment (panels, seat placards, card faces). */
+.parchment {
+  background-color: var(--color-parchment);
+  background-image:
+    var(--tex-parchment),
+    radial-gradient(circle at 18% 12%, rgba(120, 80, 40, 0.12), transparent 55%),
+    radial-gradient(circle at 85% 92%, rgba(120, 80, 40, 0.1), transparent 52%);
+  box-shadow:
+    inset 0 0 22px rgba(120, 80, 40, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  /* Slightly irregular, torn-edge feel. */
+  border-radius: 14px 10px 16px 9px / 10px 16px 9px 14px;
+}
+
+/* ──────────────────────────── Carved wood buttons ──────────────────────────── */
+
+.btn-wood {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-family: var(--font-hand);
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--color-cream);
+  min-height: 44px;
+  padding: 0.5rem 1.4rem;
+  cursor: pointer;
+  /* Organic, carved outline — never a perfect rectangle. */
+  border: 2px solid var(--color-wood-dark);
+  border-radius: 16px 9px 18px 10px / 10px 17px 9px 16px;
+  background-color: var(--color-wood);
+  background-image: linear-gradient(180deg, #7a5a42 0%, #5c4033 60%, #4a3328 100%);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  /* Chunky carved depth: inset highlight + a solid bottom edge + cast shadow. */
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.35),
+    0 4px 0 var(--color-wood-dark),
+    0 6px 11px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    filter 120ms ease;
+}
+.btn-wood:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+.btn-wood:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.4),
+    0 1px 0 var(--color-wood-dark),
+    0 2px 5px rgba(0, 0, 0, 0.4);
+}
+.btn-wood:focus-visible {
+  outline: 3px solid var(--color-amber);
+  outline-offset: 2px;
+}
+.btn-wood:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.55) brightness(0.82);
+  box-shadow:
+    inset 0 -2px 5px rgba(0, 0, 0, 0.3),
+    0 3px 0 var(--color-wood-dark);
+}
+
+/* Amber "branded" button (Stay / Start / Play). */
+.btn-wood--primary {
+  color: var(--color-ink);
+  border-color: #8a4e18;
+  background-image: linear-gradient(180deg, #ecb45a 0%, #d98e04 55%, #b5651d 100%);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -3px 6px rgba(120, 60, 10, 0.4),
+    0 4px 0 #8a4e18,
+    0 6px 11px rgba(0, 0, 0, 0.4);
+}
+
+/* ──────────────────────────── Playing cards ──────────────────────────── */
+
+.playing-card {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: 5 / 7;
+  border-radius: 11px 7px 12px 8px / 8px 12px 7px 11px;
+  background-color: var(--color-parchment);
+  background-image: var(--card-art);
+  background-size: cover;
+  background-position: center;
+  border: 1.5px solid #8a6a4a;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.35),
+    inset 0 0 18px rgba(120, 80, 40, 0.12);
+  color: var(--color-ink);
+  font-family: var(--font-hand);
+  overflow: hidden;
+}
+.playing-card--back {
+  background-color: var(--color-wood-light);
+  background-image:
+    var(--card-back), repeating-linear-gradient(45deg, #6b4a33 0 7px, #5c4033 7px 14px);
+}
+.playing-card--trump {
+  border-color: var(--color-amber);
+  box-shadow:
+    0 0 13px rgba(217, 142, 4, 0.55),
+    0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.card-index {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.85;
+  font-weight: 700;
+}
+.card-index--tl {
+  top: 7%;
+  left: 9%;
+}
+.card-index--br {
+  bottom: 7%;
+  right: 9%;
+  transform: rotate(180deg);
+}
+.card-rank {
+  font-size: 26cqw;
+}
+.card-suit {
+  font-size: 20cqw;
+}
+.card-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 52cqw;
+  opacity: 0.92;
+}
+.card-back-mark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(245, 230, 211, 0.5);
+  font-size: 40cqw;
+}
+
+/* Cards thrown onto the table get a stable, seeded tilt (set via --throw-rot). */
+.card-thrown {
+  transform: rotate(var(--throw-rot, 0deg));
+}
+
+/* ──────────────────────────── Motion ──────────────────────────── */
 @keyframes card-deal {
   from {
     opacity: 0;
@@ -72,11 +255,11 @@ body {
 @keyframes play-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.82);
+    transform: translateY(10px) scale(0.82) rotate(var(--throw-rot, 0deg));
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: rotate(var(--throw-rot, 0deg));
   }
 }
 @keyframes reveal-bloom {
@@ -94,27 +277,26 @@ body {
 @keyframes turn-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+    box-shadow: 0 0 0 0 rgba(217, 142, 4, 0);
   }
   50% {
-    box-shadow: 0 0 16px 2px rgba(212, 175, 55, 0.45);
+    box-shadow: 0 0 16px 3px rgba(217, 142, 4, 0.5);
   }
 }
 
 .anim-deal {
-  animation: card-deal 0.4s var(--ease-enter) both;
+  animation: card-deal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .anim-play-in {
-  animation: play-in 0.26s var(--ease-enter) both;
+  animation: play-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .anim-reveal {
-  animation: reveal-bloom 0.7s var(--ease-enter) both;
+  animation: reveal-bloom 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .anim-turn {
-  animation: turn-pulse 1.4s ease-in-out infinite;
+  animation: turn-pulse 1.5s ease-in-out infinite;
 }
 
-/* Disable ambient + signature motion when the user prefers reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

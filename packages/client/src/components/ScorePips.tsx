@@ -6,7 +6,7 @@ export function ScorePips({ score }: { score: number }) {
       {Array.from({ length: 15 }).map((_, i) => (
         <span
           key={i}
-          className={`h-1.5 w-1.5 rounded-full ${i < lit ? 'bg-gold' : 'bg-starlight-faint/40'}`}
+          className={`h-1.5 w-1.5 rounded-full ${i < lit ? 'bg-amber-deep' : 'bg-ink-soft/25'}`}
         />
       ))}
     </div>

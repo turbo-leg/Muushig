@@ -1,4 +1,4 @@
-import { SoyomboMark } from './SoyomboMark';
+import type { CSSProperties } from 'react';
 
 const SUIT_GLYPH: Record<string, string> = {
   Spades: '♠',
@@ -18,13 +18,9 @@ const RANK_LABEL: Record<number, string> = {
   14: 'A',
 };
 
-const STARLIGHT = '#E8ECF8';
-const KHOKH = '#6FC0E6';
-const GOLD = '#D4AF37';
-
-function suitColor(suit: string, trump: boolean): string {
-  if (trump) return GOLD;
-  return suit === 'Hearts' || suit === 'Diamonds' ? KHOKH : STARLIGHT;
+/** Brick red for hearts/diamonds, dark ink for spades/clubs — ink-on-parchment. */
+function suitColor(suit: string): string {
+  return suit === 'Hearts' || suit === 'Diamonds' ? '#A33B2A' : '#3A2A1E';
 }
 
 interface Props {
@@ -32,90 +28,62 @@ interface Props {
   rank?: number;
   faceDown?: boolean;
   trump?: boolean;
+  /** Optional card-art image URL — when set, replaces the parchment placeholder. */
+  art?: string;
   className?: string;
 }
 
 /**
- * A single card face rendered as SVG (the bundled "deck" is generated, not
- * hand-drawn in CSS). The Tengri frame/glow lives here; interactive state
- * (lift/select/disable) is layered by the Card wrapper.
+ * A single card rendered as a parchment placeholder, ready to be swapped for a
+ * hand-drawn watercolor asset: pass `art="/assets/cards/AS.png"` (or set the
+ * `--card-art` CSS variable) and the image fills the card with no markup change.
  */
-export function PlayingCard({ suit = 'Spades', rank = 7, faceDown, trump, className }: Props) {
-  const color = suitColor(suit, !!trump);
+export function PlayingCard({
+  suit = 'Spades',
+  rank = 7,
+  faceDown,
+  trump,
+  art,
+  className = '',
+}: Props) {
+  const color = suitColor(suit);
   const glyph = SUIT_GLYPH[suit] ?? '♠';
   const label = RANK_LABEL[rank] ?? '?';
+  const style = art ? ({ '--card-art': `url("${art}")` } as CSSProperties) : undefined;
+
+  const cls = [
+    'playing-card',
+    faceDown ? 'playing-card--back' : '',
+    trump ? 'playing-card--trump' : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <svg
-      viewBox="0 0 100 140"
-      className={className}
+    <div
+      className={cls}
+      style={style}
       role="img"
       aria-label={faceDown ? 'Face-down card' : `${label} of ${suit}`}
     >
-      <rect
-        x="2"
-        y="2"
-        width="96"
-        height="136"
-        rx="12"
-        fill={faceDown ? '#19224D' : '#11183A'}
-        stroke={trump ? GOLD : 'rgba(212,175,55,0.4)'}
-        strokeWidth={trump ? 2.5 : 1.5}
-      />
       {faceDown ? (
+        <span className="card-back-mark">М</span>
+      ) : art ? null : (
         <>
-          <rect
-            x="9"
-            y="9"
-            width="82"
-            height="122"
-            rx="8"
-            fill="none"
-            stroke="rgba(212,175,55,0.25)"
-            strokeWidth="1"
-          />
-          <foreignObject x="30" y="38" width="40" height="64">
-            <SoyomboMark />
-          </foreignObject>
-        </>
-      ) : (
-        <>
-          {/* top-left index */}
-          <text
-            x="12"
-            y="26"
-            fontFamily="Manrope, sans-serif"
-            fontSize="20"
-            fontWeight="700"
-            fill={color}
-          >
-            {label}
-          </text>
-          <text x="12" y="44" fontSize="18" fill={color}>
+          <span className="card-index card-index--tl" style={{ color }}>
+            <span className="card-rank">{label}</span>
+            <span className="card-suit">{glyph}</span>
+          </span>
+          <span className="card-center" style={{ color }}>
             {glyph}
-          </text>
-          {/* center glyph */}
-          <text x="50" y="86" fontSize="48" textAnchor="middle" fill={color} opacity="0.95">
-            {glyph}
-          </text>
-          {/* bottom-right index (rotated) */}
-          <g transform="rotate(180 50 70)">
-            <text
-              x="12"
-              y="26"
-              fontFamily="Manrope, sans-serif"
-              fontSize="20"
-              fontWeight="700"
-              fill={color}
-            >
-              {label}
-            </text>
-            <text x="12" y="44" fontSize="18" fill={color}>
-              {glyph}
-            </text>
-          </g>
+          </span>
+          <span className="card-index card-index--br" style={{ color }}>
+            <span className="card-rank">{label}</span>
+            <span className="card-suit">{glyph}</span>
+          </span>
         </>
       )}
-    </svg>
+    </div>
   );
 }

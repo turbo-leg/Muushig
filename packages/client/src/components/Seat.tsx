@@ -7,28 +7,29 @@ interface Props {
   phase: Phase;
 }
 
+/** A player's spot at the table — a little parchment placard. */
 export function Seat({ seat, phase }: Props) {
   return (
     <div
-      className={`flex min-w-[140px] flex-col items-center gap-1.5 rounded-lg px-3 py-2 transition-colors duration-200 ${
-        seat.isTurn ? 'anim-turn bg-void-raised' : 'bg-void/60'
-      } ${seat.hasResigned ? 'opacity-50' : ''}`}
+      className={`parchment flex min-w-[150px] flex-col items-center gap-1.5 px-3 py-2 ${
+        seat.isTurn ? 'anim-turn' : ''
+      } ${seat.hasResigned ? 'opacity-55' : ''}`}
     >
       <div className="flex items-center gap-2">
         <div
-          className={`grid h-9 w-9 place-items-center rounded-full bg-night font-display text-h3 text-gold ${
-            seat.isTurn ? 'ring-2 ring-gold' : 'ring-1 ring-starlight-faint/40'
+          className={`grid h-9 w-9 place-items-center rounded-full bg-wood font-hand text-2xl text-cream ${
+            seat.isTurn ? 'ring-2 ring-amber' : 'ring-1 ring-wood-dark/40'
           }`}
         >
           {seat.username.charAt(0).toUpperCase()}
         </div>
-        <div className="text-left">
-          <div className="flex items-center gap-1 font-body text-small text-starlight">
-            <span className="max-w-[90px] truncate">{seat.username}</span>
-            {seat.isHost && <span className="text-gold">★</span>}
-            {seat.isMe && <span className="text-starlight-muted">(you)</span>}
+        <div className="text-left leading-tight">
+          <div className="flex items-center gap-1 font-hand text-lg text-ink">
+            <span className="max-w-[92px] truncate">{seat.username}</span>
+            {seat.isHost && <span className="text-amber-deep">★</span>}
+            {seat.isMe && <span className="text-ink-soft">(you)</span>}
           </div>
-          <div className="num font-body text-small text-starlight-muted">
+          <div className="num font-hand text-base text-ink-soft">
             {seat.score} pts
             {phase !== 'waiting' && !seat.hasResigned && ` · ${seat.tricksWon} tricks`}
           </div>
@@ -36,25 +37,19 @@ export function Seat({ seat, phase }: Props) {
       </div>
 
       {phase === 'waiting' ? (
-        <span
-          className={`text-small font-semibold ${seat.isReady ? 'text-success' : 'text-starlight-faint'}`}
-        >
+        <span className={`font-hand text-base ${seat.isReady ? 'text-success' : 'text-ink-soft'}`}>
           {seat.isReady ? 'Ready' : 'Waiting'}
         </span>
       ) : phase === 'decision' ? (
         <span
-          className={`text-small font-semibold ${
-            seat.hasResigned
-              ? 'text-danger'
-              : seat.hasDecided
-                ? 'text-success'
-                : 'text-starlight-faint'
+          className={`font-hand text-base ${
+            seat.hasResigned ? 'text-danger' : seat.hasDecided ? 'text-success' : 'text-ink-soft'
           }`}
         >
-          {seat.hasResigned ? 'Resigned' : seat.hasDecided ? 'Staying' : 'Deciding…'}
+          {seat.hasResigned ? 'Folded' : seat.hasDecided ? 'Staying' : 'Deciding…'}
         </span>
       ) : seat.hasResigned ? (
-        <span className="text-small font-semibold text-danger">Resigned</span>
+        <span className="font-hand text-base text-danger">Folded</span>
       ) : (
         <>
           <ScorePips score={seat.score} />
@@ -62,7 +57,7 @@ export function Seat({ seat, phase }: Props) {
             <div className="flex">
               {Array.from({ length: Math.min(seat.handCount, 5) }).map((_, i) => (
                 <div key={i} style={{ marginLeft: i ? '-12px' : 0 }} className="w-5">
-                  <PlayingCard faceDown className="h-auto w-full" />
+                  <PlayingCard faceDown className="w-full" />
                 </div>
               ))}
             </div>

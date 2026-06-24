@@ -1,26 +1,25 @@
 import type { CardVM } from '../game/types';
 import { PlayingCard } from './PlayingCard';
-import { SoyomboMark } from './SoyomboMark';
 
 interface Props {
   card: CardVM | null;
   revealed: boolean;
 }
 
+/** The turned-up trump card, propped on the table with a warm glow. */
 export function TrumpIndicator({ card, revealed }: Props) {
   if (!card) return null;
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className={`relative ${revealed ? 'anim-reveal' : ''}`}>
+      <div className={`-rotate-3 ${revealed ? 'anim-reveal' : ''}`}>
         <PlayingCard
           suit={card.suit}
           rank={card.rank}
           trump
-          className="h-auto w-[clamp(44px,10vw,64px)] drop-shadow-[0_0_18px_rgba(212,175,55,0.5)]"
+          className="w-[clamp(48px,11vw,68px)] drop-shadow-[0_0_16px_rgba(217,142,4,0.55)]"
         />
-        <SoyomboMark className="absolute -right-3 -top-3 w-6" />
       </div>
-      <span className="font-display text-small text-gold">Trump · {card.suit}</span>
+      <span className="font-hand text-lg text-amber">Trump · {card.suit}</span>
     </div>
   );
 }

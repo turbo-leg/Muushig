@@ -21,7 +21,7 @@ export function Card({ card, trump, selected, playable, disabled, index = 0, onC
       onClick={onClick}
       aria-pressed={selected}
       className={[
-        'anim-deal relative block w-[clamp(48px,12vw,76px)] transition-transform duration-200',
+        'anim-deal relative block w-[clamp(50px,12vw,78px)] transition-transform duration-200',
         interactive
           ? 'cursor-pointer hover:-translate-y-2 focus-visible:-translate-y-2'
           : 'cursor-default',
@@ -36,9 +36,9 @@ export function Card({ card, trump, selected, playable, disabled, index = 0, onC
         rank={card.rank}
         trump={trump}
         className={[
-          'h-auto w-full rounded-[14px]',
-          selected ? 'drop-shadow-[0_0_14px_rgba(212,175,55,0.6)]' : '',
-          playable && !selected ? 'drop-shadow-[0_0_10px_rgba(58,160,214,0.4)]' : '',
+          'w-full',
+          selected ? 'drop-shadow-[0_0_14px_rgba(217,142,4,0.7)]' : '',
+          playable && !selected ? 'drop-shadow-[0_0_10px_rgba(217,142,4,0.4)]' : '',
         ].join(' ')}
       />
     </button>
