@@ -1,0 +1,28 @@
+{
+  "name": "muushig-discord-activity",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multiplayer Muushig (Муушиг) — the Mongolian trick-taking card game — as a Discord Activity, built on Colyseus.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "prettier --check .",
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,tsx,json,css,md}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0"
+  }
+}

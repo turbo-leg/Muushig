@@ -1,0 +1,28 @@
+node_modules/
+dist/
+
+# Env files — never commit secrets. .env.example is the tracked template.
+.env
+.env.*
+!.env.example
+
+.DS_Store
+
+# AI / agent tooling (local only)
+GEMINI.md
+CLAUDE.md
+.claude/
+.claude-flow/
+.swarm/
+.agents/
+.mcp.json
+graphify-out/
+
+# Editor / workspace
+*.code-workspace
+.vscode/
+.idea/
+
+# Logs / coverage
+*.log
+coverage/

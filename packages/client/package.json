@@ -1,0 +1,9 @@
+{
+  "name": "@muushig/client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React + Vite + Discord Embedded App SDK client for Muushig (planned).",
+  "dependencies": {
+    "@muushig/shared": "*"
+  }
+}
