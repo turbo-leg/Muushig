@@ -69,12 +69,18 @@ describe('swapCards', () => {
     expect(after.filter((k) => before.includes(k)).length).toBe(2);
   });
 
-  test('caps the exchange at the stock size when stock is short', () => {
+  test('rejects drawing more cards than remain in the stock', () => {
     const state = swapState(['a', 'b', 'c', 'd', 'e']); // stock = 6
     MuushigEngine.swapCards(state, 'b', [0, 1, 2, 3]); // stock 6 -> 2
     expect(state.stock).toHaveLength(2);
 
-    const exchanged = MuushigEngine.swapCards(state, 'a', [0, 1, 2, 3, 4]);
+    // Asking for 5 when only 2 remain is not allowed — nothing changes.
+    expect(() => MuushigEngine.swapCards(state, 'a', [0, 1, 2, 3, 4])).toThrow();
+    expect(state.stock).toHaveLength(2);
+    expect(state.players.get('a')!.hasSwapped).toBe(false);
+
+    // Drawing exactly the 2 that remain is fine.
+    const exchanged = MuushigEngine.swapCards(state, 'a', [0, 1]);
     expect(exchanged).toBe(2);
     expect(state.stock).toHaveLength(0);
     expect(state.players.get('a')!.hand).toHaveLength(HAND_SIZE);
@@ -108,6 +114,78 @@ describe('swapCards', () => {
 
     state.phase = 'playing';
     expect(() => MuushigEngine.swapCards(state, 'b', [0])).toThrow();
+  });
+});
+
+describe('round roles: dealer & amankhuzuu', () => {
+  test('dealer is the last seat; amankhuzuu is the dealer-left opener', () => {
+    const state = new GameState();
+    MuushigEngine.initializeGame(state, ['a', 'b', 'c'], makeRng(1));
+    // The dealer deals to their left first and themselves last, so 'c' deals and
+    // 'a' (to the dealer's left, the opener) is the amankhuzuu.
+    expect(state.dealerId).toBe('c');
+    expect(state.amankhuzuuId).toBe('a');
+  });
+
+  test('the amankhuzuu is fixed by seat and unaffected by who swaps', () => {
+    const state = swapState(['a', 'b', 'c']);
+    expect(state.amankhuzuuId).toBe('a');
+    MuushigEngine.swapCards(state, 'c', [0, 1]); // someone else swapping first
+    expect(state.amankhuzuuId).toBe('a'); // does not change the role
+  });
+
+  test('the dealer rotates one seat clockwise each round (amankhuzuu to their left)', () => {
+    const state = swapState(['a', 'b', 'c']); // round 1: dealer last seat
+    expect(state.dealerId).toBe('c');
+    expect(state.amankhuzuuId).toBe('a');
+
+    MuushigEngine.dealRound(state, makeRng(5)); // round 2
+    expect(state.dealerId).toBe('a');
+    expect(state.amankhuzuuId).toBe('b');
+
+    MuushigEngine.dealRound(state, makeRng(6)); // round 3
+    expect(state.dealerId).toBe('b');
+    expect(state.amankhuzuuId).toBe('c');
+
+    MuushigEngine.dealRound(state, makeRng(7)); // round 4 wraps back
+    expect(state.dealerId).toBe('c');
+    expect(state.amankhuzuuId).toBe('a');
+  });
+});
+
+describe('exchangeTrump (dealer)', () => {
+  test('dealer takes the trump card; the trump card and suit do not change', () => {
+    const state = swapState(['a', 'b', 'c']); // dealer = 'c', now in the swap phase
+    const dealer = state.players.get('c')!;
+    const suitBefore = state.trumpSuit;
+    const upBefore = state.trumpCard.key;
+    const givenKey = dealer.hand[0]!.key;
+
+    MuushigEngine.exchangeTrump(state, 'c', 0);
+
+    expect(state.trumpSuit).toBe(suitBefore); // suit unchanged
+    expect(state.trumpCard.key).toBe(upBefore); // the trump card itself is unchanged
+    expect(dealer.hand.some((c) => c.key === upBefore)).toBe(true); // dealer took the trump card
+    expect(dealer.hand.some((c) => c.key === givenKey)).toBe(false); // given card set aside
+    expect(dealer.hand).toHaveLength(HAND_SIZE);
+    expect(state.trumpExchanged).toBe(true);
+  });
+
+  test('only in the swap phase, only the dealer, and only once', () => {
+    // Not allowed during the decision phase (before fold/play is done).
+    const decisionState = new GameState();
+    MuushigEngine.initializeGame(decisionState, ['a', 'b', 'c'], makeRng(1));
+    expect(decisionState.phase).toBe('decision');
+    expect(() => MuushigEngine.exchangeTrump(decisionState, 'c', 0)).toThrow();
+
+    const state = swapState(['a', 'b', 'c']); // dealer = 'c', swap phase
+    expect(() => MuushigEngine.exchangeTrump(state, 'a', 0)).toThrow(); // not the dealer
+    MuushigEngine.exchangeTrump(state, 'c', 0);
+    expect(() => MuushigEngine.exchangeTrump(state, 'c', 1)).toThrow(); // already exchanged
+
+    state.trumpExchanged = false;
+    state.phase = 'playing';
+    expect(() => MuushigEngine.exchangeTrump(state, 'c', 0)).toThrow(); // too late
   });
 });
 

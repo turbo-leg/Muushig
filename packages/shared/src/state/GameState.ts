@@ -15,6 +15,9 @@ export class GameState extends Schema {
   @type(Card) trumpCard: Card = new Card();
   @type('string') trumpSuit: string = '';
 
+  /** Whether the dealer has used their one trump-card exchange this round. */
+  @type('boolean') trumpExchanged: boolean = false;
+
   /** Cards played into the trick currently in progress. */
   @type([TrickPlay]) currentTrick = new ArraySchema<TrickPlay>();
 
@@ -23,6 +26,15 @@ export class GameState extends Schema {
 
   /** Seat id of the player who leads the current trick. */
   @type('string') leaderId: string = '';
+
+  /** Seat id of this round's dealer (the player to whose left the opening lead sits). */
+  @type('string') dealerId: string = '';
+
+  /**
+   * Seat id of the amankhuzuu — the player to the dealer's left (seatOrder[0]),
+   * who swaps first and opens the round.
+   */
+  @type('string') amankhuzuuId: string = '';
 
   /** Seat id of the player whose turn it is to act. */
   @type('string') currentTurn: string = '';
