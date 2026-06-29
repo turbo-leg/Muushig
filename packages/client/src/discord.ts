@@ -15,6 +15,10 @@ export interface Identity {
   discordId: string;
   /** Groups players in the same Discord activity into the same room. */
   discordInstanceId: string;
+  /** Supabase access token, when signed in — lets the server verify the seat. */
+  accessToken?: string;
+  /** Supabase user id, when signed in. */
+  userId?: string;
 }
 
 const ADJECTIVES = ['Roaming', 'Eternal', 'Golden', 'Azure', 'Silent', 'Swift', 'Boundless'];
