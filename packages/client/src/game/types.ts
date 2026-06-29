@@ -16,6 +16,11 @@ export interface SeatVM {
   hasDecided: boolean;
   hasResigned: boolean;
   isMe: boolean;
+  /** This round's dealer. */
+  isDealer: boolean;
+  /** The amankhuzuu — first player to swap cards this round. */
+  isAmankhuzuu: boolean;
+  seatNumber?: number;
 }
 
 export interface TrickPlayVM {

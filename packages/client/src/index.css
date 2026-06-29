@@ -3,16 +3,7 @@
 
 /*
  * Muushig — "Cozy Hand-Drawn Tavern" theme.
- * Warm parchment + wood + amber, handwriting type. Tailwind v4 reads these
- * @theme tokens to generate utilities (bg-wood, text-ink, text-amber, ...).
- *
- * ── Swapping in real art ──
- * Every texture is a CSS variable with a hand-built gradient fallback. To use
- * your watercolor / wood-grain images later, just set the variable to a url():
- *   :root        { --tex-wood: url('/assets/table.jpg'); }
- *   .room        { --tex-room: url('/assets/tavern.jpg'); }
- *   <PlayingCard art="/assets/cards/AS.png" />   (sets --card-art per card)
- * No markup changes are needed.
+ * Warm parchment + wood + amber, handwriting type.
  */
 @theme {
   --color-parchment: #f5e6d3;
@@ -34,8 +25,6 @@
 }
 
 :root {
-  /* Override these with url(...) to drop in real art. */
-  --tex-room: none;
   --tex-wood: none;
   --tex-parchment: none;
   --card-art: none;
@@ -55,6 +44,7 @@ body {
   font-family: var(--font-body);
   font-size: 18px; /* handwriting reads small — bump the base */
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
 .num {
@@ -65,36 +55,21 @@ body {
 
 /* The tavern room backdrop (dark wood + hearth glow). */
 .room {
-  background-color: var(--color-wood-dark);
+  background-color: #1e140f;
   background-image:
-    var(--tex-room), radial-gradient(70% 55% at 50% 8%, rgba(242, 166, 90, 0.28), transparent 70%),
-    radial-gradient(120% 120% at 50% 120%, rgba(0, 0, 0, 0.55), transparent 60%);
-  background-size: cover;
+    radial-gradient(60% 48% at 50% 12%, rgba(242, 166, 90, 0.22), transparent 70%),
+    radial-gradient(130% 120% at 50% 125%, rgba(0, 0, 0, 0.6), transparent 60%),
+    linear-gradient(180deg, #2a1c14 0%, #1e140f 60%, #130c08 100%);
 }
 
-/* A planked wooden surface (the table). */
-.wood-surface {
-  background-color: var(--color-wood);
-  background-image:
-    var(--tex-wood),
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 2px, transparent 2px 9px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 16px),
-    radial-gradient(circle at 30% 20%, rgba(0, 0, 0, 0.16), transparent 65%);
-  background-size: cover, auto, auto, cover;
-}
-
-/* Aged parchment (panels, seat placards, card faces). */
-.parchment {
+/* A hand-inked parchment panel */
+.parchment-panel {
   background-color: var(--color-parchment);
-  background-image:
-    var(--tex-parchment),
-    radial-gradient(circle at 18% 12%, rgba(120, 80, 40, 0.12), transparent 55%),
-    radial-gradient(circle at 85% 92%, rgba(120, 80, 40, 0.1), transparent 52%);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 12px 8px 14px 10px / 10px 14px 9px 12px;
   box-shadow:
-    inset 0 0 22px rgba(120, 80, 40, 0.18),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  /* Slightly irregular, torn-edge feel. */
-  border-radius: 14px 10px 16px 9px / 10px 16px 9px 14px;
+    inset 0 0 18px rgba(120, 80, 40, 0.16),
+    0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 /* ──────────────────────────── Carved wood buttons ──────────────────────────── */
@@ -110,37 +85,31 @@ body {
   font-weight: 700;
   line-height: 1;
   color: var(--color-cream);
-  min-height: 52px;
-  min-width: 124px;
-  padding: 0.45rem 1.5rem;
+  min-height: 48px;
+  min-width: 120px;
+  padding: 0.45rem 1.25rem;
   cursor: pointer;
-  /* Carved wooden plank — rounded ends, a touch of hand-made asymmetry. */
-  border: 2px solid var(--color-wood-dark);
-  border-radius: 13px 11px 13px 11px / 11px 13px 11px 13px;
+  border: 2px solid var(--color-ink);
+  border-radius: 8px 12px 9px 11px / 11px 9px 12px 8px;
   background-color: var(--color-wood);
-  background-image: linear-gradient(180deg, #7a5a42 0%, #5c4033 60%, #4a3328 100%);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
-  /* Chunky carved depth: inset highlight + a solid bottom edge + cast shadow. */
+  background-image: linear-gradient(180deg, #7a5a42 0%, #5c4033 60%, #422e24 100%);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
   box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.35),
-    0 4px 0 var(--color-wood-dark),
-    0 6px 11px rgba(0, 0, 0, 0.4);
-  transition:
-    transform 120ms ease,
-    box-shadow 120ms ease,
-    filter 120ms ease;
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+    0 3px 0 var(--color-ink),
+    0 4px 6px rgba(0, 0, 0, 0.35);
+  transition: all 120ms ease;
 }
 .btn-wood:hover:not(:disabled) {
-  filter: brightness(1.07);
+  filter: brightness(1.08);
 }
 .btn-wood:active:not(:disabled) {
-  transform: translateY(3px);
+  transform: translateY(2px);
   box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -2px 5px rgba(0, 0, 0, 0.4),
-    0 1px 0 var(--color-wood-dark),
-    0 2px 5px rgba(0, 0, 0, 0.4);
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 1px 0 var(--color-ink),
+    0 2px 4px rgba(0, 0, 0, 0.25);
 }
 .btn-wood:focus-visible {
   outline: 3px solid var(--color-amber);
@@ -148,87 +117,117 @@ body {
 }
 .btn-wood:disabled {
   cursor: not-allowed;
-  filter: saturate(0.55) brightness(0.82);
+  opacity: 0.6;
   box-shadow:
-    inset 0 -2px 5px rgba(0, 0, 0, 0.3),
-    0 3px 0 var(--color-wood-dark);
+    inset 0 -1.5px 3px rgba(0, 0, 0, 0.3),
+    0 2px 0 var(--color-ink);
 }
 
 /* Amber "branded" button (Stay / Start / Play). */
 .btn-wood--primary {
   color: var(--color-ink);
-  border-color: #8a4e18;
   background-image: linear-gradient(180deg, #ecb45a 0%, #d98e04 55%, #b5651d 100%);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
   box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -3px 6px rgba(120, 60, 10, 0.4),
-    0 4px 0 #8a4e18,
-    0 6px 11px rgba(0, 0, 0, 0.4);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 4px rgba(120, 60, 10, 0.4),
+    0 3px 0 var(--color-ink),
+    0 4px 6px rgba(0, 0, 0, 0.35);
 }
 
-/* Four nail heads pressed into the plank corners (both variants). */
+/* Four nail heads pressed into the plank corners */
 .btn-wood::before {
   content: '';
   position: absolute;
-  inset: 5px;
+  inset: 4px;
   border-radius: inherit;
   pointer-events: none;
   background-image:
-    radial-gradient(circle at 5px 5px, rgba(0, 0, 0, 0.5) 1.5px, transparent 2.4px),
-    radial-gradient(circle at calc(100% - 5px) 5px, rgba(0, 0, 0, 0.5) 1.5px, transparent 2.4px),
-    radial-gradient(circle at 5px calc(100% - 5px), rgba(0, 0, 0, 0.5) 1.5px, transparent 2.4px),
+    radial-gradient(circle at 4px 4px, rgba(0, 0, 0, 0.4) 1.2px, transparent 2px),
+    radial-gradient(circle at calc(100% - 4px) 4px, rgba(0, 0, 0, 0.4) 1.2px, transparent 2px),
+    radial-gradient(circle at 4px calc(100% - 4px), rgba(0, 0, 0, 0.4) 1.2px, transparent 2px),
     radial-gradient(
-      circle at calc(100% - 5px) calc(100% - 5px),
-      rgba(0, 0, 0, 0.5) 1.5px,
-      transparent 2.4px
+      circle at calc(100% - 4px) calc(100% - 4px),
+      rgba(0, 0, 0, 0.4) 1.2px,
+      transparent 2px
     );
 }
 .btn-wood__en {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   letter-spacing: 0.02em;
 }
 .btn-wood__sub {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 500;
-  opacity: 0.82;
+  opacity: 0.85;
 }
 
-/* ──────────────────────────── Placards ──────────────────────────── */
-
-/* A torn-parchment player/bot placard with a stitched inner border. */
-.placard {
+/* Bronze action medallion button */
+.btn-coin {
   position: relative;
-  background-color: var(--color-parchment);
-  background-image:
-    var(--tex-parchment),
-    radial-gradient(circle at 18% 12%, rgba(120, 80, 40, 0.13), transparent 55%),
-    radial-gradient(circle at 85% 92%, rgba(120, 80, 40, 0.1), transparent 52%);
-  border: 2px solid #6b4a33;
-  border-radius: 13px 9px 14px 10px / 9px 14px 9px 13px;
-  box-shadow:
-    inset 0 0 0 2px rgba(107, 74, 51, 0) /* spacer */,
-    inset 0 0 18px rgba(120, 80, 40, 0.16),
-    0 3px 7px rgba(0, 0, 0, 0.4);
-}
-/* Dashed "stitch" line just inside the edge. */
-.placard::after {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border: 1.5px dashed rgba(107, 74, 51, 0.55);
-  border-radius: inherit;
-  pointer-events: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: none;
+  border-radius: 50%;
+  font-family: var(--font-hand);
+  font-weight: bold;
+  color: var(--color-ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 120ms ease;
 }
 
-/* Avatar slot — drop in a portrait via <img> or background-image. */
-.avatar-slot {
-  background-color: var(--color-parchment-deep);
-  background-size: cover;
-  background-position: center;
-  border: 2px solid #6b4a33;
-  border-radius: 10px 8px 10px 7px / 8px 10px 7px 10px;
-  overflow: hidden;
+/* Glowing Gold/Orange Medallion Button */
+.btn-coin--gold {
+  background-image: radial-gradient(circle at 38% 32%, #f4d488 0%, #d98e04 46%, #9a5d06 100%);
+  border: 2px solid #7a4a06;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.4),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.35),
+    0 3px 6px rgba(0, 0, 0, 0.4);
+}
+.btn-coin--gold:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  filter: brightness(1.08);
+}
+.btn-coin--gold:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+  filter: brightness(0.92);
+}
+
+/* Steel Grey/Silver Medallion Button */
+.btn-coin--grey {
+  background-image: radial-gradient(circle at 38% 32%, #cfc7bd 0%, #9c9088 50%, #6b6158 100%);
+  border: 2px solid #514a42;
+  color: var(--color-cream);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.35),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.3),
+    0 3px 6px rgba(0, 0, 0, 0.35);
+}
+.btn-coin--grey:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  filter: brightness(1.08);
+}
+.btn-coin--grey:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+  filter: brightness(0.92);
+}
+.btn-coin:disabled {
+  background-image: radial-gradient(
+    circle at 38% 32%,
+    #cfc7bd 0%,
+    #9c9088 50%,
+    #6b6158 100%
+  ) !important;
+  border: 2px solid #514a42;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* ──────────────────────────── Playing cards ──────────────────────────── */
@@ -237,28 +236,35 @@ body {
   container-type: inline-size;
   position: relative;
   aspect-ratio: 5 / 7;
-  border-radius: 11px 7px 12px 8px / 8px 12px 7px 11px;
+  border-radius: 8px 6px 8px 6px / 6px 8px 6px 8px;
   background-color: var(--color-parchment);
   background-image: var(--card-art);
   background-size: cover;
   background-position: center;
-  border: 1.5px solid #8a6a4a;
+  border: 1.5px solid var(--color-ink);
   box-shadow:
     0 2px 5px rgba(0, 0, 0, 0.35),
     inset 0 0 18px rgba(120, 80, 40, 0.12);
   color: var(--color-ink);
   font-family: var(--font-hand);
   overflow: hidden;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
 }
 .playing-card--back {
-  background-color: var(--color-wood-light);
+  background-color: #6b4a33;
   background-image:
-    var(--card-back), repeating-linear-gradient(45deg, #6b4a33 0 7px, #5c4033 7px 14px);
+    var(--card-back), repeating-linear-gradient(45deg, #5c4033 0 6px, #4e362b 6px 12px);
+  border: 1.5px solid var(--color-ink);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    inset 0 0 12px rgba(0, 0, 0, 0.55);
 }
 .playing-card--trump {
   border-color: var(--color-amber);
   box-shadow:
-    0 0 13px rgba(217, 142, 4, 0.55),
+    0 0 12px rgba(217, 142, 4, 0.6),
     0 2px 5px rgba(0, 0, 0, 0.35);
 }
 
@@ -298,8 +304,9 @@ body {
   inset: 0;
   display: grid;
   place-items: center;
-  color: rgba(245, 230, 211, 0.5);
-  font-size: 40cqw;
+  color: rgba(245, 230, 211, 0.4);
+  font-size: 44cqw;
+  font-weight: bold;
 }
 
 /* Cards thrown onto the table get a stable, seeded tilt (set via --throw-rot). */

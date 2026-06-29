@@ -1,14 +1,13 @@
-import { UlziiKnot } from './UlziiKnot';
-
-/** The ornamental МУУШИГ header, flanked by ulzii endless-knots. */
+/** The Muushig title, drawn as type (no image). */
 export function TitleBanner() {
   return (
-    <header className="flex items-center justify-center gap-3 py-1 select-none">
-      <UlziiKnot className="hidden h-7 w-24 opacity-80 sm:block" />
-      <h1 className="font-hand text-5xl font-bold tracking-wide text-wood drop-shadow-[0_2px_0_rgba(255,255,255,0.25)] sm:text-6xl">
+    <header className="flex flex-col items-center justify-center py-1 select-none">
+      <h1 className="font-hand text-4xl font-bold tracking-wide text-amber drop-shadow-[0_2px_0_rgba(0,0,0,0.5)] sm:text-5xl">
         МУУШИГ
       </h1>
-      <UlziiKnot className="hidden h-7 w-24 opacity-80 sm:block" flip />
+      <p className="-mt-1 font-hand text-xs tracking-[0.2em] text-cream/70 sm:text-sm">
+        Mongolian Tavern Card Game
+      </p>
     </header>
   );
 }

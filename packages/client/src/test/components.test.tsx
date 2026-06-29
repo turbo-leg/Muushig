@@ -34,12 +34,20 @@ describe('Seat', () => {
     hasDecided: false,
     hasResigned: false,
     isMe: false,
+    isDealer: false,
+    isAmankhuzuu: false,
   };
 
   test('shows name and ready state in the waiting phase', () => {
     render(<Seat seat={seat} phase="waiting" />);
     expect(screen.getByText('Golden Falcon')).toBeInTheDocument();
     expect(screen.getByText('Ready')).toBeInTheDocument();
+  });
+
+  test('marks the dealer and amankhuzuu roles', () => {
+    render(<Seat seat={{ ...seat, isDealer: true, isAmankhuzuu: true }} phase="swap" />);
+    expect(screen.getByTitle('Dealer')).toBeInTheDocument();
+    expect(screen.getByTitle('Amankhuzuu — first to swap')).toBeInTheDocument();
   });
 });
 
@@ -51,7 +59,9 @@ describe('ActionBar', () => {
     meReady: false,
     needPlayers: false,
     meDecided: false,
+    canDecide: true,
     canSwap: false,
+    meSwapped: false,
     isMyTurn: false,
     selectedCount: 0,
     winnerNames: [],
@@ -70,7 +80,7 @@ describe('ActionBar', () => {
   test('host start is disabled until all are ready, ready fires callback', async () => {
     const onReady = vi.fn();
     render(<ActionBar {...base} onReady={onReady} />);
-    expect(screen.getByRole('button', { name: /not yet/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /wait/i })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: /ready/i }));
     expect(onReady).toHaveBeenCalledOnce();
   });
