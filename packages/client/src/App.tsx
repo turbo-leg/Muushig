@@ -52,12 +52,12 @@ function AccountBar({ onProfile }: { onProfile: () => void }) {
   const avatar = m.avatar_url || m.picture || '';
   const name = m.full_name || m.name || m.user_name || 'You';
   return (
-    <div className="fixed right-3 top-3 z-40 flex items-center gap-2 select-none">
+    <div className="fixed right-[max(0.75rem,var(--safe-right))] top-[max(0.75rem,var(--safe-top))] z-40 flex items-center gap-2 select-none">
       <button
         type="button"
         onClick={onProfile}
         aria-label="Open profile"
-        className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center font-hand text-lg text-wood"
+        className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center font-hand text-lg text-wood"
         style={avatar ? { backgroundImage: `url("${avatar}")` } : undefined}
       >
         {!avatar && name.charAt(0).toUpperCase()}
@@ -65,7 +65,7 @@ function AccountBar({ onProfile }: { onProfile: () => void }) {
       <button
         type="button"
         onClick={signOut}
-        className="font-hand text-base text-cream/80 hover:text-cream"
+        className="rounded px-2 py-1 font-hand text-base text-cream/80 hover:text-cream"
       >
         Sign out
       </button>

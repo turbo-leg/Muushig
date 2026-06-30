@@ -8,6 +8,8 @@ export interface SeatVM {
   username: string;
   avatarUrl: string;
   score: number;
+  /** Per-round scoresheet cells: running total, or '-' for a folded round. */
+  scoreLog: string[];
   tricksWon: number;
   handCount: number;
   isReady: boolean;
@@ -16,6 +18,8 @@ export interface SeatVM {
   hasDecided: boolean;
   hasResigned: boolean;
   isMe: boolean;
+  /** Currently talking in the Discord voice channel (drives the green ring). */
+  isSpeaking: boolean;
   /** This round's dealer. */
   isDealer: boolean;
   /** The amankhuzuu — first player to swap cards this round. */

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Phase } from '../game/types';
 import { Button } from './Button';
+import { HoldButton } from './HoldButton';
 
 interface Props {
   phase: Phase;
@@ -14,6 +15,12 @@ interface Props {
   meSwapped: boolean;
   isMyTurn: boolean;
   selectedCount: number;
+  /** Dealer may exchange the face-up trump card (navshih) right now. */
+  canSwapTrump: boolean;
+  /** Dealer has armed navshih and is choosing a hand card to give up. */
+  trumpSwapMode: boolean;
+  /** Running inside Discord, so the native invite dialog is available. */
+  canInvite: boolean;
   winnerNames: string[];
   isWinner: boolean;
   muted: boolean;
@@ -24,14 +31,16 @@ interface Props {
   onSwap: () => void;
   onKeep: () => void;
   onRematch: () => void;
+  onToggleTrumpSwap: () => void;
+  onInvite: () => void;
   onToggleMute: () => void;
 }
 
 /** Cozy, hand-drawn unrolled parchment scroll strip. */
 function StatusScroll({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex h-[50px] min-w-[260px] select-none items-center justify-center rounded-[7px] border-2 border-[#c9a56e] bg-parchment px-8 shadow-[0_3px_6px_rgba(0,0,0,0.3),inset_0_0_14px_rgba(120,80,40,0.18)]">
-      <span className="relative z-10 mt-0.5 whitespace-nowrap font-hand text-lg font-bold leading-none text-ink">
+    <div className="relative flex h-[50px] min-w-[180px] max-w-[82vw] select-none items-center justify-center rounded-[7px] border-2 border-[#c9a56e] bg-parchment px-5 shadow-[0_3px_6px_rgba(0,0,0,0.3),inset_0_0_14px_rgba(120,80,40,0.18)] sm:min-w-[260px] sm:px-8">
+      <span className="relative z-10 mt-0.5 truncate font-hand text-lg font-bold leading-none text-ink">
         {children}
       </span>
     </div>
@@ -93,6 +102,11 @@ export function ActionBar(props: Props) {
             ) : (
               <StatusScroll>Waiting for host to deal…</StatusScroll>
             )}
+            {props.canInvite && (
+              <Button variant="coin" secondary sub="Урих" onClick={props.onInvite}>
+                Invite
+              </Button>
+            )}
           </>
         )}
 
@@ -104,9 +118,9 @@ export function ActionBar(props: Props) {
               <Button variant="coin" sub="Мөрцөх" onClick={props.onStay}>
                 Bid
               </Button>
-              <Button variant="coin" secondary sub="Дуусгах" onClick={props.onResign}>
+              <HoldButton onConfirm={props.onResign} sub="Дуусгах">
                 Fold
-              </Button>
+              </HoldButton>
             </>
           ) : (
             <StatusScroll>Waiting for your turn…</StatusScroll>
@@ -152,6 +166,19 @@ export function ActionBar(props: Props) {
               Again
             </Button>
           </div>
+        )}
+
+        {/* The dealer's trump-card exchange (navshih), sitting beside the
+            phase's regular actions during the decision and swap phases. */}
+        {props.canSwapTrump && (
+          <Button
+            variant="coin"
+            secondary={props.trumpSwapMode}
+            sub={props.trumpSwapMode ? 'Болих' : 'Навших'}
+            onClick={props.onToggleTrumpSwap}
+          >
+            {props.trumpSwapMode ? 'Cancel' : 'Navshih'}
+          </Button>
         )}
       </div>
 

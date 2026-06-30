@@ -154,7 +154,11 @@ export function Seat({ seat, phase, seatNumber }: Props) {
   return (
     <div
       className={`relative flex items-center justify-start ${
-        seat.isTurn ? 'anim-turn rounded-[10px]' : ''
+        seat.isSpeaking
+          ? 'anim-speaking rounded-[10px]'
+          : seat.isTurn
+            ? 'anim-turn rounded-[10px]'
+            : ''
       } ${seat.hasResigned ? 'opacity-55' : ''}`}
       style={{ width: `${w}px`, height: `${h}px` }}
     >

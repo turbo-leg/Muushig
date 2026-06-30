@@ -4,7 +4,18 @@ import type { CardVM, SeatVM, TrickPlayVM, Phase } from '../game/types';
 import { cardKey, legalMoves } from '../game/legalMoves';
 import { botAvatar } from '../game/avatars';
 import { Seat } from './Seat';
+import { Scoreboard } from './Scoreboard';
+import { ScoreSheet } from './ScoreSheet';
+import { PipView } from './PipView';
 import { Trick } from './Trick';
+import {
+  useLayoutMode,
+  useThermalThrottle,
+  useSpeaking,
+  setRichPresence,
+  openInvite,
+  isEmbedded,
+} from '../discord';
 import { TrumpIndicator } from './TrumpIndicator';
 import { Hand } from './Hand';
 import { ActionBar } from './ActionBar';
@@ -22,7 +33,8 @@ const MIN_PLAYERS = 2;
 /**
  * Where each opponent placard sits around the felt, as %{left,top} of the arena.
  * Slots run left → right across the top arc; "me" always sits at the near (bottom)
- * edge, so opponents are ordered clockwise starting from the seat to my left.
+ * edge, so opponents fill them in turn order and the rotation (turn, dealer,
+ * amankhuzuu) reads me (bottom) → left → top → right → back to me.
  */
 const RING_SLOTS: Record<number, Array<{ left: number; top: number }>> = {
   1: [{ left: 50, top: -12 }],
@@ -43,11 +55,52 @@ const RING_SLOTS: Record<number, Array<{ left: number; top: number }>> = {
   ],
 };
 
-function ringSlot(n: number, i: number): { left: number; top: number } {
-  const slots = RING_SLOTS[n];
-  if (slots?.[i]) return slots[i];
+/**
+ * Portrait (phone) seat slots: the felt is a TALL oval, so opponents run up the
+ * left side, across the top, and down the right — me (bottom) → left → top →
+ * right, the same clockwise order as the wide layout.
+ */
+const PORTRAIT_RING_SLOTS: Record<number, Array<{ left: number; top: number }>> = {
+  1: [{ left: 50, top: 6 }],
+  2: [
+    { left: 14, top: 20 },
+    { left: 86, top: 20 },
+  ],
+  3: [
+    { left: 8, top: 40 },
+    { left: 50, top: 4 },
+    { left: 92, top: 40 },
+  ],
+  4: [
+    { left: 8, top: 56 },
+    { left: 18, top: 16 },
+    { left: 82, top: 16 },
+    { left: 92, top: 56 },
+  ],
+};
+
+type Slots = Record<number, Array<{ left: number; top: number }>>;
+
+function ringSlot(slots: Slots, n: number, i: number): { left: number; top: number } {
+  const arr = slots[n];
+  if (arr?.[i]) return arr[i];
   const t = n <= 1 ? 0.5 : i / (n - 1);
   return { left: -10 + t * 120, top: -10 };
+}
+
+/** True on phone-width viewports (< Tailwind `sm`), used to pick the portrait felt + seats. */
+function useIsCompact(): boolean {
+  const query = '(max-width: 639px)';
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setCompact(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return compact;
 }
 
 /** Vector drawing of a traditional Mongolian infinity knot (Ulzii) */
@@ -158,7 +211,7 @@ function DrinkingHornProp() {
 /** Marble message panel centered on the table */
 function MessagePanel({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="relative flex h-[146px] w-[256px] -rotate-1 flex-col items-center justify-center rounded-[8px] border-2 border-[#c9a56e] bg-parchment px-5 py-4 text-center drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)] [box-shadow:inset_0_0_18px_rgba(120,80,40,0.2)]">
+    <div className="relative flex h-[146px] w-[min(256px,82vw)] -rotate-1 flex-col items-center justify-center rounded-[8px] border-2 border-[#c9a56e] bg-parchment px-5 py-4 text-center drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)] [box-shadow:inset_0_0_18px_rgba(120,80,40,0.2)]">
       <div className="relative z-10 flex select-none flex-col items-center justify-center">
         <p className="font-hand text-3xl font-bold leading-none text-ink">{title}</p>
         <p className="mt-1 font-hand text-xl leading-tight text-ink-soft">{subtitle}</p>
@@ -169,6 +222,11 @@ function MessagePanel({ title, subtitle }: { title: string; subtitle: string }) 
 
 export function Table({ state, sessionId, send }: Props) {
   const phase = state.phase as Phase;
+  const isCompact = useIsCompact();
+  const ringSlots = isCompact ? PORTRAIT_RING_SLOTS : RING_SLOTS;
+  const layoutMode = useLayoutMode();
+  useThermalThrottle();
+  const speaking = useSpeaking();
 
   // ── Derive plain view-models from the synced schema ──
   const seats: SeatVM[] = [];
@@ -180,6 +238,7 @@ export function Table({ state, sessionId, send }: Props) {
       // Ignore Discord photographic avatars to keep the board-game storybook look.
       avatarUrl: botAvatar(index) || '',
       score: p?.score ?? 15,
+      scoreLog: p ? [...p.scoreLog].map((c) => c ?? '') : [],
       tricksWon: p?.tricksWon ?? 0,
       handCount: p?.hand.length ?? 0,
       isReady: p?.isReady ?? false,
@@ -190,6 +249,7 @@ export function Table({ state, sessionId, send }: Props) {
       hasDecided: p?.hasDecided ?? false,
       hasResigned: p?.hasResigned ?? false,
       isMe: id === sessionId,
+      isSpeaking: !!p?.discordId && speaking.has(p.discordId),
       isDealer: id === state.dealerId,
       isAmankhuzuu: id === state.amankhuzuuId,
       seatNumber: index + 1,
@@ -234,11 +294,10 @@ export function Table({ state, sessionId, send }: Props) {
   const isMyTurn = phase === 'playing' && myTurn;
   // The dealer may exchange the face-up trump card for one of their cards, any
   // time before play; the trump suit stays locked.
+  // Navshih (the dealer's trump exchange) is a swap-phase-only action — the
+  // engine/server reject it in any other phase, so only offer it then.
   const canSwapTrump =
-    !!me?.isDealer &&
-    !state.trumpExchanged &&
-    (phase === 'decision' || phase === 'swap') &&
-    !(meRaw?.hasResigned ?? false);
+    !!me?.isDealer && !state.trumpExchanged && phase === 'swap' && !(meRaw?.hasResigned ?? false);
 
   const handKeysJoined = myHand.map(cardKey).join(',');
   const trickKeysJoined = trick.map((t) => cardKey(t.card)).join(',');
@@ -303,6 +362,7 @@ export function Table({ state, sessionId, send }: Props) {
       setSelected(new Set());
     });
 
+  const [showSheet, setShowSheet] = useState(false);
   const [muted, setMuted] = useState(isMuted());
   const onToggleMute = () => {
     const m = toggleMuted();
@@ -333,24 +393,58 @@ export function Table({ state, sessionId, send }: Props) {
     prev.current = { phase, trickLen, tricksPlayed, isMyTurn, winnersLen, init: true };
   }, [phase, trickLen, tricksPlayed, isMyTurn, winnersLen, isWinner]);
 
-  // Opponents in clockwise order starting from the seat to my left, so the ring
-  // reads me (bottom) → left → top → right → back to me.
+  // Opponents in turn order after me (their seatOrder sequence). They fill the
+  // ring left → top → right so rotation reads me (bottom) → left → top → right
+  // → back to me: the amankhuzuu (next after me) sits to my screen-left.
   const meIdx = seats.findIndex((s) => s.isMe);
   const opponents =
     meIdx >= 0
       ? [...seats.slice(meIdx + 1), ...seats.slice(0, meIdx)]
       : seats.filter((s) => !s.isMe);
 
-  return (
-    <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 p-3 select-none">
-      <TitleBanner />
+  // Rich Presence on the friends list — updates only when phase/score changes.
+  const myScore = me?.score ?? 15;
+  useEffect(() => {
+    void setRichPresence(
+      'Muushig',
+      phase === 'waiting'
+        ? 'In the lobby'
+        : phase === 'finished'
+          ? 'Game over'
+          : `Playing · Score ${myScore}`,
+    );
+  }, [phase, myScore]);
 
-      {/* The table arena: a centered round felt with players seated around it. */}
-      <div className="relative flex flex-1 items-center justify-center py-2">
-        <div className="relative aspect-[7/4] w-full max-w-3xl">
+  // Picture-in-Picture: shed the board for a tiny read-only summary.
+  if (layoutMode === 'pip') {
+    const turnSeat = seats.find((s) => s.id === state.currentTurn);
+    return (
+      <div className="flex min-h-full w-full items-center justify-center px-2 pt-[max(0.25rem,var(--safe-top))] pb-[max(0.25rem,var(--safe-bottom))]">
+        <PipView
+          seats={seats}
+          phase={phase}
+          isMyTurn={isMyTurn}
+          turnName={turnSeat?.username ?? ''}
+          ledSuit={state.ledSuit}
+          trumpSuit={state.trumpSuit}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-3 px-3 pt-[max(0.5rem,var(--safe-top))] pb-[max(0.75rem,var(--safe-bottom))] select-none sm:gap-4">
+      <TitleBanner />
+      <Scoreboard seats={seats} onOpenSheet={() => setShowSheet(true)} />
+
+      {/* The table arena. On phones the felt is a tall, height-driven oval so
+          opponents seat down the sides; on sm+ it's the wide landscape felt.
+          min-h-0 lets it shrink so the hand and action bar always fit. */}
+      <div className="relative flex min-h-0 flex-1 items-center justify-center py-1 sm:py-2">
+        <div className="relative mx-auto aspect-[5/6] w-full max-w-md sm:aspect-[7/4] sm:max-w-3xl">
           {/* CSS teal felt table top (no image) */}
           <div
-            className="absolute inset-0 z-0 rounded-[46%/40%] border-[6px] border-[#6b4a2f] drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)]"
+            className="absolute inset-0 z-0 rounded-[42%/48%] border-[6px] border-[#6b4a2f] drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)] sm:rounded-[46%/40%]"
             style={{
               background:
                 'radial-gradient(circle at 50% 42%, #3aa0a0 0%, #2e8c8c 55%, #1f6f6f 100%)',
@@ -358,25 +452,25 @@ export function Table({ state, sessionId, send }: Props) {
             }}
           />
 
-          {/* Decorative Table Props */}
-          <TableScrollProp />
-          <DrinkingHornProp />
+          {/* Decorative props — desktop only; they crowd the narrow portrait felt. */}
+          {!isCompact && (
+            <>
+              <TableScrollProp />
+              <DrinkingHornProp />
+            </>
+          )}
 
           {/* Center of the table: trump card + the trick in progress. */}
-          <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-4 px-6">
+          <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-6">
             {phase === 'waiting' ? (
               <MessagePanel title="Pull up a stool" subtitle="ready up to deal the cards" />
             ) : (
               <>
                 {trumpCard && <TrumpIndicator card={trumpCard} revealed={phase === 'decision'} />}
-                {canSwapTrump && (
-                  <button
-                    type="button"
-                    onClick={() => setTrumpSwapMode((v) => !v)}
-                    className="btn-wood btn-wood--primary !py-1 !min-h-9 !text-base z-30"
-                  >
-                    {trumpSwapMode ? 'Cancel — tap card' : '⇄ Swap trump'}
-                  </button>
+                {trumpSwapMode && (
+                  <p className="z-30 select-none font-hand text-base font-bold text-cream drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                    Tap a card to give for the trump
+                  </p>
                 )}
                 <Trick plays={trick} trumpSuit={state.trumpSuit} />
               </>
@@ -385,12 +479,12 @@ export function Table({ state, sessionId, send }: Props) {
 
           {/* Opponents seated around the rim of the felt. */}
           {opponents.map((s, i) => {
-            const pos = ringSlot(opponents.length, i);
+            const pos = ringSlot(ringSlots, opponents.length, i);
             const opponentSeatNum = i + 2;
             return (
               <div
                 key={s.id}
-                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                className="absolute z-10 origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.78] sm:scale-100"
                 style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
               >
                 <Seat seat={s} phase={phase} compact seatNumber={opponentSeatNum} />
@@ -427,6 +521,9 @@ export function Table({ state, sessionId, send }: Props) {
           meSwapped={meSwapped}
           isMyTurn={isMyTurn}
           selectedCount={selected.size}
+          canSwapTrump={canSwapTrump}
+          trumpSwapMode={trumpSwapMode}
+          canInvite={isEmbedded}
           winnerNames={winnerNames}
           isWinner={isWinner}
           muted={muted}
@@ -437,9 +534,13 @@ export function Table({ state, sessionId, send }: Props) {
           onKeep={onKeep}
           onResign={onResign}
           onRematch={onRematch}
+          onToggleTrumpSwap={() => setTrumpSwapMode((v) => !v)}
+          onInvite={() => void openInvite()}
           onToggleMute={onToggleMute}
         />
       </div>
+
+      {showSheet && <ScoreSheet seats={seats} onClose={() => setShowSheet(false)} />}
     </div>
   );
 }

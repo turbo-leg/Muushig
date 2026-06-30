@@ -29,6 +29,13 @@
   --tex-parchment: none;
   --card-art: none;
   --card-back: none;
+
+  /* Safe areas: prefer Discord's own inset vars (the SDK injects these inside
+     the Activity iframe, where bare env() often reads 0), fall back to env(). */
+  --safe-top: var(--discord-safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-right: var(--discord-safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --safe-bottom: var(--discord-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-left: var(--discord-safe-area-inset-left, env(safe-area-inset-left, 0px));
 }
 
 html,
@@ -45,6 +52,18 @@ body {
   font-size: 18px; /* handwriting reads small — bump the base */
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  /* Kill the iOS tap delay / grey flash and stop accidental pinch-zoom on taps. */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* The app scrolls inside #root (not the body) so the fixed tavern backdrop
+   stays put, and on short screens the controls stay reachable instead of being
+   clipped by body overflow:hidden. */
+#root {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .num {
@@ -370,6 +389,20 @@ body {
   animation: turn-pulse 1.5s ease-in-out infinite;
 }
 
+/* Green ring on a seat whose player is talking (Discord SPEAKING_START). */
+@keyframes speak-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(92, 122, 74, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(92, 122, 74, 0.75);
+  }
+}
+.anim-speaking {
+  animation: speak-pulse 1s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -378,4 +411,18 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Hot device (Discord THERMAL_STATE_UPDATE = SERIOUS/CRITICAL): drop animations
+   to ease heat and battery. */
+[data-perf='low'] .anim-deal,
+[data-perf='low'] .anim-play-in,
+[data-perf='low'] .anim-reveal,
+[data-perf='low'] .anim-turn {
+  animation: none !important;
+}
+/* Keep the speaking ring readable, just static (no pulse) on hot devices. */
+[data-perf='low'] .anim-speaking {
+  animation: none !important;
+  box-shadow: 0 0 0 2px rgba(92, 122, 74, 0.65) !important;
 }
