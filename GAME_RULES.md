@@ -94,8 +94,8 @@ multiple players cross zero in the same round, the player with the **lowest
   `amankhuzuuId` is the seat to the dealer's left — they deal/decide/swap/lead
   first. Turn order each phase is "clockwise from the amankhuzuu", via
   `activePlayersFrom(amankhuzuuId)`. A fresh game restarts the rotation.
-- The dealer's trump exchange is an out-of-turn action (`exchangeTrump`) allowed
-  in the decision or swap phase; it leaves `trumpSuit` untouched and sets
+- The dealer's trump exchange (navshih) is an out-of-turn action (`exchangeTrump`)
+  allowed only in the swap phase; it leaves `trumpSuit` untouched and sets
   `trumpExchanged`.
 - The engine is pure and deterministic (injectable RNG); the Colyseus server is
   authoritative (it gates decision/swap to the on-turn player) and the client

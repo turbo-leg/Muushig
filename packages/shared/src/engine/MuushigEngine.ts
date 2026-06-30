@@ -485,12 +485,14 @@ export class MuushigEngine {
       const p = state.players.get(id)!;
       if (p.hasResigned) {
         deltas[id] = 0;
+        p.scoreLog.push('-'); // folded this round
         continue;
       }
       let delta = -p.tricksWon;
       if (p.tricksWon === 0) delta += SHUT_OUT_PENALTY;
       p.score += delta;
       deltas[id] = delta;
+      p.scoreLog.push(String(p.score)); // new running total
     }
 
     // Winners ordered by score ascending (lowest negative wins ties).

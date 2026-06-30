@@ -14,6 +14,10 @@ export class Player extends Schema {
   /** Points remaining. Game is won by reaching 0 (or below). Starts at 15. */
   @type('number') score: number = STARTING_SCORE;
 
+  /** Scoresheet column: one entry per completed round — the new running total,
+   *  or '-' for a round this player folded. */
+  @type(['string']) scoreLog = new ArraySchema<string>();
+
   /** Tricks won in the current round (reset each round). */
   @type('number') tricksWon: number = 0;
 
