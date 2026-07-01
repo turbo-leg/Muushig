@@ -30,6 +30,9 @@ export class Player extends Schema {
   /** Resigned during the decision phase — sits the round out. */
   @type('boolean') hasResigned: boolean = false;
 
+  /** Rounds folded in a row (haranhui oroh): at the cap the player must play. */
+  @type('number') consecutiveFolds: number = 0;
+
   @type('boolean') isReady: boolean = false;
   @type('boolean') isConnected: boolean = true;
 

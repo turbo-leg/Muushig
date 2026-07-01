@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState } from '@muushig/shared';
+import { MAX_CONSECUTIVE_FOLDS } from '@muushig/shared';
 import type { CardVM, SeatVM, TrickPlayVM, Phase } from '../game/types';
 import { cardKey, legalMoves } from '../game/legalMoves';
 import { botAvatar } from '../game/avatars';
@@ -290,6 +291,8 @@ export function Table({ state, sessionId, send }: Props) {
   const myTurn = state.currentTurn === sessionId;
   // Decision and swap now go in turn order (clockwise from the amankhuzuu).
   const canDecide = phase === 'decision' && myTurn && !meDecided;
+  // Haranhui oroh: after the fold cap, this player must play (fold is blocked).
+  const mustPlay = (meRaw?.consecutiveFolds ?? 0) >= MAX_CONSECUTIVE_FOLDS;
   const canSwap = phase === 'swap' && !!meRaw && !meSwapped && !meRaw.hasResigned && myTurn;
   const isMyTurn = phase === 'playing' && myTurn;
   // The dealer may exchange the face-up trump card for one of their cards, any
@@ -517,6 +520,7 @@ export function Table({ state, sessionId, send }: Props) {
           needPlayers={seats.length < MIN_PLAYERS}
           meDecided={meDecided}
           canDecide={canDecide}
+          mustPlay={mustPlay}
           canSwap={canSwap}
           meSwapped={meSwapped}
           isMyTurn={isMyTurn}

@@ -178,6 +178,7 @@ describe('ActionBar', () => {
     needPlayers: false,
     meDecided: false,
     canDecide: true,
+    mustPlay: false,
     canSwap: false,
     meSwapped: false,
     isMyTurn: false,

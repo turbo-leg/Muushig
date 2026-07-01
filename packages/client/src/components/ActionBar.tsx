@@ -11,6 +11,8 @@ interface Props {
   needPlayers: boolean;
   meDecided: boolean;
   canDecide: boolean;
+  /** Haranhui oroh — the fold cap was hit, so this player must play (no Fold). */
+  mustPlay: boolean;
   canSwap: boolean;
   meSwapped: boolean;
   isMyTurn: boolean;
@@ -118,9 +120,15 @@ export function ActionBar(props: Props) {
               <Button variant="coin" sub="Мөрцөх" onClick={props.onStay}>
                 Bid
               </Button>
-              <HoldButton onConfirm={props.onResign} sub="Дуусгах">
-                Fold
-              </HoldButton>
+              {props.mustPlay ? (
+                <StatusScroll>
+                  <span className="text-danger">Харанхуй орох — must play</span>
+                </StatusScroll>
+              ) : (
+                <HoldButton onConfirm={props.onResign} sub="Дуусгах">
+                  Fold
+                </HoldButton>
+              )}
             </>
           ) : (
             <StatusScroll>Waiting for your turn…</StatusScroll>

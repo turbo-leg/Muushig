@@ -13,6 +13,8 @@ export const MAX_SWAP = 5;
 export const SHUT_OUT_PENALTY = 5;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 5;
+/** Haranhui oroh: you may fold at most this many rounds in a row (the next is forced to play). */
+export const MAX_CONSECUTIVE_FOLDS = 3;
 
 /** Injectable random source so shuffling is deterministic in tests. */
 export type RNG = () => number;
@@ -157,8 +159,15 @@ export class MuushigEngine {
       throw new Error('Decisions are only made in the decision phase');
     const player = state.players.get(playerId);
     if (!player) throw new Error(`Unknown player ${playerId}`);
+    // Haranhui oroh: a player who has already folded MAX_CONSECUTIVE_FOLDS rounds
+    // in a row may not fold again — they must play this one.
+    if (!stay && player.consecutiveFolds >= MAX_CONSECUTIVE_FOLDS) {
+      throw new Error('Haranhui oroh: cannot fold again — you must play this round');
+    }
     player.hasDecided = true;
     player.hasResigned = !stay;
+    // Track the consecutive-fold streak: folding extends it, playing resets it.
+    player.consecutiveFolds = stay ? 0 : player.consecutiveFolds + 1;
     // Decisions go clockwise from the amankhuzuu; advance the turn to the next
     // seat in order (everyone decides, so resigned seats are not skipped here).
     state.currentTurn = MuushigEngine.nextSeatInOrder(state, playerId);
