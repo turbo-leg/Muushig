@@ -1,3 +1,5 @@
+import path from 'path';
+import fs from 'fs';
 import config from '@colyseus/tools';
 import { monitor } from '@colyseus/monitor';
 import { RedisPresence } from '@colyseus/redis-presence';
@@ -63,5 +65,17 @@ export default config({
     });
 
     app.use('/colyseus', monitor());
+
+    // Serve the built client (single Fly app hosts both). Skipped in local dev
+    // where the Vite dev server owns the UI and no dist/ exists.
+    const clientDist = path.resolve(__dirname, '../client/dist');
+    if (fs.existsSync(clientDist)) {
+      app.use(express.static(clientDist));
+      // SPA fallback for client routes (never for API / matchmaking / monitor).
+      app.get('*', (req, res, next) => {
+        if (/^\/(api|colyseus|matchmake|health)/.test(req.path)) return next();
+        res.sendFile(path.join(clientDist, 'index.html'));
+      });
+    }
   },
 });

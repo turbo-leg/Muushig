@@ -73,10 +73,14 @@ interface DiscordUser {
 /** The authenticated Discord user (null until/unless OAuth succeeds). */
 let authedUser: DiscordUser | null = null;
 
-/** HTTP base for backend calls, derived from the Colyseus URL (ws→http). */
+/** HTTP base for backend calls (token exchange). Mirrors net/client.ts. */
 function httpBase(): string {
-  const ws = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? 'ws://localhost:2567';
-  return ws.replace(/^ws/, 'http');
+  const override = import.meta.env.VITE_SERVER_URL as string | undefined;
+  if (override) return override.replace(/^ws/, 'http');
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return window.location.origin;
+  }
+  return 'http://localhost:2567';
 }
 
 /**
