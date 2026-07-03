@@ -8,11 +8,13 @@ Muushig is a trick-taking game for **2–5 players** (best with 5) played with a
 This repo is a Colyseus + React + TypeScript monorepo, structured after the
 sibling [Durak](https://github.com/turbo-leg/Durak) project.
 
-> **Status:** playable. The rules engine, authoritative Colyseus server, and the
-> React/Discord client ("Cozy Hand-Drawn Tavern" theme) are all implemented and
-> tested, with Discord OAuth2 + Supabase accounts and a single-app Fly.io deploy
-> (`muushig.fly.dev`). Remaining work is tracked in the
-> [issues](../../issues) — see the [milestones](../../milestones).
+> **Status:** full game. Rules engine, authoritative Colyseus server, and the
+> React/Discord client ("Cozy Hand-Drawn Tavern" theme) — with bots,
+> reconnection, spectators, private tables via **join codes**, an in-app
+> bilingual (en/mn) rules book, deep player stats + Elo + leaderboard,
+> settings with generative tavern music, and a single-app Fly.io deploy
+> (`muushig.fly.dev`). Discord Activity registration is documented in
+> [docs/DISCORD_SETUP.md](./docs/DISCORD_SETUP.md).
 
 ## Monorepo layout
 

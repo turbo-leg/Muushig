@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import type { Phase } from '../game/types';
 import { Button } from './Button';
 import { HoldButton } from './HoldButton';
-import { t, tAlt, getLocale, toggleLocale } from '../i18n';
+import { t, tAlt } from '../i18n';
 
 interface Props {
   phase: Phase;
@@ -32,7 +32,6 @@ interface Props {
   hint: string | null;
   winnerNames: string[];
   isWinner: boolean;
-  muted: boolean;
   onReady: () => void;
   onStart: () => void;
   onAddBot: () => void;
@@ -44,7 +43,7 @@ interface Props {
   onRematch: () => void;
   onToggleTrumpSwap: () => void;
   onInvite: () => void;
-  onToggleMute: () => void;
+  onSettings: () => void;
   onLeaveTable: () => void;
 }
 
@@ -56,38 +55,6 @@ function StatusScroll({ children }: { children: ReactNode }) {
         {children}
       </span>
     </div>
-  );
-}
-
-function MuteButton({ muted, onClick }: { muted: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={muted ? 'Unmute sound' : 'Mute sound'}
-      className="grid h-10 w-10 cursor-pointer place-items-center rounded-full text-cream/70 border border-ink/40 bg-wood-dark/55 hover:bg-wood/50 hover:text-cream transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber select-none"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        width="18"
-        height="18"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M11 5 6 9H2v6h4l5 4V5Z" />
-        {muted ? (
-          <path d="m23 9-6 6M17 9l6 6" strokeWidth="2" />
-        ) : (
-          <>
-            <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-            <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-          </>
-        )}
-      </svg>
-    </button>
   );
 }
 
@@ -143,16 +110,16 @@ function LeaveButton({
   );
 }
 
-/** Switches the whole UI between English and Mongolian. */
-function LocaleButton() {
+/** Opens the settings modal (audio, language, rules). */
+function GearButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
-      onClick={toggleLocale}
-      aria-label={getLocale() === 'en' ? 'Монгол хэл рүү шилжих' : 'Switch to English'}
-      className="grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-ink/40 bg-wood-dark/55 font-hand text-sm font-bold text-cream/70 transition-colors select-none hover:bg-wood/50 hover:text-cream focus-visible:ring-2 focus-visible:ring-amber focus-visible:outline-none"
+      onClick={onClick}
+      aria-label={t('openSettings')}
+      className="grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-ink/40 bg-wood-dark/55 font-hand text-lg text-cream/70 transition-colors select-none hover:bg-wood/50 hover:text-cream focus-visible:ring-2 focus-visible:ring-amber focus-visible:outline-none"
     >
-      {getLocale() === 'en' ? 'МН' : 'EN'}
+      ⚙
     </button>
   );
 }
@@ -165,8 +132,7 @@ export function ActionBar(props: Props) {
       <div className="flex w-full items-center justify-center gap-3 select-none">
         <StatusScroll>{t('watchingNotice')}</StatusScroll>
         <HelpButton onClick={props.onHelp} />
-        <LocaleButton />
-        <MuteButton muted={props.muted} onClick={props.onToggleMute} />
+        <GearButton onClick={props.onSettings} />
       </div>
     );
   }
@@ -295,8 +261,7 @@ export function ActionBar(props: Props) {
         </div>
 
         <HelpButton onClick={props.onHelp} />
-        <LocaleButton />
-        <MuteButton muted={props.muted} onClick={props.onToggleMute} />
+        <GearButton onClick={props.onSettings} />
         <LeaveButton onLeave={props.onLeaveTable} requireConfirm={phase !== 'waiting'} />
       </div>
     </div>

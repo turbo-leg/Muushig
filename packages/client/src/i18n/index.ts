@@ -166,6 +166,16 @@ const messages = {
     mn: 'Муушиг — мөрцөөд нэг ч нүд аваагүй: +5 оноо.\nНавших — хуваагчийн ил хөзөр солих эрх.\nХаранхуй — 3 тарсны дараах албан тоглолт.\nАманхүзүү — хуваагчийн зүүн гарт, түрүүлж явна.\nТал — дарсан 6 хөзөр.',
   },
 
+  // ── Settings ──
+  settingsTitle: { en: 'Settings', mn: 'Тохиргоо' },
+  openSettings: { en: 'Open settings', mn: 'Тохиргоо нээх' },
+  muteAll: { en: 'Mute all sound', mn: 'Бүх дууг хаах' },
+  sfxVolume: { en: 'Effects volume', mn: 'Эффектийн дуу' },
+  musicToggle: { en: 'Tavern music', mn: 'Мухлагийн хөгжим' },
+  musicVolume: { en: 'Music volume', mn: 'Хөгжмийн дуу' },
+  languageRow: { en: 'Language', mn: 'Хэл' },
+  rulesRow: { en: 'How to play', mn: 'Тоглох заавар' },
+
   // ── Crash fallback ──
   crashTitle: { en: 'The table wobbled', mn: 'Ширээ ганхлаа' },
   crashBody: {
