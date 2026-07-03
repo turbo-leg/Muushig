@@ -76,7 +76,6 @@ function AccountBar({ onProfile }: { onProfile: () => void }) {
   );
 }
 
-/** The connected game (only mounts once we're past the auth gate). */
 /** Trophy button — visible to guests too; the leaderboard view is world-readable. */
 function LeaderboardButton({ onClick }: { onClick: () => void }) {
   return (
@@ -91,6 +90,7 @@ function LeaderboardButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+/** The connected game (only mounts once we're past the auth gate). */
 function GameView() {
   const { status, error, state, sessionId, send } = useRoom();
   const { session } = useAuth();
