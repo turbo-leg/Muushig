@@ -3,9 +3,11 @@ import { Background } from './components/Background';
 import { Table } from './components/Table';
 import { Login } from './components/Login';
 import { Profile } from './components/Profile';
+import { Leaderboard } from './components/Leaderboard';
 import { useRoom } from './net/useRoom';
 import { useAuth } from './auth/AuthContext';
 import { isEmbedded } from './discord';
+import { supabase } from './lib/supabase';
 import { t, useLocale } from './i18n';
 
 /** Hidden SVG definition block containing global filters for hand-inked line warp and paper tooth. */
@@ -74,11 +76,26 @@ function AccountBar({ onProfile }: { onProfile: () => void }) {
   );
 }
 
+/** Trophy button — visible to guests too; the leaderboard view is world-readable. */
+function LeaderboardButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t('openLeaderboard')}
+      className="fixed left-[max(0.75rem,var(--safe-left))] top-[max(0.75rem,var(--safe-top))] z-40 grid h-10 w-10 place-items-center rounded-full border-2 border-amber-deep bg-parchment-deep text-lg select-none"
+    >
+      🏆
+    </button>
+  );
+}
+
 /** The connected game (only mounts once we're past the auth gate). */
 function GameView() {
   const { status, error, state, sessionId, send } = useRoom();
   const { session } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   useLocale(); // re-render the shell when the language flips
 
   return (
@@ -86,6 +103,8 @@ function GameView() {
       <GlobalSVGDefs />
       <Background />
       <AccountBar onProfile={() => setShowProfile(true)} />
+      {supabase && <LeaderboardButton onClick={() => setShowLeaderboard(true)} />}
+      {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
 
       {status === 'connecting' && (
         <Centered>

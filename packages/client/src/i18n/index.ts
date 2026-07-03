@@ -91,6 +91,49 @@ const messages = {
   gameOverShort: { en: 'Game over', mn: 'Тоглолт дууслаа' },
   yourTurnShort: { en: 'Your turn!', mn: 'Таны ээлж!' },
   ledLabel: { en: 'Led', mn: 'Гарсан' },
+
+  // ── Profile / deep stats ──
+  closeProfile: { en: 'Close profile', mn: 'Хаах' },
+  muushigPlayer: { en: 'Муушиг player', mn: 'Муушиг тоглогч' },
+  statPlayed: { en: 'Played', mn: 'Тоглосон' },
+  statWon: { en: 'Won', mn: 'Хожсон' },
+  statWinPct: { en: 'Win %', mn: 'Хожлын %' },
+  statRating: { en: 'Rating', mn: 'Зэрэглэл' },
+  statStreak: { en: 'Streak', mn: 'Дараалал' },
+  deepStatsTitle: { en: 'Deep stats', mn: 'Нарийн үзүүлэлт' },
+  statFoldRate: { en: 'Fold rate', mn: 'Тарах хувь' },
+  statAvgTricks: { en: 'Avg tricks', mn: 'Дундаж нүд' },
+  statMuushigd: { en: "Muushig'd", mn: 'Муушиг болсон' },
+  statMuushigdOthers: { en: 'Muushig’d others', mn: 'Муушиг оруулсан' },
+  statNavshih: { en: 'Navshih', mn: 'Навших' },
+  statHaranhui: { en: 'Haranhui', mn: 'Харанхуй' },
+  statPerfect: { en: 'Perfect rounds', mn: 'Бүх нүд авсан' },
+  statBestStreak: { en: 'Best streak', mn: 'Шилдэг дараалал' },
+  ratingHistory: { en: 'Rating history', mn: 'Зэрэглэлийн түүх' },
+  recentGames: { en: 'Recent games', mn: 'Сүүлийн тоглолтууд' },
+  loadingEllipsis: { en: 'Loading…', mn: 'Ачаалж байна…' },
+  noGamesYet: { en: 'No games yet — go deal a round.', mn: 'Тоглолт алга — хөзрөө хуваа.' },
+  winLabel: { en: 'Win', mn: 'Хожил' },
+  lossLabel: { en: 'Loss', mn: 'Хожигдол' },
+  vsLabel: { en: 'vs {names}', mn: '{names}-тэй' },
+  placementLabel: { en: '#{n}', mn: '#{n}' },
+  roundsColumn: { en: 'Round-by-round', mn: 'Үе тус бүрээр' },
+  roundShort: { en: 'R{n}', mn: 'Ү{n}' },
+  foldedShort: { en: 'fold', mn: 'тарсан' },
+  tricksShort: { en: '{n} tricks', mn: '{n} нүд' },
+
+  // ── Leaderboard ──
+  leaderboardTitle: { en: 'Leaderboard', mn: 'Тэргүүлэгчид' },
+  openLeaderboard: { en: 'Open leaderboard', mn: 'Тэргүүлэгчид харах' },
+  leaderboardEmpty: { en: 'No ranked players yet.', mn: 'Зэрэглэлтэй тоглогч алга.' },
+  colGames: { en: 'Games', mn: 'Тоглолт' },
+
+  // ── Post-game recap ──
+  recapTitle: { en: 'Your game', mn: 'Таны тоглолт' },
+  recapStayed: { en: 'Bid {stayed}/{total} rounds', mn: '{total} үеэс {stayed}-д мөрцсөн' },
+  recapTricks: { en: '{n} tricks', mn: '{n} нүд авсан' },
+  recapMuushigd: { en: 'muushig’d ×{n}', mn: '×{n} муушиг болсон' },
+  recapPerfect: { en: 'perfect round ×{n}', mn: '×{n} бүх нүд авсан' },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type MsgKey = keyof typeof messages;
