@@ -22,6 +22,9 @@ const BOT_ACT_DELAY_MS = 900;
 const BOT_NAMES = ['Баатар', 'Сараа', 'Дорж', 'Оюунаа', 'Тэмүүлэн'];
 // Connection slots kept above the seat count so mid-game joiners can watch.
 const SPECTATOR_HEADROOM = 10;
+// Breather between scoring a round and dealing the next, so players can read
+// the score reveal before the cards move again.
+const DEFAULT_ROUND_END_PAUSE_MS = 4_000;
 
 interface SpectatorProfile {
   username: string;
@@ -46,6 +49,7 @@ interface CreateOptions extends JoinOptions {
   decisionTimeLimit?: number;
   reconnectWindow?: number;
   botDelay?: number;
+  roundEndPause?: number;
 }
 
 /**
@@ -67,6 +71,8 @@ export class MuushigRoom extends Room<GameState> {
   private decisionTimeLimit = DEFAULT_DECISION_TIME_MS;
   private reconnectWindow = DEFAULT_RECONNECT_WINDOW_S;
   private botDelay = BOT_ACT_DELAY_MS;
+  private roundEndPause = DEFAULT_ROUND_END_PAUSE_MS;
+  private roundPauseTimer: Delayed | null = null;
   private discordInstanceId: string | null = null;
   private rematchVotes = new Set<string>();
   private rateLimit = new Map<string, number[]>();
@@ -94,6 +100,8 @@ export class MuushigRoom extends Room<GameState> {
       this.reconnectWindow = options.reconnectWindow;
     if (typeof options.botDelay === 'number' && options.botDelay >= 0)
       this.botDelay = options.botDelay;
+    if (typeof options.roundEndPause === 'number' && options.roundEndPause >= 0)
+      this.roundEndPause = options.roundEndPause;
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
@@ -209,6 +217,8 @@ export class MuushigRoom extends Room<GameState> {
     this.clearDecisionTimer();
     this.botTimer?.clear();
     this.botTimer = null;
+    this.roundPauseTimer?.clear();
+    this.roundPauseTimer = null;
   }
 
   // ──────────────────────────── Handlers ────────────────────────────
@@ -408,7 +418,8 @@ export class MuushigRoom extends Room<GameState> {
     this.clearTurnTimer();
     this.clearSwapTimer();
     this.clearDecisionTimer();
-    MuushigEngine.scoreRound(this.state);
+    const result = MuushigEngine.scoreRound(this.state);
+    this.broadcast('roundEnd', { deltas: result.deltas });
 
     if (MuushigEngine.isGameOver(this.state)) {
       this.state.phase = 'finished';
@@ -417,6 +428,22 @@ export class MuushigRoom extends Room<GameState> {
       return;
     }
 
+    // Let the score reveal land before the next deal.
+    if (this.roundEndPause <= 0) {
+      this.dealNextRound();
+      return;
+    }
+    this.roundPauseTimer?.clear();
+    this.roundPauseTimer = this.clock.setTimeout(() => this.dealNextRound(), this.roundEndPause);
+  }
+
+  private dealNextRound(): void {
+    this.roundPauseTimer?.clear();
+    this.roundPauseTimer = null;
+    // Phase here is 'playing' (normal round end) or a winner-less 'finished'
+    // (everyone resigned). Anything else means the room was reset meanwhile.
+    if (this.state.phase !== 'playing' && this.state.phase !== 'finished') return;
+    if (MuushigEngine.isGameOver(this.state)) return;
     MuushigEngine.dealRound(this.state);
     this.syncMetadata();
     this.startDecisionTimer();

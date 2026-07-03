@@ -389,6 +389,21 @@ body {
   animation: turn-pulse 1.5s ease-in-out infinite;
 }
 
+/* Game-end coin rain: fall past the viewport with a light sideways drift. */
+@keyframes coin-fall {
+  from {
+    opacity: 1;
+    transform: translateY(-6vh) translateX(0) rotate(0deg);
+  }
+  to {
+    opacity: 0.85;
+    transform: translateY(106vh) translateX(var(--coin-drift, 0px)) rotate(300deg);
+  }
+}
+.anim-coin-fall {
+  animation: coin-fall 2.6s cubic-bezier(0.3, 0, 0.8, 0.4) var(--coin-delay, 0s) both;
+}
+
 /* Green ring on a seat whose player is talking (Discord SPEAKING_START). */
 @keyframes speak-pulse {
   0%,
@@ -420,6 +435,10 @@ body {
 [data-perf='low'] .anim-reveal,
 [data-perf='low'] .anim-turn {
   animation: none !important;
+}
+/* Coins are pure decoration — drop them entirely on hot devices. */
+[data-perf='low'] .anim-coin-fall {
+  display: none !important;
 }
 /* Keep the speaking ring readable, just static (no pulse) on hot devices. */
 [data-perf='low'] .anim-speaking {
