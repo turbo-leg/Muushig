@@ -128,6 +128,58 @@ const messages = {
   leaderboardEmpty: { en: 'No ranked players yet.', mn: 'Зэрэглэлтэй тоглогч алга.' },
   colGames: { en: 'Games', mn: 'Тоглолт' },
 
+  // ── Help book (page bodies are '\n'-separated lines) ──
+  helpTitle: { en: 'How to play', mn: 'Хэрхэн тоглох вэ' },
+  helpOpen: { en: 'How to play', mn: 'Тоглох заавар' },
+  helpNext: { en: 'Next', mn: 'Дараах' },
+  helpBack: { en: 'Back', mn: 'Буцах' },
+  helpDone: { en: 'To the table!', mn: 'Ширээ рүү!' },
+  helpPageOf: { en: '{n} / {total}', mn: '{n} / {total}' },
+  helpGoalTitle: { en: 'The goal', mn: 'Зорилго' },
+  helpGoalBody: {
+    en: 'Muushig is a trick-taking card game for 2–5 players.\nEveryone starts at 15 points and counts DOWN — first to 0 wins.\nEvery trick you take removes 1 point.\nBid and take no tricks? +5 points — you got muushig’d!',
+    mn: 'Муушиг бол 2–5 хүн тоглодог нүд авалцах хөзрийн тоглоом.\nБүгд 15 оноотой эхэлж, ДООШОО тоолно — эхэлж 0 хүрсэн нь хожно.\nАвсан нүд бүр 1 оноо хасна.\nМөрцөөд нэг ч нүд аваагүй бол +5 оноо — муушиг боллоо!',
+  },
+  helpDealTitle: { en: 'The deal', mn: 'Хуваалт' },
+  helpDealBody: {
+    en: 'A 32-card deck: 7 through Ace in four suits.\nEveryone gets 5 cards, then one card is turned face-up — its suit is trump for the round.\n6 face-down cards form the stock (tal).\nD marks the dealer; АМ marks the amankhuzuu, who always acts first.',
+    mn: '32 хөзөр: дөрвөн өнгийн 7-оос Тамга.\nХүн бүрд 5 хөзөр тараагаад нэгийг нь ил дэлгэнэ — тэр өнгө энэ үеийн хөзөр (диргэх өнгө) болно.\nДарсан 6 хөзөр тал болно.\nD — хуваагч; АМ — аманхүзүү, үргэлж түрүүлж явна.',
+  },
+  helpBidTitle: { en: 'Bid or fold', mn: 'Мөрцөх үү, тарах уу' },
+  helpBidBody: {
+    en: 'Before each round, players take turns choosing: bid (play the round) or fold.\nFolding keeps your score safe — but wins nothing.\nFold 3 rounds in a row and the next is haranhui: you must play it.',
+    mn: 'Үе бүрийн өмнө тоглогчид ээлжээрээ сонгоно: мөрцөх үү, тарах уу.\nТарвал оноо чинь хөдлөхгүй — гэхдээ юу ч хожихгүй.\n3 удаа дараалан тарвал дараагийнх нь харанхуй: заавал тоглоно.',
+  },
+  helpSwapTitle: { en: 'The draw & navshih', mn: 'Солилт ба навших' },
+  helpSwapBody: {
+    en: 'Bidders may trade up to 5 cards with the stock, in turn order.\nThe dealer has one extra move: take the face-up trump card in exchange for any hand card — navshih.',
+    mn: 'Мөрцсөн хүмүүс ээлжээрээ талаас 5 хүртэл хөзөр сольж болно.\nХуваагчид нэмэлт боломж бий: ил хөзрийг гарын нэг хөзрөөрөө солих — навших.',
+  },
+  helpTrickTitle: { en: 'Playing tricks', mn: 'Нүд авалцах' },
+  helpTrickBody: {
+    en: 'Follow the led suit if you can — and beat the highest card on the table if you can.\nNo led suit in hand? You must play a trump if you hold one.\nOtherwise throw anything.\nHighest trump wins the trick; with no trump, the highest card of the led suit.',
+    mn: 'Гарсан өнгөөр явах ёстой — чадвал ширээн дээрх хамгийн өндрийг нь дарж.\nТэр өнгө байхгүй бол хөзрөөр явах ёстой.\nАль нь ч байхгүй бол дуртайгаа хая.\nХамгийн өндөр хөзөр нүд авна; хөзөргүй бол гарсан өнгөний хамгийн өндөр нь.',
+  },
+  helpGlossaryTitle: { en: 'The words', mn: 'Үгсийн тайлбар' },
+  helpGlossaryBody: {
+    en: 'Muushig — bid but took no tricks: +5 points.\nNavshih — the dealer’s trump-card exchange.\nHaranhui — the forced round after 3 folds.\nAmankhuzuu — sits left of the dealer, acts first.\nTal — the 6-card face-down stock.',
+    mn: 'Муушиг — мөрцөөд нэг ч нүд аваагүй: +5 оноо.\nНавших — хуваагчийн ил хөзөр солих эрх.\nХаранхуй — 3 тарсны дараах албан тоглолт.\nАманхүзүү — хуваагчийн зүүн гарт, түрүүлж явна.\nТал — дарсан 6 хөзөр.',
+  },
+
+  // ── First-game hints ──
+  hintDecision: {
+    en: 'Weak hand? Folding costs nothing — bidding and losing every trick costs +5.',
+    mn: 'Гар муу бол тарахад алдах юмгүй — мөрцөөд нүд авахгүй бол +5.',
+  },
+  hintSwap: {
+    en: 'Trade away low off-suit cards; keep trumps and high cards.',
+    mn: 'Бага өнгөний хөзрөө соль; хөзөр болон өндөр хөзрөө үлдээ.',
+  },
+  hintPlay: {
+    en: 'You must follow the led suit — and beat the table if you can.',
+    mn: 'Гарсан өнгөөр явах ёстой — чадвал дарж яв.',
+  },
+
   // ── Post-game recap ──
   recapTitle: { en: 'Your game', mn: 'Таны тоглолт' },
   recapStayed: { en: 'Bid {stayed}/{total} rounds', mn: '{total} үеэс {stayed}-д мөрцсөн' },

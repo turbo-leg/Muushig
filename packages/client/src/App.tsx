@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Background } from './components/Background';
+import { HelpBook } from './components/HelpBook';
+import { hasSeenRules, markRulesSeen } from './lib/firstRun';
 import { Table } from './components/Table';
 import { Login } from './components/Login';
 import { Profile } from './components/Profile';
@@ -90,13 +92,42 @@ function LeaderboardButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+/** Corner how-to-play button, below the trophy. */
+function HelpCornerButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t('helpOpen')}
+      className="fixed left-[max(0.75rem,var(--safe-left))] top-[calc(max(0.75rem,var(--safe-top))+3rem)] z-40 grid h-10 w-10 place-items-center rounded-full border-2 border-amber-deep bg-parchment-deep font-hand text-lg font-bold text-wood select-none"
+    >
+      ?
+    </button>
+  );
+}
+
 /** The connected game (only mounts once we're past the auth gate). */
 function GameView() {
   const { status, error, state, sessionId, send } = useRoom();
   const { session } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   useLocale(); // re-render the shell when the language flips
+
+  // First run: open the rules book once, when the player lands in a lobby.
+  const inLobby = status === 'connected' && state?.phase === 'waiting';
+  useEffect(() => {
+    if (inLobby && !hasSeenRules()) {
+      setShowHelp(true);
+      markRulesSeen();
+    }
+  }, [inLobby]);
+
+  const closeHelp = () => {
+    markRulesSeen();
+    setShowHelp(false);
+  };
 
   return (
     <>
@@ -104,7 +135,9 @@ function GameView() {
       <Background />
       <AccountBar onProfile={() => setShowProfile(true)} />
       {supabase && <LeaderboardButton onClick={() => setShowLeaderboard(true)} />}
+      <HelpCornerButton onClick={() => setShowHelp(true)} />
       {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
+      {showHelp && <HelpBook onClose={closeHelp} />}
 
       {status === 'connecting' && (
         <Centered>

@@ -9,6 +9,8 @@ import { Scoreboard } from './Scoreboard';
 import { RoundSummary, type RoundRow } from './RoundSummary';
 import { Celebration } from './Celebration';
 import { MatchRecap } from './MatchRecap';
+import { HelpBook } from './HelpBook';
+import { hasPlayedOnce, markPlayedOnce } from '../lib/firstRun';
 import { ScoreSheet } from './ScoreSheet';
 import { PipView } from './PipView';
 import { Trick } from './Trick';
@@ -409,6 +411,24 @@ export function Table({ state, sessionId, send }: Props) {
     prev.current = { phase, trickLen, tricksPlayed, isMyTurn, winnersLen, init: true };
   }, [phase, trickLen, tricksPlayed, isMyTurn, winnersLen, isWinner]);
 
+  // ── First-game hints & help ──
+  const [showHelp, setShowHelp] = useState(false);
+  // Frozen at mount: finishing THIS game silences hints from the next one.
+  const [hintsOn] = useState(() => !hasPlayedOnce());
+  useEffect(() => {
+    if (phase === 'finished') markPlayedOnce();
+  }, [phase]);
+  const hintKey =
+    hintsOn && !isSpectator
+      ? phase === 'decision'
+        ? ('hintDecision' as const)
+        : phase === 'swap'
+          ? ('hintSwap' as const)
+          : phase === 'playing'
+            ? ('hintPlay' as const)
+            : null
+      : null;
+
   // ── Round-end summary ──
   // The server pauses between scoring and the next deal; a new scoreLog entry
   // marks that moment, so this works for spectators and reconnects too.
@@ -587,12 +607,14 @@ export function Table({ state, sessionId, send }: Props) {
           trumpSwapMode={trumpSwapMode}
           canInvite={isEmbedded}
           canAddBot={isHost && phase === 'waiting' && seats.length < state.maxPlayers}
+          hint={hintKey ? t(hintKey) : null}
           winnerNames={winnerNames}
           isWinner={isWinner}
           muted={muted}
           onReady={onReady}
           onStart={onStart}
           onAddBot={onAddBot}
+          onHelp={() => setShowHelp(true)}
           onStay={onStay}
           onSwap={onSwap}
           onKeep={onKeep}
@@ -605,6 +627,7 @@ export function Table({ state, sessionId, send }: Props) {
       </div>
 
       {showSheet && <ScoreSheet seats={seats} onClose={() => setShowSheet(false)} />}
+      {showHelp && <HelpBook onClose={() => setShowHelp(false)} />}
 
       {phase === 'finished' && winnerNames.length > 0 ? (
         <Celebration winnerNames={winnerNames} />
