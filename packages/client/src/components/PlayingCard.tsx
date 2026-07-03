@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { cardArt, cardBackArt } from '../game/cardArt';
 
 const SUIT_GLYPH: Record<string, string> = {
   Spades: '♠',
@@ -34,9 +35,9 @@ interface Props {
 }
 
 /**
- * A single card rendered as a parchment placeholder, ready to be swapped for a
- * hand-drawn watercolor asset: pass `art="/assets/cards/AS.png"` (or set the
- * `--card-art` CSS variable) and the image fills the card with no markup change.
+ * A single card. Art auto-loads by suit+rank from `src/assets/cards/` (see
+ * cardArt.ts); pass an explicit `art="/assets/cards/AS.webp"` to override, or
+ * leave it unresolved to fall back to the CSS parchment face with rank/suit.
  */
 export function PlayingCard({
   suit = 'Spades',
@@ -49,7 +50,15 @@ export function PlayingCard({
   const color = suitColor(suit);
   const glyph = SUIT_GLYPH[suit] ?? '♠';
   const label = RANK_LABEL[rank] ?? '?';
-  const style = art ? ({ '--card-art': `url("${art}")` } as CSSProperties) : undefined;
+
+  // Resolve art: an explicit `art` prop wins, otherwise auto-load by suit+rank.
+  const faceArt = faceDown ? undefined : (art ?? cardArt(suit, rank));
+  const backArt = faceDown ? cardBackArt() : undefined;
+  const style: CSSProperties | undefined = faceArt
+    ? ({ '--card-art': `url("${faceArt}")` } as CSSProperties)
+    : backArt
+      ? ({ '--card-back': `url("${backArt}")` } as CSSProperties)
+      : undefined;
 
   const cls = [
     'playing-card',
@@ -68,8 +77,10 @@ export function PlayingCard({
       aria-label={faceDown ? 'Face-down card' : `${label} of ${suit}`}
     >
       {faceDown ? (
-        <span className="card-back-mark">М</span>
-      ) : art ? null : (
+        backArt ? null : (
+          <span className="card-back-mark">М</span>
+        )
+      ) : faceArt ? null : (
         <>
           <span className="card-index card-index--tl" style={{ color }}>
             <span className="card-rank">{label}</span>

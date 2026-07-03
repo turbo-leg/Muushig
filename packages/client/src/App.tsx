@@ -1,6 +1,41 @@
+import { useState } from 'react';
 import { Background } from './components/Background';
 import { Table } from './components/Table';
+import { Login } from './components/Login';
+import { Profile } from './components/Profile';
 import { useRoom } from './net/useRoom';
+import { useAuth } from './auth/AuthContext';
+import { isEmbedded } from './discord';
+
+/** Hidden SVG definition block containing global filters for hand-inked line warp and paper tooth. */
+function GlobalSVGDefs() {
+  return (
+    <svg className="absolute w-0 h-0 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        {/* Slightly warps borders/lines to create an organic, hand-inked line wiggle */}
+        <filter id="handDrawn" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" result="noise" />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="noise"
+            scale="2"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+        </filter>
+
+        {/* Simulates coarse tooth and lighting shadows of heavy cold-press watercolor paper */}
+        <filter id="paperTexture" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.12" numOctaves="3" result="noise" />
+          <feDiffuseLighting in="noise" lightingColor="#f5e6d3" surfaceScale="1.2" result="light">
+            <feDistantLight azimuth="45" elevation="65" />
+          </feDiffuseLighting>
+          <feBlend mode="multiply" in="SourceGraphic" in2="light" />
+        </filter>
+      </defs>
+    </svg>
+  );
+}
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -10,12 +45,46 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App() {
+function AccountBar({ onProfile }: { onProfile: () => void }) {
+  const { session, signOut } = useAuth();
+  if (!session) return null;
+  const m = (session.user.user_metadata ?? {}) as Record<string, string>;
+  const avatar = m.avatar_url || m.picture || '';
+  const name = m.full_name || m.name || m.user_name || 'You';
+  return (
+    <div className="fixed right-[max(0.75rem,var(--safe-right))] top-[max(0.75rem,var(--safe-top))] z-40 flex items-center gap-2 select-none">
+      <button
+        type="button"
+        onClick={onProfile}
+        aria-label="Open profile"
+        className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center font-hand text-lg text-wood"
+        style={avatar ? { backgroundImage: `url("${avatar}")` } : undefined}
+      >
+        {!avatar && name.charAt(0).toUpperCase()}
+      </button>
+      <button
+        type="button"
+        onClick={signOut}
+        className="rounded px-2 py-1 font-hand text-base text-cream/80 hover:text-cream"
+      >
+        Sign out
+      </button>
+    </div>
+  );
+}
+
+/** The connected game (only mounts once we're past the auth gate). */
+function GameView() {
   const { status, error, state, sessionId, send } = useRoom();
+  const { session } = useAuth();
+  const [showProfile, setShowProfile] = useState(false);
 
   return (
     <>
+      <GlobalSVGDefs />
       <Background />
+      <AccountBar onProfile={() => setShowProfile(true)} />
+
       {status === 'connecting' && (
         <Centered>
           <p className="text-center font-hand text-2xl text-cream/80">Settling in by the fire…</p>
@@ -31,6 +100,39 @@ export default function App() {
       )}
 
       {status === 'connected' && state && <Table state={state} sessionId={sessionId} send={send} />}
+
+      {showProfile && session && (
+        <Profile session={session} onClose={() => setShowProfile(false)} />
+      )}
     </>
   );
+}
+
+export default function App() {
+  const { enabled, loading, session } = useAuth();
+
+  if (loading) {
+    return (
+      <>
+        <GlobalSVGDefs />
+        <Background />
+        <Centered>
+          <p className="text-center font-hand text-2xl text-cream/80">Settling in by the fire…</p>
+        </Centered>
+      </>
+    );
+  }
+
+  // On the web (not inside Discord), require sign-in when auth is configured.
+  if (enabled && !session && !isEmbedded) {
+    return (
+      <>
+        <GlobalSVGDefs />
+        <Background />
+        <Login />
+      </>
+    );
+  }
+
+  return <GameView />;
 }

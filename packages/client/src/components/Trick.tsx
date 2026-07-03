@@ -12,7 +12,7 @@ interface Props {
 /** The center of the table — cards thrown down at natural, seeded angles. */
 export function Trick({ plays, trumpSuit }: Props) {
   return (
-    <div className="flex min-h-[120px] items-center justify-center gap-1">
+    <div className="flex min-h-[88px] items-center justify-center gap-1 sm:min-h-[120px]">
       {plays.length === 0 ? (
         <span className="font-hand text-lg text-cream/70">No cards down yet…</span>
       ) : (

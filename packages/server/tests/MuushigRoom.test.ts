@@ -203,10 +203,11 @@ describe('MuushigRoom — round flow', () => {
   test('a resigning player sits out and the round still resolves', async () => {
     const { room, clients } = await startedRoom(3);
 
-    // Decision phase: one player resigns, the others stay.
-    clients[2]!.send('resign');
+    // Decision phase: decisions go in seat order (clockwise from the amankhuzuu).
+    // The last seat resigns, the others stay.
     clients[0]!.send('stay');
     clients[1]!.send('stay');
+    clients[2]!.send('resign');
     await waitUntil(() => room.state.phase === 'swap');
     expect(room.state.players.get(clients[2]!.sessionId)!.hasResigned).toBe(true);
 

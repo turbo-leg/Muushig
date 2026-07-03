@@ -17,6 +17,7 @@
     "@colyseus/redis-presence": "^0.15.0",
     "@colyseus/tools": "^0.15.0",
     "@muushig/shared": "*",
+    "@supabase/supabase-js": "^2.108.2",
     "colyseus": "^0.15.0",
     "cors": "^2.8.5",
     "express": "^4.19.0"

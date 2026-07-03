@@ -16,24 +16,41 @@ four suits (2–6 removed). Rank order, low → high:
 
 ## Setup
 
-1. Each player is dealt **5 cards**, one at a time.
+1. The **dealer** deals one card at a time, starting with the player to their
+   **left** and going clockwise, until everyone holds **5 cards** (the dealer is
+   dealt last). The player to the dealer's left is the **amankhuzuu** — they open
+   the round and act first in every pre-play phase.
 2. The next card is flipped **face-up**; its suit is the **trump suit** (beats
    all other suits) for the round.
 3. Exactly **6 cards** form the face-down **stock** (the _tal_). Any remaining
    undealt cards are **set aside** (out of play for the round).
 4. Every player starts the game at **15 points**.
 
+### The dealer's trump exchange
+
+In the **swap phase** — after every player has folded or played and the stayers
+have drawn — the **dealer** may take the face-up trump card **into their hand**,
+giving up one of their own cards in exchange (that card is set aside, out of
+play). The **trump card and trump suit do not change** — the turned-up trump card
+stays exactly as flipped and keeps defining the suit; the dealer's given card
+never becomes the trump. This is the last action before the board is cleared and
+play begins. One exchange per round.
+
 ## Strategy phase — stay or resign
 
-Before any card is played, each player decides whether to **stay** or **resign**
-(in clockwise order from the dealer's left):
+Before any card is played, each player decides whether to **stay** or **resign**,
+**in turn order, clockwise from the amankhuzuu** (the dealer's left):
 
 - **Resign:** you sit the round out. Your score is **unchanged** — this protects
   a weak hand from the shut-out penalty, but forfeits the chance to score.
 - **Stay → the draw:** a one-time option to discard any number of your cards (up
-  to all 5) and draw replacements from the 6-card stock. If the stock runs out,
-  the remaining players play with what they have. (The face-up trump card is not
-  part of the stock and cannot be drawn.)
+  to all 5) and draw the same number of replacements from the 6-card stock.
+  Stayers draw **in turn order** (amankhuzuu first, then clockwise), so earlier
+  seats get first pick — and the stock empties as it goes. You may draw **at most
+  as many cards as remain in the stock**: asking to swap 3 when only 1 is left is
+  **not allowed** (choose fewer). Once the stock is empty, remaining players play
+  with what they have. (The face-up trump card is not part of the stock and
+  cannot be drawn.)
 
 ## Playing tricks
 
@@ -70,9 +87,16 @@ multiple players cross zero in the same round, the player with the **lowest
 ## Implementation notes
 
 - The pre-round runs as two phases: a **decision** phase where every player
-  chooses to stay or resign, then a **swap** phase where the stayers draw.
-- Seat order is fixed for now; `seatOrder[0]` leads the opening trick (treated as
-  the player to the dealer's left). Rotating the dealer between games is a
-  possible future refinement.
+  chooses to stay or resign, then a **swap** phase where the stayers draw. Both
+  advance in turn order via `state.currentTurn`, starting at the amankhuzuu.
+- The **dealer rotates one seat clockwise every round** (the first round's dealer
+  is the last seat in `seatOrder`, so `seatOrder[0]` opens the game). The
+  `amankhuzuuId` is the seat to the dealer's left — they deal/decide/swap/lead
+  first. Turn order each phase is "clockwise from the amankhuzuu", via
+  `activePlayersFrom(amankhuzuuId)`. A fresh game restarts the rotation.
+- The dealer's trump exchange (navshih) is an out-of-turn action (`exchangeTrump`)
+  allowed only in the swap phase; it leaves `trumpSuit` untouched and sets
+  `trumpExchanged`.
 - The engine is pure and deterministic (injectable RNG); the Colyseus server is
-  authoritative and the client mirrors only the legal-move rule for UI hinting.
+  authoritative (it gates decision/swap to the on-turn player) and the client
+  mirrors the legal-move rule for UI hinting.

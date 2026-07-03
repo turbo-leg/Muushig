@@ -12,6 +12,9 @@ interface Props {
   selectedKeys: Set<string>;
   onToggleSelect: (card: CardVM) => void;
   onPlay: (card: CardVM) => void;
+  /** Dealer is choosing a card to lay face-up in exchange for the trump card. */
+  trumpSwapMode?: boolean;
+  onPickTrump?: (index: number) => void;
 }
 
 export function Hand({
@@ -24,6 +27,8 @@ export function Hand({
   selectedKeys,
   onToggleSelect,
   onPlay,
+  trumpSwapMode,
+  onPickTrump,
 }: Props) {
   if (cards.length === 0) return null;
 
@@ -31,9 +36,13 @@ export function Hand({
     <div className="flex flex-wrap justify-center gap-[clamp(2px,1vw,8px)]">
       {cards.map((c, i) => {
         const key = cardKey(c);
-        const playable = phase === 'playing' && isMyTurn && legalKeys.has(key);
-        const onClick =
-          phase === 'playing'
+        // In trump-swap mode every card is pickable; otherwise normal play/swap rules.
+        const playable = trumpSwapMode
+          ? true
+          : phase === 'playing' && isMyTurn && legalKeys.has(key);
+        const onClick = trumpSwapMode
+          ? () => onPickTrump?.(i)
+          : phase === 'playing'
             ? playable
               ? () => onPlay(c)
               : undefined
@@ -49,7 +58,7 @@ export function Hand({
             trump={c.suit === trumpSuit}
             playable={playable}
             selected={selectedKeys.has(key)}
-            disabled={phase === 'playing' ? !playable : false}
+            disabled={trumpSwapMode ? false : phase === 'playing' ? !playable : false}
             onClick={onClick}
           />
         );

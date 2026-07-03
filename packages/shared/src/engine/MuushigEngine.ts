@@ -13,6 +13,8 @@ export const MAX_SWAP = 5;
 export const SHUT_OUT_PENALTY = 5;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 5;
+/** Haranhui oroh: you may fold at most this many rounds in a row (the next is forced to play). */
+export const MAX_CONSECUTIVE_FOLDS = 3;
 
 /** Injectable random source so shuffling is deterministic in tests. */
 export type RNG = () => number;
@@ -83,6 +85,8 @@ export class MuushigEngine {
     state.hostId = playerIds[0]!;
     state.maxPlayers = MAX_PLAYERS;
     state.winners.splice(0, state.winners.length);
+    // Fresh game → restart dealer rotation (first deal makes the last seat dealer).
+    state.dealerId = '';
 
     MuushigEngine.dealRound(state, rng);
   }
@@ -126,8 +130,21 @@ export class MuushigEngine {
     state.currentTrick.splice(0, state.currentTrick.length);
     state.ledSuit = '';
     state.tricksPlayed = 0;
-    state.leaderId = state.seatOrder[0]!;
-    state.currentTurn = state.seatOrder[0]!;
+
+    // The dealer rotates one seat clockwise each round. The very first round's
+    // dealer is the last seat, so seatOrder[0] opens the game. The amankhuzuu
+    // sits to the dealer's left and opens the round — they decide, swap, and
+    // lead first.
+    const n = state.seatOrder.length;
+    const prevDealer = state.seatOrder.indexOf(state.dealerId);
+    const dealerIdx = prevDealer === -1 ? n - 1 : (prevDealer + 1) % n;
+    state.dealerId = state.seatOrder[dealerIdx]!;
+    state.amankhuzuuId = state.seatOrder[(dealerIdx + 1) % n]!;
+    state.trumpExchanged = false;
+
+    state.leaderId = state.amankhuzuuId;
+    state.currentTurn = state.amankhuzuuId;
+
     state.phase = 'decision';
   }
 
@@ -142,8 +159,26 @@ export class MuushigEngine {
       throw new Error('Decisions are only made in the decision phase');
     const player = state.players.get(playerId);
     if (!player) throw new Error(`Unknown player ${playerId}`);
+    // Haranhui oroh: a player who has already folded MAX_CONSECUTIVE_FOLDS rounds
+    // in a row may not fold again — they must play this one.
+    if (!stay && player.consecutiveFolds >= MAX_CONSECUTIVE_FOLDS) {
+      throw new Error('Haranhui oroh: cannot fold again — you must play this round');
+    }
     player.hasDecided = true;
     player.hasResigned = !stay;
+    // Track the consecutive-fold streak: folding extends it, playing resets it.
+    player.consecutiveFolds = stay ? 0 : player.consecutiveFolds + 1;
+    // Decisions go clockwise from the amankhuzuu; advance the turn to the next
+    // seat in order (everyone decides, so resigned seats are not skipped here).
+    state.currentTurn = MuushigEngine.nextSeatInOrder(state, playerId);
+  }
+
+  /** Next seat after `fromId` in plain seat order (no skipping). */
+  static nextSeatInOrder(state: GameState, fromId: string): string {
+    const order = state.seatOrder;
+    const i = order.indexOf(fromId);
+    if (i === -1) return fromId;
+    return order[(i + 1) % order.length]!;
   }
 
   /** True once every player has chosen to stay or resign. */
@@ -165,6 +200,8 @@ export class MuushigEngine {
       const p = state.players.get(id)!;
       if (p.hasResigned) p.hasSwapped = true;
     }
+    // Swapping goes clockwise from the amankhuzuu; the first staying seat acts first.
+    state.currentTurn = MuushigEngine.activePlayersFrom(state, state.amankhuzuuId)[0] ?? '';
     state.phase = 'swap';
   }
 
@@ -186,10 +223,15 @@ export class MuushigEngine {
     if (player.hasResigned) throw new Error('Resigned players cannot swap');
     if (player.hasSwapped) throw new Error('Player has already swapped this round');
 
-    // Unique, in-range indices, capped at MAX_SWAP and at the stock size.
+    // Unique, in-range indices, capped at MAX_SWAP (you only hold HAND_SIZE).
     const unique = [...new Set(handIndices)].filter((i) => i >= 0 && i < player.hand.length);
-    const count = Math.min(unique.length, MAX_SWAP, state.stock.length);
-    const chosen = unique.slice(0, count).sort((a, b) => b - a); // desc for safe splicing
+    const requested = unique.slice(0, MAX_SWAP);
+    // You may only draw as many as remain in the stock — over-drawing is rejected,
+    // not silently capped. (Asking for 3 when 1 is left is not allowed.)
+    if (requested.length > state.stock.length)
+      throw new Error('Cannot draw more cards than remain in the stock');
+    const count = requested.length;
+    const chosen = [...requested].sort((a, b) => b - a); // desc for safe splicing
 
     for (const idx of chosen) {
       player.hand.splice(idx, 1);
@@ -199,7 +241,38 @@ export class MuushigEngine {
     }
 
     player.hasSwapped = true;
+    // Pass the swap turn to the next staying seat (resigned seats are skipped).
+    state.currentTurn = MuushigEngine.nextActiveSeat(state, playerId);
     return count;
+  }
+
+  /**
+   * Lets the dealer take the face-up trump card into their hand in exchange for
+   * one of their cards. Allowed only in the swap phase — i.e. after every player
+   * has folded or played and the stayers have drawn. The trump card and trump
+   * SUIT stay exactly as originally flipped — the dealer's given card does NOT
+   * become the trump; it is set aside (out of play). One exchange per round.
+   *
+   * @param handIndex index of the dealer's hand card to give up.
+   */
+  static exchangeTrump(state: GameState, playerId: string, handIndex: number): void {
+    if (state.phase !== 'swap')
+      throw new Error('The trump card can only be exchanged in the swap phase (after fold/play)');
+    if (playerId !== state.dealerId) throw new Error('Only the dealer may exchange the trump card');
+    if (state.trumpExchanged) throw new Error('The trump card was already exchanged this round');
+
+    const player = state.players.get(playerId);
+    if (!player) throw new Error(`Unknown player ${playerId}`);
+    if (player.hasResigned) throw new Error('A resigned dealer cannot exchange the trump card');
+    if (handIndex < 0 || handIndex >= player.hand.length)
+      throw new Error("Card is not in the dealer's hand");
+
+    // The dealer takes the trump card into hand; their given card is set aside.
+    // A fresh Card avoids moving a schema node between containers. trumpCard and
+    // trumpSuit are intentionally left untouched — the trump does not change.
+    const takenTrump = new Card(state.trumpCard.suit, state.trumpCard.rank);
+    player.hand.splice(handIndex, 1, takenTrump);
+    state.trumpExchanged = true;
   }
 
   /** True once every staying player has swapped (resigned players are pre-marked). */
@@ -215,13 +288,26 @@ export class MuushigEngine {
     return state.seatOrder.filter((id) => !state.players.get(id)!.hasResigned);
   }
 
+  /** Active (not resigned) seats in turn order starting at `startId` (clockwise). */
+  static activePlayersFrom(state: GameState, startId: string): string[] {
+    const order = state.seatOrder;
+    const len = order.length;
+    const start = Math.max(0, order.indexOf(startId));
+    const result: string[] = [];
+    for (let k = 0; k < len; k++) {
+      const id = order[(start + k) % len]!;
+      if (!state.players.get(id)!.hasResigned) result.push(id);
+    }
+    return result;
+  }
+
   /**
-   * Transitions from the swap phase to trick play. The first active seat in
-   * seat order leads the opening trick.
+   * Transitions from the swap phase to trick play. The first active seat
+   * clockwise from the amankhuzuu leads the opening trick.
    */
   static beginPlay(state: GameState): void {
     if (state.phase !== 'swap') throw new Error('Can only begin play from the swap phase');
-    const active = MuushigEngine.activePlayers(state);
+    const active = MuushigEngine.activePlayersFrom(state, state.amankhuzuuId);
     if (active.length === 0) {
       state.phase = 'finished';
       return;
@@ -408,12 +494,14 @@ export class MuushigEngine {
       const p = state.players.get(id)!;
       if (p.hasResigned) {
         deltas[id] = 0;
+        p.scoreLog.push('-'); // folded this round
         continue;
       }
       let delta = -p.tricksWon;
       if (p.tricksWon === 0) delta += SHUT_OUT_PENALTY;
       p.score += delta;
       deltas[id] = delta;
+      p.scoreLog.push(String(p.score)); // new running total
     }
 
     // Winners ordered by score ascending (lowest negative wins ties).

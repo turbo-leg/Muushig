@@ -2,9 +2,11 @@ import { Room, Client, Delayed } from 'colyseus';
 import { GameState, Player, MuushigEngine, MIN_PLAYERS, MAX_PLAYERS } from '@muushig/shared';
 import { parseCard, parseIndices, sanitizeString } from './roomHelpers';
 
+// These are PER-TURN budgets: each player gets the full window when it becomes
+// their turn to act (decisions and swaps are taken one player at a time).
 const DEFAULT_TURN_TIME_MS = 30_000;
 const DEFAULT_SWAP_TIME_MS = 60_000;
-const DEFAULT_DECISION_TIME_MS = 30_000;
+const DEFAULT_DECISION_TIME_MS = 45_000;
 const RATE_LIMIT_MAX = 15; // messages per window
 const RATE_LIMIT_WINDOW_MS = 1_000;
 
@@ -70,6 +72,9 @@ export class MuushigRoom extends Room<GameState> {
       this.guard(client, () => this.handleDecide(client, false)),
     );
     this.onMessage('swap', (client, msg) => this.guard(client, () => this.handleSwap(client, msg)));
+    this.onMessage('exchangeTrump', (client, msg) =>
+      this.guard(client, () => this.handleExchangeTrump(client, msg)),
+    );
     this.onMessage('playCard', (client, msg) =>
       this.guard(client, () => this.handlePlayCard(client, msg)),
     );
@@ -140,6 +145,8 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleDecide(client: Client, stay: boolean): void {
     if (this.state.phase !== 'decision') return;
+    // Decisions go in order, clockwise from the amankhuzuu.
+    if (this.state.currentTurn !== client.sessionId) return;
     try {
       MuushigEngine.decide(this.state, client.sessionId, stay);
     } catch {
@@ -150,6 +157,8 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleSwap(client: Client, msg: unknown): void {
     if (this.state.phase !== 'swap') return;
+    // Swaps go in order, clockwise from the amankhuzuu.
+    if (this.state.currentTurn !== client.sessionId) return;
     const indices = parseIndices((msg as { indices?: unknown })?.indices);
     try {
       MuushigEngine.swapCards(this.state, client.sessionId, indices);
@@ -157,6 +166,18 @@ export class MuushigRoom extends Room<GameState> {
       return; // illegal swap (already swapped / resigned) — ignore
     }
     this.maybeBeginPlay();
+  }
+
+  /** The dealer exchanges the face-up trump card for one hand card (anytime pre-play). */
+  private handleExchangeTrump(client: Client, msg: unknown): void {
+    if (this.state.phase !== 'swap') return;
+    const raw = (msg as { index?: unknown })?.index;
+    const index = typeof raw === 'number' && Number.isInteger(raw) ? raw : -1;
+    try {
+      MuushigEngine.exchangeTrump(this.state, client.sessionId, index);
+    } catch {
+      return; // not the dealer / already exchanged / bad index — ignore
+    }
   }
 
   private handlePlayCard(client: Client, msg: unknown): void {
@@ -199,18 +220,25 @@ export class MuushigRoom extends Room<GameState> {
 
   /** Advances decision → swap once everyone has chosen to stay or resign. */
   private afterDecision(): void {
-    if (!MuushigEngine.allDecided(this.state)) return;
+    if (!MuushigEngine.allDecided(this.state)) {
+      // Hand the clock to the next player to bid/fold (a fresh per-turn window).
+      this.startDecisionTimer();
+      return;
+    }
     this.clearDecisionTimer();
     MuushigEngine.beginSwap(this.state);
     this.syncMetadata();
-    // If everyone resigned, beginPlay finishes the round immediately.
+    // Starts the first swapper's timer, or finishes if everyone resigned.
     this.maybeBeginPlay();
-    if (this.state.phase === 'swap') this.startSwapTimer();
   }
 
   /** Advances to trick play once every staying player has swapped. */
   private maybeBeginPlay(): void {
-    if (!MuushigEngine.allSwapsComplete(this.state)) return;
+    if (!MuushigEngine.allSwapsComplete(this.state)) {
+      // Hand the clock to the next staying player to swap.
+      if (this.state.phase === 'swap') this.startSwapTimer();
+      return;
+    }
     this.clearSwapTimer();
     MuushigEngine.beginPlay(this.state);
     if (this.state.phase === 'finished') {
@@ -258,10 +286,16 @@ export class MuushigRoom extends Room<GameState> {
     this.clearDecisionTimer();
     if (this.decisionTimeLimit <= 0) return;
     this.decisionTimer = this.clock.setTimeout(() => {
-      // Anyone who didn't choose defaults to staying (plays their dealt hand).
-      for (const id of this.state.seatOrder) {
-        const p = this.state.players.get(id)!;
-        if (!p.hasDecided) p.hasDecided = true;
+      if (this.state.phase !== 'decision') return;
+      // The player on turn ran out of time → default to staying (play their hand).
+      const id = this.state.currentTurn;
+      const p = id ? this.state.players.get(id) : null;
+      if (p && !p.hasDecided) {
+        try {
+          MuushigEngine.decide(this.state, id, true);
+        } catch {
+          /* ignore — afterDecision will re-evaluate */
+        }
       }
       this.afterDecision();
     }, this.decisionTimeLimit);
@@ -271,10 +305,16 @@ export class MuushigRoom extends Room<GameState> {
     this.clearSwapTimer();
     if (this.swapTimeLimit <= 0) return;
     this.swapTimer = this.clock.setTimeout(() => {
-      // Auto-complete anyone who didn't act: they keep their dealt cards.
-      for (const id of this.state.seatOrder) {
-        const p = this.state.players.get(id)!;
-        if (!p.hasSwapped) p.hasSwapped = true;
+      if (this.state.phase !== 'swap') return;
+      // The player on turn ran out of time → keep their dealt cards (swap none).
+      const id = this.state.currentTurn;
+      const p = id ? this.state.players.get(id) : null;
+      if (p && !p.hasSwapped && !p.hasResigned) {
+        try {
+          MuushigEngine.swapCards(this.state, id, []);
+        } catch {
+          /* ignore — maybeBeginPlay will re-evaluate */
+        }
       }
       this.maybeBeginPlay();
     }, this.swapTimeLimit);
