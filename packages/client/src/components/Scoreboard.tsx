@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { SeatVM } from '../game/types';
+import { t } from '../i18n';
 
 interface Props {
   seats: SeatVM[];
@@ -98,7 +99,7 @@ export function Scoreboard({ seats, onOpenSheet }: Props) {
         <button
           type="button"
           onClick={onOpenSheet}
-          aria-label="Open scoresheet"
+          aria-label={t('openScoresheet')}
           className="grid h-7 w-7 place-items-center rounded text-wood hover:bg-wood/10 hover:text-amber-deep"
         >
           <PaperIcon />

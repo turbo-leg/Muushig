@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { SeatVM, Phase } from '../game/types';
+import { t } from '../i18n';
 
 interface Props {
   seat: SeatVM;
@@ -16,22 +17,23 @@ function statusLabel(seat: SeatVM, phase: Phase): { text: string; cls: string } 
   // takes the seat over it plays on, so show that instead of an endless wait.
   if (phase !== 'waiting' && !seat.isConnected) {
     return seat.isBot
-      ? { text: 'Bot', cls: 'text-ink-soft' }
-      : { text: 'Reconnecting…', cls: 'text-danger' };
+      ? { text: t('seatBot'), cls: 'text-ink-soft' }
+      : { text: t('seatReconnecting'), cls: 'text-danger' };
   }
   if (phase === 'waiting') {
     return seat.isReady
-      ? { text: 'Ready', cls: 'text-success' }
-      : { text: 'Waiting', cls: 'text-ink-soft' };
+      ? { text: t('seatReady'), cls: 'text-success' }
+      : { text: t('seatWaiting'), cls: 'text-ink-soft' };
   }
   if (phase === 'decision') {
-    if (seat.hasResigned) return { text: 'Fold', cls: 'text-danger' };
+    if (seat.hasResigned) return { text: t('seatFold'), cls: 'text-danger' };
     return seat.hasDecided
-      ? { text: 'Bid', cls: 'text-success' }
-      : { text: 'Bidding…', cls: 'text-ink-soft' };
+      ? { text: t('seatBid'), cls: 'text-success' }
+      : { text: t('seatBidding'), cls: 'text-ink-soft' };
   }
-  if (seat.hasResigned) return { text: 'Fold', cls: 'text-danger' };
-  if (phase === 'playing' && seat.isTurn) return { text: 'Turn', cls: 'text-amber-deep font-bold' };
+  if (seat.hasResigned) return { text: t('seatFold'), cls: 'text-danger' };
+  if (phase === 'playing' && seat.isTurn)
+    return { text: t('seatTurn'), cls: 'text-amber-deep font-bold' };
   return null;
 }
 
@@ -40,7 +42,7 @@ function RoleBadge({ kind }: { kind: 'dealer' | 'amankhuzuu' }) {
   const dealer = kind === 'dealer';
   return (
     <span
-      title={dealer ? 'Dealer' : 'Amankhuzuu — first to swap'}
+      title={dealer ? t('dealerTooltip') : t('amankhuzuuTooltip')}
       className={[
         'grid h-5 min-w-5 select-none place-items-center rounded-full px-1 font-hand text-[10px] font-bold leading-none shadow-sm',
         'border border-ink/40 ring-1 ring-black/5 z-20',
@@ -192,7 +194,7 @@ export function Seat({ seat, phase, seatNumber, onRemove }: Props) {
         <button
           type="button"
           onClick={onRemove}
-          aria-label={`Remove ${seat.username}`}
+          aria-label={t('removeSeat', { name: seat.username })}
           className="absolute -right-2 -top-2.5 z-30 grid h-6 w-6 place-items-center rounded-full border border-ink/50 bg-parchment font-hand text-sm font-bold leading-none text-danger shadow-sm hover:bg-parchment-deep"
         >
           ✕
@@ -250,7 +252,7 @@ export function Seat({ seat, phase, seatNumber, onRemove }: Props) {
               </span>
             )}
             {seat.isMe && (
-              <span className="font-hand text-[10px] text-ink-soft opacity-75">(you)</span>
+              <span className="font-hand text-[10px] text-ink-soft opacity-75">{t('you')}</span>
             )}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import type { Phase, SeatVM } from '../game/types';
+import { t } from '../i18n';
 
 const SUIT_GLYPH: Record<string, string> = {
   Spades: '♠',
@@ -26,11 +27,11 @@ interface Props {
 export function PipView({ seats, phase, isMyTurn, turnName, ledSuit, trumpSuit }: Props) {
   const headline =
     phase === 'waiting'
-      ? 'Waiting to deal…'
+      ? t('waitingToDeal')
       : phase === 'finished'
-        ? 'Game over'
+        ? t('gameOverShort')
         : isMyTurn
-          ? 'Your turn!'
+          ? t('yourTurnShort')
           : turnName
             ? `${turnName}…`
             : '…';
@@ -47,8 +48,8 @@ export function PipView({ seats, phase, isMyTurn, turnName, ledSuit, trumpSuit }
 
       {phase === 'playing' && trumpSuit && (
         <div className="font-hand text-base text-cream/70">
-          Trump {SUIT_GLYPH[trumpSuit] ?? trumpSuit}
-          {ledSuit ? ` · Led ${SUIT_GLYPH[ledSuit] ?? ledSuit}` : ''}
+          {t('trumpLabel')} {SUIT_GLYPH[trumpSuit] ?? trumpSuit}
+          {ledSuit ? ` · ${t('ledLabel')} ${SUIT_GLYPH[ledSuit] ?? ledSuit}` : ''}
         </div>
       )}
 

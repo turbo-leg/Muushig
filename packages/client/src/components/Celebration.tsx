@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /** One falling coin of the game-end celebration (styling via CSS vars). */
 function Coin({ delay, x, drift }: { delay: number; x: number; drift: number }) {
   return (
@@ -49,7 +51,7 @@ export function Celebration({ winnerNames }: { winnerNames: string[] }) {
       <div className="absolute left-1/2 top-[26%] w-[min(340px,88vw)] -translate-x-1/2 rotate-1">
         <div className="anim-reveal rounded-[10px] border-2 border-amber-deep bg-parchment px-6 py-4 text-center drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)] [box-shadow:inset_0_0_18px_rgba(120,80,40,0.2)]">
           <p className="font-hand text-3xl font-bold leading-tight text-ink">
-            🏆 {winnerNames.join(' & ') || 'Someone'} wins the pot!
+            {t('winsThePot', { names: winnerNames.join(' & ') || t('someone') })}
           </p>
         </div>
       </div>
