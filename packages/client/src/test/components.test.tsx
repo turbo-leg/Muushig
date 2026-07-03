@@ -8,6 +8,8 @@ import { ScoreSheet } from '../components/ScoreSheet';
 import { PipView } from '../components/PipView';
 import { HoldButton } from '../components/HoldButton';
 import { ActionBar } from '../components/ActionBar';
+import { RoundSummary } from '../components/RoundSummary';
+import { Celebration } from '../components/Celebration';
 import type { SeatVM } from '../game/types';
 
 const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
@@ -191,6 +193,31 @@ describe('HoldButton', () => {
     await userEvent.click(btn);
     expect(onConfirm).toHaveBeenCalledOnce();
     delete document.documentElement.dataset.perf;
+  });
+});
+
+describe('RoundSummary', () => {
+  test('shows trick deltas, the shut-out penalty, and folds', () => {
+    render(
+      <RoundSummary
+        rows={[
+          { id: 'a', username: 'Ariun', folded: false, tricksWon: 3, total: 12 },
+          { id: 'b', username: 'Bat', folded: false, tricksWon: 0, total: 20 },
+          { id: 'c', username: 'Chono', folded: true, tricksWon: 0, total: 15 },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Round over')).toBeInTheDocument();
+    expect(screen.getByText('−3')).toBeInTheDocument(); // Ariun's tricks
+    expect(screen.getByText('+5')).toBeInTheDocument(); // Bat's shut-out
+    expect(screen.getByText('folded')).toBeInTheDocument(); // Chono sat out
+  });
+});
+
+describe('Celebration', () => {
+  test('names the winners on the plaque', () => {
+    render(<Celebration winnerNames={['Ariun', 'Bat']} />);
+    expect(screen.getByText(/Ariun & Bat wins the pot!/)).toBeInTheDocument();
   });
 });
 

@@ -6,6 +6,7 @@ import { Profile } from './components/Profile';
 import { useRoom } from './net/useRoom';
 import { useAuth } from './auth/AuthContext';
 import { isEmbedded } from './discord';
+import { t, useLocale } from './i18n';
 
 /** Hidden SVG definition block containing global filters for hand-inked line warp and paper tooth. */
 function GlobalSVGDefs() {
@@ -78,6 +79,7 @@ function GameView() {
   const { status, error, state, sessionId, send } = useRoom();
   const { session } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
+  useLocale(); // re-render the shell when the language flips
 
   return (
     <>
@@ -87,14 +89,14 @@ function GameView() {
 
       {status === 'connecting' && (
         <Centered>
-          <p className="text-center font-hand text-2xl text-cream/80">Settling in by the fire…</p>
+          <p className="text-center font-hand text-2xl text-cream/80">{t('settlingIn')}</p>
         </Centered>
       )}
 
       {status === 'error' && (
         <Centered>
           <p className="text-center font-hand text-2xl text-danger">
-            {error ?? 'Connection failed'}
+            {error ?? t('connectionFailed')}
           </p>
         </Centered>
       )}
@@ -106,13 +108,11 @@ function GameView() {
             className="fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-lg border-2 border-amber-deep bg-parchment px-4 py-1.5 font-hand text-lg text-wood shadow-lg"
             role="status"
           >
-            Reconnecting to the table…
+            {t('reconnectingTable')}
           </div>
         ) : (
           <Centered>
-            <p className="text-center font-hand text-2xl text-cream/80">
-              Reconnecting to the table…
-            </p>
+            <p className="text-center font-hand text-2xl text-cream/80">{t('reconnectingTable')}</p>
           </Centered>
         ))}
 
@@ -136,7 +136,7 @@ export default function App() {
         <GlobalSVGDefs />
         <Background />
         <Centered>
-          <p className="text-center font-hand text-2xl text-cream/80">Settling in by the fire…</p>
+          <p className="text-center font-hand text-2xl text-cream/80">{t('settlingIn')}</p>
         </Centered>
       </>
     );

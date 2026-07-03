@@ -30,6 +30,7 @@ function createRoom(options: Record<string, unknown> = {}) {
     turnTimeLimit: 0,
     swapTimeLimit: 0,
     decisionTimeLimit: 0,
+    roundEndPause: 0,
     ...options,
   });
 }
@@ -79,7 +80,8 @@ async function playOneRound(room: AnyRoom, clients: AnyClient[]): Promise<void> 
     await waitUntil(() => room.state.phase !== 'swap');
   }
 
-  while (room.state.phase === 'playing') {
+  // Stop on the round-end pause too (phase stays 'playing' with empty hands).
+  while (room.state.phase === 'playing' && totalCardsInHands(room) > 0) {
     const before = totalCardsInHands(room);
     playTurn(room, clients);
     await waitUntil(() => totalCardsInHands(room) < before || room.state.phase !== 'playing');
@@ -353,6 +355,26 @@ describe('MuushigRoom — round flow', () => {
     expect(room.state.players.has(droppedId)).toBe(true);
     expect(room.state.players.get(droppedId)!.isConnected).toBe(false);
     expect(room.state.phase).toBe('swap');
+  });
+
+  test('broadcasts roundEnd deltas and pauses before dealing the next round', async () => {
+    const { room, clients } = await startedRoom(2, { roundEndPause: 250 });
+
+    let roundEnd: { deltas: Record<string, number> } | null = null;
+    clients[0]!.onMessage('roundEnd', (msg: { deltas: Record<string, number> }) => {
+      roundEnd = msg;
+    });
+
+    await playOneRound(room, clients);
+
+    // Scores are applied and announced while the deal is still held back.
+    await waitUntil(() => roundEnd !== null);
+    expect(Object.keys(roundEnd!.deltas).sort()).toEqual([...room.state.seatOrder].slice().sort());
+    expect(room.state.phase).toBe('playing'); // paused — not yet re-dealt
+
+    // …then the next round arrives on its own.
+    await waitUntil(() => room.state.phase === 'decision', 4000);
+    expect(room.state.tricksPlayed).toBe(0);
   });
 
   test('ends the game and broadcasts gameOver when a player reaches zero', async () => {

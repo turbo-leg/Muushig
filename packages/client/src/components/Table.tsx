@@ -6,6 +6,8 @@ import { cardKey, legalMoves } from '../game/legalMoves';
 import { botAvatar } from '../game/avatars';
 import { Seat } from './Seat';
 import { Scoreboard } from './Scoreboard';
+import { RoundSummary, type RoundRow } from './RoundSummary';
+import { Celebration } from './Celebration';
 import { ScoreSheet } from './ScoreSheet';
 import { PipView } from './PipView';
 import { Trick } from './Trick';
@@ -22,6 +24,7 @@ import { Hand } from './Hand';
 import { ActionBar } from './ActionBar';
 import { TitleBanner } from './TitleBanner';
 import { initAudio, isMuted, play as playSfx, toggleMuted } from '../audio/sound';
+import { t, useLocale } from '../i18n';
 
 interface Props {
   state: GameState;
@@ -223,6 +226,7 @@ function MessagePanel({ title, subtitle }: { title: string; subtitle: string }) 
 
 export function Table({ state, sessionId, send }: Props) {
   const phase = state.phase as Phase;
+  useLocale(); // re-render the whole table when the language flips
   const isCompact = useIsCompact();
   const ringSlots = isCompact ? PORTRAIT_RING_SLOTS : RING_SLOTS;
   const layoutMode = useLayoutMode();
@@ -404,6 +408,31 @@ export function Table({ state, sessionId, send }: Props) {
     prev.current = { phase, trickLen, tricksPlayed, isMyTurn, winnersLen, init: true };
   }, [phase, trickLen, tricksPlayed, isMyTurn, winnersLen, isWinner]);
 
+  // ── Round-end summary ──
+  // The server pauses between scoring and the next deal; a new scoreLog entry
+  // marks that moment, so this works for spectators and reconnects too.
+  const roundsLogged = seats.reduce((m, s) => Math.max(m, s.scoreLog.length), 0);
+  const [summary, setSummary] = useState<RoundRow[] | null>(null);
+  const prevRounds = useRef(roundsLogged);
+  useEffect(() => {
+    const prev = prevRounds.current;
+    prevRounds.current = roundsLogged;
+    if (roundsLogged === 0 || roundsLogged <= prev) return;
+    setSummary(
+      seats.map((s) => ({
+        id: s.id,
+        username: s.username,
+        folded: s.scoreLog[s.scoreLog.length - 1] === '-',
+        tricksWon: s.tricksWon,
+        total: s.score,
+      })),
+    );
+    const t = window.setTimeout(() => setSummary(null), 3600);
+    return () => window.clearTimeout(t);
+    // seats is rebuilt every render; the log length is the real trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundsLogged]);
+
   // Opponents in turn order after me (their seatOrder sequence). They fill the
   // ring left → top → right so rotation reads me (bottom) → left → top → right
   // → back to me: the amankhuzuu (next after me) sits to my screen-left.
@@ -452,7 +481,7 @@ export function Table({ state, sessionId, send }: Props) {
           className="z-10 -mt-1 text-center font-hand text-sm text-cream/70"
           title={spectatorNames.join(', ')}
         >
-          👁 {spectatorNames.length} watching
+          {t('watchingCount', { n: spectatorNames.length })}
         </p>
       )}
 
@@ -482,13 +511,13 @@ export function Table({ state, sessionId, send }: Props) {
           {/* Center of the table: trump card + the trick in progress. */}
           <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-6">
             {phase === 'waiting' ? (
-              <MessagePanel title="Pull up a stool" subtitle="ready up to deal the cards" />
+              <MessagePanel title={t('pullUpStool')} subtitle={t('readyUpSubtitle')} />
             ) : (
               <>
                 {trumpCard && <TrumpIndicator card={trumpCard} revealed={phase === 'decision'} />}
                 {trumpSwapMode && (
                   <p className="z-30 select-none font-hand text-base font-bold text-cream drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
-                    Tap a card to give for the trump
+                    {t('tapCardForTrump')}
                   </p>
                 )}
                 <Trick plays={trick} trumpSuit={state.trumpSuit} />
@@ -572,6 +601,12 @@ export function Table({ state, sessionId, send }: Props) {
       </div>
 
       {showSheet && <ScoreSheet seats={seats} onClose={() => setShowSheet(false)} />}
+
+      {phase === 'finished' && winnerNames.length > 0 ? (
+        <Celebration winnerNames={winnerNames} />
+      ) : (
+        summary && <RoundSummary rows={summary} />
+      )}
     </div>
   );
 }
