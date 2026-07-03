@@ -8,17 +8,19 @@ Muushig is a trick-taking game for **2–5 players** (best with 5) played with a
 This repo is a Colyseus + React + TypeScript monorepo, structured after the
 sibling [Durak](https://github.com/turbo-leg/Durak) project.
 
-> **Status:** early scaffold. The rules engine (`@muushig/shared`) is implemented
-> and unit-tested. The Colyseus server room and the React/Discord client are
-> tracked as open issues — see the [milestones](../../milestones).
+> **Status:** playable. The rules engine, authoritative Colyseus server, and the
+> React/Discord client ("Cozy Hand-Drawn Tavern" theme) are all implemented and
+> tested, with Discord OAuth2 + Supabase accounts and a single-app Fly.io deploy
+> (`muushig.fly.dev`). Remaining work is tracked in the
+> [issues](../../issues) — see the [milestones](../../milestones).
 
 ## Monorepo layout
 
 ```
 packages/
   shared/   @muushig/shared — pure rules engine + Colyseus schema state (fully tested)
-  server/   @muushig/server — Colyseus authoritative room (planned)
-  client/   @muushig/client — React + Vite + Discord Embedded App SDK UI (planned)
+  server/   @muushig/server — Colyseus authoritative room + Discord OAuth2 endpoint
+  client/   @muushig/client — React + Vite + Discord Embedded App SDK UI
 ```
 
 The **rules engine lives in `shared`** and is deliberately framework-free and
@@ -30,7 +32,8 @@ deterministic so it can be unit-tested in isolation and reused by both server an
 ```bash
 npm install          # installs all workspaces
 
-npm test             # run the shared engine test suite (vitest)
+npm run dev          # server (:2567) + client (Vite) together
+npm test             # run all workspace test suites (vitest)
 npm run typecheck    # type-check all packages
 npm run lint         # prettier --check
 npm run format       # prettier --write
