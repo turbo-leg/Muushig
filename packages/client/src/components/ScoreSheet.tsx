@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { SeatVM } from '../game/types';
+import { t } from '../i18n';
 
 interface Props {
   seats: SeatVM[];
@@ -27,14 +28,14 @@ export function ScoreSheet({ seats, onClose }: Props) {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Scoresheet"
+      aria-label={t('scoresheet')}
     >
       <div
         className="relative flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-[12px] border-2 border-ink bg-parchment shadow-[0_12px_40px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b-2 border-[#c9a56e] px-4 py-2">
-          <h2 className="font-hand text-2xl font-bold text-ink">Scoresheet</h2>
+          <h2 className="font-hand text-2xl font-bold text-ink">{t('scoresheet')}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -88,7 +89,9 @@ export function ScoreSheet({ seats, onClose }: Props) {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-ink">
-                <td className="px-2 py-1 text-left text-sm font-bold text-ink-soft">Now</td>
+                <td className="px-2 py-1 text-left text-sm font-bold text-ink-soft">
+                  {t('nowRow')}
+                </td>
                 {seats.map((s) => (
                   <td
                     key={s.id}

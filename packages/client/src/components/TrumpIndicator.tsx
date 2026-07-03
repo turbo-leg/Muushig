@@ -1,4 +1,5 @@
 import type { CardVM } from '../game/types';
+import { t } from '../i18n';
 import { PlayingCard } from './PlayingCard';
 
 interface Props {
@@ -100,7 +101,9 @@ export function TrumpIndicator({ card, revealed }: Props) {
             className="w-[clamp(48px,11vw,68px)]"
           />
         </div>
-        <span className="font-hand text-lg font-bold text-amber">Trump · {card.suit}</span>
+        <span className="font-hand text-lg font-bold text-amber">
+          {t('trumpLabel')} · {card.suit}
+        </span>
       </div>
     </div>
   );

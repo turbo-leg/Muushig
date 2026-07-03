@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 export interface RoundRow {
   id: string;
   username: string;
@@ -19,7 +21,7 @@ export function RoundSummary({ rows }: { rows: RoundRow[] }) {
     <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center px-4">
       <div className="anim-reveal w-[min(320px,88vw)] -rotate-1 rounded-[10px] border-2 border-[#c9a56e] bg-parchment px-5 py-4 drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)] [box-shadow:inset_0_0_18px_rgba(120,80,40,0.2)]">
         <p className="mb-2 text-center font-hand text-2xl font-bold leading-none text-ink">
-          Round over
+          {t('roundOver')}
         </p>
         <ul className="flex flex-col gap-1.5">
           {rows.map((r) => (
@@ -30,7 +32,7 @@ export function RoundSummary({ rows }: { rows: RoundRow[] }) {
               <span className="truncate font-bold text-ink">{r.username}</span>
               <span className="flex items-baseline gap-2 whitespace-nowrap">
                 {r.folded ? (
-                  <span className="text-ink-soft">folded</span>
+                  <span className="text-ink-soft">{t('foldedRow')}</span>
                 ) : r.tricksWon > 0 ? (
                   <span className="font-bold text-success">−{r.tricksWon}</span>
                 ) : (

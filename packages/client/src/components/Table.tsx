@@ -24,6 +24,7 @@ import { Hand } from './Hand';
 import { ActionBar } from './ActionBar';
 import { TitleBanner } from './TitleBanner';
 import { initAudio, isMuted, play as playSfx, toggleMuted } from '../audio/sound';
+import { t, useLocale } from '../i18n';
 
 interface Props {
   state: GameState;
@@ -225,6 +226,7 @@ function MessagePanel({ title, subtitle }: { title: string; subtitle: string }) 
 
 export function Table({ state, sessionId, send }: Props) {
   const phase = state.phase as Phase;
+  useLocale(); // re-render the whole table when the language flips
   const isCompact = useIsCompact();
   const ringSlots = isCompact ? PORTRAIT_RING_SLOTS : RING_SLOTS;
   const layoutMode = useLayoutMode();
@@ -479,7 +481,7 @@ export function Table({ state, sessionId, send }: Props) {
           className="z-10 -mt-1 text-center font-hand text-sm text-cream/70"
           title={spectatorNames.join(', ')}
         >
-          👁 {spectatorNames.length} watching
+          {t('watchingCount', { n: spectatorNames.length })}
         </p>
       )}
 
@@ -509,13 +511,13 @@ export function Table({ state, sessionId, send }: Props) {
           {/* Center of the table: trump card + the trick in progress. */}
           <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-6">
             {phase === 'waiting' ? (
-              <MessagePanel title="Pull up a stool" subtitle="ready up to deal the cards" />
+              <MessagePanel title={t('pullUpStool')} subtitle={t('readyUpSubtitle')} />
             ) : (
               <>
                 {trumpCard && <TrumpIndicator card={trumpCard} revealed={phase === 'decision'} />}
                 {trumpSwapMode && (
                   <p className="z-30 select-none font-hand text-base font-bold text-cream drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
-                    Tap a card to give for the trump
+                    {t('tapCardForTrump')}
                   </p>
                 )}
                 <Trick plays={trick} trumpSuit={state.trumpSuit} />
