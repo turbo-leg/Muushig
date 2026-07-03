@@ -64,6 +64,31 @@ describe('initializeGame', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
+  test('initializeGame keeps existing Player objects and their identity fields', () => {
+    const state = new GameState();
+    MuushigEngine.initializeGame(state, ['a', 'b'], makeRng(7));
+    const a = state.players.get('a')!;
+    a.username = 'Alice';
+    a.avatarUrl = 'ava.png';
+    a.isBot = true;
+    a.score = 3;
+    a.scoreLog.push('12');
+    a.consecutiveFolds = 2;
+
+    // Rematch path: the same seats start a fresh game.
+    MuushigEngine.initializeGame(state, ['a', 'b'], makeRng(8));
+
+    const a2 = state.players.get('a')!;
+    expect(a2).toBe(a); // same schema object, not a replacement
+    expect(a2.username).toBe('Alice');
+    expect(a2.avatarUrl).toBe('ava.png');
+    expect(a2.isBot).toBe(true);
+    // …while game progress is fully reset.
+    expect(a2.score).toBe(STARTING_SCORE);
+    expect([...a2.scoreLog]).toEqual([]);
+    expect(a2.consecutiveFolds).toBe(0);
+  });
+
   test('dealRound preserves cumulative scores across rounds', () => {
     const state = new GameState();
     MuushigEngine.initializeGame(state, ['a', 'b'], makeRng(5));

@@ -7,12 +7,17 @@ interface Props {
   /** Smaller placard for the opponents seated around the table edge. */
   compact?: boolean;
   seatNumber?: number;
+  /** Host-only in the lobby: removes this bot's seat. */
+  onRemove?: () => void;
 }
 
 function statusLabel(seat: SeatVM, phase: Phase): { text: string; cls: string } | null {
-  // A held seat (reconnection window) trumps any phase status.
+  // A held seat (reconnection window) trumps any phase status. Once a bot
+  // takes the seat over it plays on, so show that instead of an endless wait.
   if (phase !== 'waiting' && !seat.isConnected) {
-    return { text: 'Reconnecting…', cls: 'text-danger' };
+    return seat.isBot
+      ? { text: 'Bot', cls: 'text-ink-soft' }
+      : { text: 'Reconnecting…', cls: 'text-danger' };
   }
   if (phase === 'waiting') {
     return seat.isReady
@@ -136,7 +141,7 @@ function ScoreCoinSVG() {
 /**
  * A player/bot placard rendered with a hand-drawn vector wood/metal plate shape.
  */
-export function Seat({ seat, phase, seatNumber }: Props) {
+export function Seat({ seat, phase, seatNumber, onRemove }: Props) {
   const status = statusLabel(seat, phase);
   const actualSeatNumber = seatNumber ?? seat.seatNumber;
 
@@ -163,7 +168,7 @@ export function Seat({ seat, phase, seatNumber }: Props) {
           : seat.isTurn
             ? 'anim-turn rounded-[10px]'
             : ''
-      } ${seat.hasResigned || !seat.isConnected ? 'opacity-55' : ''}`}
+      } ${seat.hasResigned || (!seat.isConnected && !seat.isBot) ? 'opacity-55' : ''}`}
       style={{ width: `${w}px`, height: `${h}px` }}
     >
       {/* CSS placard backing (no image) */}
@@ -181,6 +186,18 @@ export function Seat({ seat, phase, seatNumber }: Props) {
 
       {/* Seat-number token (top-left) */}
       {actualSeatNumber != null && <SeatNumberBadge num={actualSeatNumber} />}
+
+      {/* Host-only: dismiss a lobby bot */}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${seat.username}`}
+          className="absolute -right-2 -top-2.5 z-30 grid h-6 w-6 place-items-center rounded-full border border-ink/50 bg-parchment font-hand text-sm font-bold leading-none text-danger shadow-sm hover:bg-parchment-deep"
+        >
+          ✕
+        </button>
+      )}
 
       {/* Role badges (top-right) */}
       {(seat.isDealer || seat.isAmankhuzuu) && (

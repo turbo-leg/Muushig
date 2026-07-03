@@ -66,20 +66,29 @@ export class MuushigEngine {
 
   /**
    * Initializes a brand-new game: registers players, sets every score to the
-   * starting value, and deals the first round.
+   * starting value, and deals the first round. Existing Player objects are
+   * kept (preserving identity fields — username, avatar, bot/connection
+   * flags); only their game progress is reset.
    */
   static initializeGame(state: GameState, playerIds: string[], rng: RNG = Math.random): void {
     if (playerIds.length < MIN_PLAYERS || playerIds.length > MAX_PLAYERS) {
       throw new Error(`Muushig requires ${MIN_PLAYERS}–${MAX_PLAYERS} players`);
     }
 
-    state.players.clear();
+    for (const id of [...state.players.keys()]) {
+      if (!playerIds.includes(id)) state.players.delete(id);
+    }
     state.seatOrder.splice(0, state.seatOrder.length);
 
     for (const id of playerIds) {
-      const p = new Player(id);
+      let p = state.players.get(id);
+      if (!p) {
+        p = new Player(id);
+        state.players.set(id, p);
+      }
       p.score = STARTING_SCORE;
-      state.players.set(id, p);
+      p.scoreLog.splice(0, p.scoreLog.length);
+      p.consecutiveFolds = 0;
       state.seatOrder.push(id);
     }
     state.hostId = playerIds[0]!;

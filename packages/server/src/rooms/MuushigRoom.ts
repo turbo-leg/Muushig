@@ -1,5 +1,12 @@
 import { Room, Client, Delayed } from 'colyseus';
-import { GameState, Player, MuushigEngine, MIN_PLAYERS, MAX_PLAYERS } from '@muushig/shared';
+import {
+  GameState,
+  Player,
+  MuushigEngine,
+  MuushigBot,
+  MIN_PLAYERS,
+  MAX_PLAYERS,
+} from '@muushig/shared';
 import { parseCard, parseIndices, sanitizeString } from './roomHelpers';
 
 // These are PER-TURN budgets: each player gets the full window when it becomes
@@ -10,6 +17,9 @@ const DEFAULT_DECISION_TIME_MS = 45_000;
 // How long a mid-game seat is held for the same client to reconnect (Discord
 // iframe reloads are routine: device rotation, client updates, network blips).
 const DEFAULT_RECONNECT_WINDOW_S = 60;
+// A beat before a bot acts, so its moves read as play rather than a glitch.
+const BOT_ACT_DELAY_MS = 900;
+const BOT_NAMES = ['Баатар', 'Сараа', 'Дорж', 'Оюунаа', 'Тэмүүлэн'];
 const RATE_LIMIT_MAX = 15; // messages per window
 const RATE_LIMIT_WINDOW_MS = 1_000;
 
@@ -27,6 +37,7 @@ interface CreateOptions extends JoinOptions {
   swapTimeLimit?: number;
   decisionTimeLimit?: number;
   reconnectWindow?: number;
+  botDelay?: number;
 }
 
 /**
@@ -47,9 +58,12 @@ export class MuushigRoom extends Room<GameState> {
   private swapTimeLimit = DEFAULT_SWAP_TIME_MS;
   private decisionTimeLimit = DEFAULT_DECISION_TIME_MS;
   private reconnectWindow = DEFAULT_RECONNECT_WINDOW_S;
+  private botDelay = BOT_ACT_DELAY_MS;
   private discordInstanceId: string | null = null;
   private rematchVotes = new Set<string>();
   private rateLimit = new Map<string, number[]>();
+  private botTimer: Delayed | null = null;
+  private botCounter = 0;
 
   onCreate(options: CreateOptions = {}): void {
     this.setState(new GameState());
@@ -67,6 +81,8 @@ export class MuushigRoom extends Room<GameState> {
       this.decisionTimeLimit = options.decisionTimeLimit;
     if (typeof options.reconnectWindow === 'number' && options.reconnectWindow >= 0)
       this.reconnectWindow = options.reconnectWindow;
+    if (typeof options.botDelay === 'number' && options.botDelay >= 0)
+      this.botDelay = options.botDelay;
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
@@ -86,6 +102,10 @@ export class MuushigRoom extends Room<GameState> {
       this.guard(client, () => this.handlePlayCard(client, msg)),
     );
     this.onMessage('rematch', (client) => this.guard(client, () => this.handleRematch(client)));
+    this.onMessage('addBot', (client) => this.guard(client, () => this.handleAddBot(client)));
+    this.onMessage('removeBot', (client, msg) =>
+      this.guard(client, () => this.handleRemoveBot(client, msg)),
+    );
     this.onMessage('ping', (client, msg: { clientTime?: number }) => {
       client.send('pong', { clientTime: msg?.clientTime, serverTime: Date.now() });
     });
@@ -119,7 +139,9 @@ export class MuushigRoom extends Room<GameState> {
       const idx = this.state.seatOrder.indexOf(client.sessionId);
       if (idx !== -1) this.state.seatOrder.splice(idx, 1);
       if (this.state.hostId === client.sessionId) {
-        this.state.hostId = this.state.seatOrder[0] ?? '';
+        // Bots can't press Deal — hand the host role to the first human.
+        this.state.hostId =
+          this.state.seatOrder.find((id) => !this.state.players.get(id)!.isBot) ?? '';
       }
       this.syncMetadata();
       return;
@@ -139,7 +161,13 @@ export class MuushigRoom extends Room<GameState> {
         this.syncMetadata();
       }
     } catch {
-      // Window expired (or room disposed) — the seat plays on via timers.
+      // Window expired (or room disposed) — a bot takes the seat over so the
+      // table stops sitting out this player's full clock every turn.
+      const abandoned = this.state.players.get(client.sessionId);
+      if (abandoned && !abandoned.isConnected && this.state.phase !== 'waiting') {
+        abandoned.isBot = true;
+        this.maybeActBot();
+      }
     }
   }
 
@@ -147,6 +175,8 @@ export class MuushigRoom extends Room<GameState> {
     this.clearTurnTimer();
     this.clearSwapTimer();
     this.clearDecisionTimer();
+    this.botTimer?.clear();
+    this.botTimer = null;
   }
 
   // ──────────────────────────── Handlers ────────────────────────────
@@ -222,17 +252,48 @@ export class MuushigRoom extends Room<GameState> {
     if (this.state.phase !== 'finished') return;
     if (!this.state.players.has(client.sessionId)) return;
     this.rematchVotes.add(client.sessionId);
-    if (this.rematchVotes.size >= this.state.players.size) {
+    // Bots don't vote — a rematch needs every human at the table.
+    const humans = [...this.state.seatOrder].filter((id) => !this.state.players.get(id)!.isBot);
+    if (this.rematchVotes.size >= humans.length) {
       this.rematchVotes.clear();
       for (const id of this.state.seatOrder) {
         const p = this.state.players.get(id)!;
         p.score = 15;
-        p.isReady = false;
+        p.isReady = p.isBot; // bots are always ready
       }
       this.state.winners.splice(0, this.state.winners.length);
       this.state.phase = 'waiting';
       this.syncMetadata();
     }
+  }
+
+  private handleAddBot(client: Client): void {
+    if (this.state.phase !== 'waiting') return;
+    if (client.sessionId !== this.state.hostId) return;
+    if (this.state.players.size >= this.state.maxPlayers) return;
+
+    const id = `bot-${++this.botCounter}`;
+    const bot = new Player(id);
+    bot.username = `${BOT_NAMES[(this.botCounter - 1) % BOT_NAMES.length]!} 🤖`;
+    bot.isBot = true;
+    bot.isReady = true;
+    bot.isConnected = true;
+    this.state.players.set(id, bot);
+    this.state.seatOrder.push(id);
+    this.syncMetadata();
+  }
+
+  private handleRemoveBot(client: Client, msg: unknown): void {
+    if (this.state.phase !== 'waiting') return;
+    if (client.sessionId !== this.state.hostId) return;
+    const id = sanitizeString((msg as { id?: unknown })?.id);
+    const bot = id ? this.state.players.get(id) : undefined;
+    if (!bot?.isBot) return;
+
+    this.state.players.delete(id);
+    const idx = this.state.seatOrder.indexOf(id);
+    if (idx !== -1) this.state.seatOrder.splice(idx, 1);
+    this.syncMetadata();
   }
 
   // ──────────────────────────── Flow ────────────────────────────
@@ -309,6 +370,7 @@ export class MuushigRoom extends Room<GameState> {
 
   private startDecisionTimer(): void {
     this.clearDecisionTimer();
+    this.maybeActBot();
     if (this.decisionTimeLimit <= 0) return;
     this.decisionTimer = this.clock.setTimeout(() => {
       if (this.state.phase !== 'decision') return;
@@ -328,6 +390,7 @@ export class MuushigRoom extends Room<GameState> {
 
   private startSwapTimer(): void {
     this.clearSwapTimer();
+    this.maybeActBot();
     if (this.swapTimeLimit <= 0) return;
     this.swapTimer = this.clock.setTimeout(() => {
       if (this.state.phase !== 'swap') return;
@@ -347,6 +410,7 @@ export class MuushigRoom extends Room<GameState> {
 
   private startTurnTimer(): void {
     this.clearTurnTimer();
+    this.maybeActBot();
     if (this.turnTimeLimit <= 0) return;
     this.turnTimer = this.clock.setTimeout(() => this.autoPlayTurn(), this.turnTimeLimit);
   }
@@ -367,6 +431,64 @@ export class MuushigRoom extends Room<GameState> {
     if (!card) return;
     MuushigEngine.playCard(this.state, turnId, card);
     this.afterPlay();
+  }
+
+  // ──────────────────────────── Bots ────────────────────────────
+
+  /**
+   * Called on every turn handoff (each startXTimer): if the seat on turn is a
+   * bot, schedule its move. The human timers stay armed underneath as a
+   * fallback, but a bot acts long before they fire.
+   */
+  private maybeActBot(): void {
+    this.botTimer?.clear();
+    this.botTimer = null;
+    const id = this.state.currentTurn;
+    const player = id ? this.state.players.get(id) : null;
+    if (!player?.isBot) return;
+    if (
+      this.state.phase !== 'decision' &&
+      this.state.phase !== 'swap' &&
+      this.state.phase !== 'playing'
+    )
+      return;
+    this.botTimer = this.clock.setTimeout(() => this.actBot(id), this.botDelay);
+  }
+
+  /** Performs one bot action for whichever phase the game is in. */
+  private actBot(id: string): void {
+    if (this.state.currentTurn !== id) return;
+    const player = this.state.players.get(id);
+    if (!player?.isBot) return;
+
+    if (this.state.phase === 'decision') {
+      if (!player.hasDecided) {
+        try {
+          MuushigEngine.decide(this.state, id, MuushigBot.chooseStay(this.state, id));
+        } catch {
+          /* fall through — afterDecision re-evaluates and the timer backstops */
+        }
+      }
+      this.afterDecision();
+    } else if (this.state.phase === 'swap') {
+      if (!player.hasSwapped && !player.hasResigned) {
+        try {
+          MuushigEngine.swapCards(this.state, id, MuushigBot.chooseSwapIndices(this.state, id));
+        } catch {
+          /* fall through */
+        }
+      }
+      this.maybeBeginPlay();
+    } else if (this.state.phase === 'playing') {
+      const card = MuushigBot.chooseCard(this.state, id);
+      if (!card) return;
+      try {
+        MuushigEngine.playCard(this.state, id, card);
+      } catch {
+        return; // engine rejected — the turn timer will auto-play a legal card
+      }
+      this.afterPlay();
+    }
   }
 
   private clearTurnTimer(): void {

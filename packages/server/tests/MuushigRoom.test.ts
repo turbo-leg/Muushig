@@ -86,6 +86,79 @@ async function playOneRound(room: AnyRoom, clients: AnyClient[]): Promise<void> 
   }
 }
 
+describe('MuushigRoom — bots', () => {
+  test('host adds a bot and the bot plays a full round on its own', async () => {
+    const room = await createRoom({ botDelay: 5 });
+    const human = await colyseus.connectTo(room);
+    await waitUntil(() => room.state.players.size === 1);
+
+    human.send('addBot');
+    await waitUntil(() => room.state.players.size === 2);
+    const botId = [...room.state.seatOrder].find((id) => id.startsWith('bot-'))!;
+    expect(room.state.players.get(botId)!.isBot).toBe(true);
+    expect(room.state.players.get(botId)!.isReady).toBe(true);
+
+    human.send('ready');
+    await waitUntil(() => room.state.players.get(human.sessionId)!.isReady);
+    human.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    // Identity fields survive the deal (initializeGame keeps Player objects).
+    expect(room.state.players.get(botId)!.isBot).toBe(true);
+    expect(room.state.players.get(botId)!.username).not.toBe('');
+
+    // Drive only the human; the bot must act for itself.
+    await waitUntil(
+      () => room.state.currentTurn === human.sessionId || room.state.phase !== 'decision',
+    );
+    if (room.state.phase === 'decision') human.send('stay');
+    await waitUntil(() => room.state.phase !== 'decision');
+
+    if (room.state.phase === 'swap') {
+      const me = () => room.state.players.get(human.sessionId)!;
+      await waitUntil(
+        () =>
+          (room.state.currentTurn === human.sessionId && !me().hasSwapped) ||
+          room.state.phase !== 'swap',
+      );
+      if (room.state.phase === 'swap' && !me().hasSwapped) human.send('swap', { indices: [] });
+      await waitUntil(() => room.state.phase !== 'swap');
+    }
+
+    while (room.state.phase === 'playing') {
+      await waitUntil(
+        () => room.state.currentTurn === human.sessionId || room.state.phase !== 'playing',
+      );
+      if (room.state.phase !== 'playing') break;
+      const before = totalCardsInHands(room);
+      playTurn(room, [human]);
+      await waitUntil(() => totalCardsInHands(room) < before || room.state.phase !== 'playing');
+    }
+
+    // Round resolved: fresh deal (or a finished game) without the bot stalling.
+    await waitUntil(() => room.state.phase === 'decision' || room.state.phase === 'finished');
+  });
+
+  test('a bot takes over an abandoned seat once the reconnection window expires', async () => {
+    const { room, clients } = await startedRoom(2, { reconnectWindow: 1, botDelay: 5 });
+    const human = clients[0]!;
+    const dropped = clients[1]!;
+    const droppedId = dropped.sessionId;
+
+    await dropped.leave(false);
+    await waitUntil(() => room.state.players.get(droppedId)?.isConnected === false);
+
+    // Window (1s) expires → bot takeover.
+    await waitUntil(() => room.state.players.get(droppedId)?.isBot === true, 6000);
+
+    // The human decides; the bot seat then decides by itself.
+    await waitUntil(() => room.state.currentTurn === human.sessionId);
+    human.send('stay');
+    await waitUntil(() => room.state.players.get(droppedId)?.hasDecided === true, 6000);
+    expect(room.state.phase).toBe('swap');
+  });
+});
+
 describe('MuushigRoom — lobby', () => {
   test('assigns host, preserves seat order, and tracks player count', async () => {
     const room = await createRoom();

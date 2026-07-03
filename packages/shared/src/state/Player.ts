@@ -36,6 +36,9 @@ export class Player extends Schema {
   @type('boolean') isReady: boolean = false;
   @type('boolean') isConnected: boolean = true;
 
+  /** Server-driven seat: a lobby-added bot, or a takeover of an abandoned seat. */
+  @type('boolean') isBot: boolean = false;
+
   constructor(id: string = '') {
     super();
     this.id = id;
