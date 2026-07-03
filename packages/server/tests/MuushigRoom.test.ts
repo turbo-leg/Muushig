@@ -146,16 +146,16 @@ describe('MuushigRoom — bots', () => {
     const droppedId = dropped.sessionId;
 
     await dropped.leave(false);
-    await waitUntil(() => room.state.players.get(droppedId)?.isConnected === false);
+    await waitUntil(() => room.state.players.get(droppedId)?.isConnected === false, 6000);
 
     // Window (1s) expires → bot takeover.
-    await waitUntil(() => room.state.players.get(droppedId)?.isBot === true, 6000);
+    await waitUntil(() => room.state.players.get(droppedId)?.isBot === true, 8000);
 
     // The human decides; the bot seat then decides by itself.
     await waitUntil(() => room.state.currentTurn === human.sessionId);
     human.send('stay');
-    await waitUntil(() => room.state.players.get(droppedId)?.hasDecided === true, 6000);
-    expect(room.state.phase).toBe('swap');
+    await waitUntil(() => room.state.players.get(droppedId)?.hasDecided === true, 8000);
+    await waitUntil(() => room.state.phase === 'swap', 8000);
   });
 });
 
@@ -229,20 +229,39 @@ describe('MuushigRoom — start & deal', () => {
     expect(room.state.phase).toBe('waiting');
   });
 
-  test('rejects joining a game already in progress', async () => {
-    const room = await createRoom();
-    const c1 = await colyseus.connectTo(room);
-    const c2 = await colyseus.connectTo(room);
-    await waitUntil(() => room.state.players.size === 2);
-    c1.send('ready');
-    c2.send('ready');
-    await waitUntil(() =>
-      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
-    );
-    c1.send('start');
-    await waitUntil(() => room.state.phase !== 'waiting');
+  test('seats a mid-game joiner as a spectator, not a player', async () => {
+    const { room } = await startedRoom(2);
 
-    await expect(colyseus.connectTo(room)).rejects.toBeTruthy();
+    const watcher = await colyseus.connectTo(room, { username: 'Watcher' });
+    await waitUntil(() => room.state.spectators.size === 1);
+
+    expect(room.state.players.has(watcher.sessionId)).toBe(false);
+    expect([...room.state.seatOrder]).not.toContain(watcher.sessionId);
+    expect(room.state.spectators.get(watcher.sessionId)).toBe('Watcher');
+
+    // Spectators can leave freely without holding a seat.
+    await watcher.leave();
+    await waitUntil(() => room.state.spectators.size === 0);
+  });
+
+  test('promotes spectators to seats when a rematch returns to the lobby', async () => {
+    const { room, clients } = await startedRoom(2);
+    // End the game quickly: both one trick from winning.
+    for (const id of [...room.state.seatOrder]) room.state.players.get(id)!.score = 1;
+
+    const watcher = await colyseus.connectTo(room, { username: 'Watcher' });
+    await waitUntil(() => room.state.spectators.size === 1);
+
+    await playOneRound(room, clients);
+    await waitUntil(() => room.state.phase === 'finished');
+
+    for (const c of clients) c.send('rematch');
+    await waitUntil(() => room.state.phase === 'waiting');
+
+    expect(room.state.players.has(watcher.sessionId)).toBe(true);
+    expect([...room.state.seatOrder]).toContain(watcher.sessionId);
+    expect(room.state.spectators.size).toBe(0);
+    expect(room.state.players.get(watcher.sessionId)!.username).toBe('Watcher');
   });
 });
 

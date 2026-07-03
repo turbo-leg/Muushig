@@ -284,6 +284,10 @@ export function Table({ state, sessionId, send }: Props) {
   });
 
   const me = seats.find((s) => s.isMe) ?? null;
+  // Joined mid-game: watching from the rail until the next game seats them.
+  const isSpectator = !!sessionId && !state.players.has(sessionId);
+  const spectatorNames: string[] = [];
+  state.spectators.forEach((name) => spectatorNames.push(name));
   const isHost = me?.isHost === true;
   const meReady = me?.isReady ?? false;
   const allReady = seats.length > 0 && seats.every((s) => s.isReady);
@@ -443,6 +447,14 @@ export function Table({ state, sessionId, send }: Props) {
     <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-3 px-3 pt-[max(0.5rem,var(--safe-top))] pb-[max(0.75rem,var(--safe-bottom))] select-none sm:gap-4">
       <TitleBanner />
       <Scoreboard seats={seats} onOpenSheet={() => setShowSheet(true)} />
+      {spectatorNames.length > 0 && (
+        <p
+          className="z-10 -mt-1 text-center font-hand text-sm text-cream/70"
+          title={spectatorNames.join(', ')}
+        >
+          👁 {spectatorNames.length} watching
+        </p>
+      )}
 
       {/* The table arena. On phones the felt is a tall, height-driven oval so
           opponents seat down the sides; on sm+ it's the wide landscape felt.
@@ -526,6 +538,7 @@ export function Table({ state, sessionId, send }: Props) {
         />
         <ActionBar
           phase={phase}
+          isSpectator={isSpectator}
           isHost={isHost}
           canStart={canStart}
           meReady={meReady}

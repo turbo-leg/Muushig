@@ -51,4 +51,8 @@ export class GameState extends Schema {
 
   /** Seat ids of players who have reached 0 and won (in finishing order). */
   @type(['string']) winners = new ArraySchema<string>();
+
+  /** Watchers who joined mid-game: sessionId → username. Promoted to seats
+   *  when the table returns to the lobby. */
+  @type({ map: 'string' }) spectators = new MapSchema<string>();
 }
