@@ -23,6 +23,8 @@ const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
   isTurn: false,
   hasDecided: false,
   hasResigned: false,
+  isConnected: true,
+  isBot: false,
   isMe: false,
   isSpeaking: false,
   isDealer: false,
@@ -58,6 +60,8 @@ describe('Seat', () => {
     isTurn: false,
     hasDecided: false,
     hasResigned: false,
+    isConnected: true,
+    isBot: false,
     isMe: false,
     isSpeaking: false,
     isDealer: false,
@@ -74,6 +78,27 @@ describe('Seat', () => {
     render(<Seat seat={{ ...seat, isDealer: true, isAmankhuzuu: true }} phase="swap" />);
     expect(screen.getByTitle('Dealer')).toBeInTheDocument();
     expect(screen.getByTitle('Amankhuzuu — first to swap')).toBeInTheDocument();
+  });
+
+  test('shows a reconnecting badge for a held mid-game seat', () => {
+    render(<Seat seat={{ ...seat, isConnected: false }} phase="playing" />);
+    expect(screen.getByText('Reconnecting…')).toBeInTheDocument();
+  });
+
+  test('shows a bot badge once a bot takes the seat over', () => {
+    render(<Seat seat={{ ...seat, isConnected: false, isBot: true }} phase="playing" />);
+    expect(screen.getByText('Bot')).toBeInTheDocument();
+    expect(screen.queryByText('Reconnecting…')).not.toBeInTheDocument();
+  });
+
+  test('offers a remove button only when onRemove is provided', async () => {
+    const onRemove = vi.fn();
+    const bot = { ...seat, isBot: true, username: 'Баатар 🤖' };
+    const { rerender } = render(<Seat seat={bot} phase="waiting" onRemove={onRemove} />);
+    await userEvent.click(screen.getByRole('button', { name: /remove/i }));
+    expect(onRemove).toHaveBeenCalledOnce();
+    rerender(<Seat seat={bot} phase="waiting" />);
+    expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
   });
 });
 
@@ -186,11 +211,13 @@ describe('ActionBar', () => {
     canSwapTrump: false,
     trumpSwapMode: false,
     canInvite: false,
+    canAddBot: false,
     winnerNames: [],
     isWinner: false,
     muted: false,
     onReady: vi.fn(),
     onStart: vi.fn(),
+    onAddBot: vi.fn(),
     onStay: vi.fn(),
     onSwap: vi.fn(),
     onKeep: vi.fn(),
@@ -207,6 +234,15 @@ describe('ActionBar', () => {
     expect(screen.getByRole('button', { name: /wait/i })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: /ready/i }));
     expect(onReady).toHaveBeenCalledOnce();
+  });
+
+  test('host can add a bot while seats remain', async () => {
+    const onAddBot = vi.fn();
+    const { rerender } = render(<ActionBar {...base} canAddBot onAddBot={onAddBot} />);
+    await userEvent.click(screen.getByRole('button', { name: /add bot/i }));
+    expect(onAddBot).toHaveBeenCalledOnce();
+    rerender(<ActionBar {...base} />);
+    expect(screen.queryByRole('button', { name: /add bot/i })).not.toBeInTheDocument();
   });
 
   test('mute toggle is labelled for accessibility', () => {

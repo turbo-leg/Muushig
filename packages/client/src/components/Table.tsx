@@ -249,6 +249,8 @@ export function Table({ state, sessionId, send }: Props) {
         (phase === 'decision' || phase === 'swap' || phase === 'playing'),
       hasDecided: p?.hasDecided ?? false,
       hasResigned: p?.hasResigned ?? false,
+      isConnected: p?.isConnected ?? true,
+      isBot: p?.isBot ?? false,
       isMe: id === sessionId,
       isSpeaking: !!p?.discordId && speaking.has(p.discordId),
       isDealer: id === state.dealerId,
@@ -345,6 +347,8 @@ export function Table({ state, sessionId, send }: Props) {
   };
   const onReady = () => act(() => send('ready'));
   const onStart = () => act(() => send('start'));
+  const onAddBot = () => act(() => send('addBot'));
+  const onRemoveBot = (id: string) => act(() => send('removeBot', { id }));
   const onStay = () => act(() => send('stay'));
   const onKeep = () => act(() => send('swap', { indices: [] }));
   const onResign = () => act(() => send('resign'));
@@ -490,7 +494,15 @@ export function Table({ state, sessionId, send }: Props) {
                 className="absolute z-10 origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.78] sm:scale-100"
                 style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
               >
-                <Seat seat={s} phase={phase} compact seatNumber={opponentSeatNum} />
+                <Seat
+                  seat={s}
+                  phase={phase}
+                  compact
+                  seatNumber={opponentSeatNum}
+                  onRemove={
+                    isHost && phase === 'waiting' && s.isBot ? () => onRemoveBot(s.id) : undefined
+                  }
+                />
               </div>
             );
           })}
@@ -528,11 +540,13 @@ export function Table({ state, sessionId, send }: Props) {
           canSwapTrump={canSwapTrump}
           trumpSwapMode={trumpSwapMode}
           canInvite={isEmbedded}
+          canAddBot={isHost && phase === 'waiting' && seats.length < state.maxPlayers}
           winnerNames={winnerNames}
           isWinner={isWinner}
           muted={muted}
           onReady={onReady}
           onStart={onStart}
+          onAddBot={onAddBot}
           onStay={onStay}
           onSwap={onSwap}
           onKeep={onKeep}

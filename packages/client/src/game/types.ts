@@ -17,6 +17,10 @@ export interface SeatVM {
   isTurn: boolean;
   hasDecided: boolean;
   hasResigned: boolean;
+  /** False while the seat is held for a dropped player (reconnection window). */
+  isConnected: boolean;
+  /** Server-driven seat: a lobby-added bot, or a takeover of an abandoned seat. */
+  isBot: boolean;
   isMe: boolean;
   /** Currently talking in the Discord voice channel (drives the green ring). */
   isSpeaking: boolean;

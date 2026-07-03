@@ -23,11 +23,14 @@ interface Props {
   trumpSwapMode: boolean;
   /** Running inside Discord, so the native invite dialog is available. */
   canInvite: boolean;
+  /** Host may seat a bot (lobby only, while seats remain). */
+  canAddBot: boolean;
   winnerNames: string[];
   isWinner: boolean;
   muted: boolean;
   onReady: () => void;
   onStart: () => void;
+  onAddBot: () => void;
   onStay: () => void;
   onResign: () => void;
   onSwap: () => void;
@@ -107,6 +110,11 @@ export function ActionBar(props: Props) {
             {props.canInvite && (
               <Button variant="coin" secondary sub="Урих" onClick={props.onInvite}>
                 Invite
+              </Button>
+            )}
+            {props.canAddBot && (
+              <Button variant="coin" secondary sub="Робот" onClick={props.onAddBot}>
+                Add bot
               </Button>
             )}
           </>
