@@ -249,6 +249,7 @@ export function Table({ state, sessionId, send }: Props) {
         (phase === 'decision' || phase === 'swap' || phase === 'playing'),
       hasDecided: p?.hasDecided ?? false,
       hasResigned: p?.hasResigned ?? false,
+      isConnected: p?.isConnected ?? true,
       isMe: id === sessionId,
       isSpeaking: !!p?.discordId && speaking.has(p.discordId),
       isDealer: id === state.dealerId,

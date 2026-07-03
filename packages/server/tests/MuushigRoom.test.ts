@@ -173,21 +173,21 @@ describe('MuushigRoom — start & deal', () => {
   });
 });
 
-describe('MuushigRoom — round flow', () => {
-  async function startedRoom(playerCount: number) {
-    const room = await createRoom();
-    const clients: AnyClient[] = [];
-    for (let i = 0; i < playerCount; i++) clients.push(await colyseus.connectTo(room));
-    await waitUntil(() => room.state.players.size === playerCount);
-    for (const c of clients) c.send('ready');
-    await waitUntil(() =>
-      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
-    );
-    clients[0]!.send('start');
-    await waitUntil(() => room.state.phase === 'decision');
-    return { room, clients };
-  }
+async function startedRoom(playerCount: number, options: Record<string, unknown> = {}) {
+  const room = await createRoom(options);
+  const clients: AnyClient[] = [];
+  for (let i = 0; i < playerCount; i++) clients.push(await colyseus.connectTo(room));
+  await waitUntil(() => room.state.players.size === playerCount);
+  for (const c of clients) c.send('ready');
+  await waitUntil(() =>
+    [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+  );
+  clients[0]!.send('start');
+  await waitUntil(() => room.state.phase === 'decision');
+  return { room, clients };
+}
 
+describe('MuushigRoom — round flow', () => {
   test('plays a full round and deals a fresh one when no one has won', async () => {
     const { room, clients } = await startedRoom(3);
     await playOneRound(room, clients);
@@ -222,6 +222,45 @@ describe('MuushigRoom — round flow', () => {
       await waitUntil(() => totalCardsInHands(room) < before || room.state.phase !== 'playing');
     }
     expect(['decision', 'finished']).toContain(room.state.phase);
+  });
+
+  test('holds the seat when a player drops mid-game and restores it on reconnect', async () => {
+    const { room, clients } = await startedRoom(2);
+    const dropped = clients[1]!;
+    const droppedId = dropped.sessionId;
+    const token = dropped.reconnectionToken;
+
+    await dropped.leave(false); // unconsented — simulates a network drop
+    await waitUntil(() => room.state.players.get(droppedId)?.isConnected === false);
+
+    // Seat is held, not freed.
+    expect(room.state.players.has(droppedId)).toBe(true);
+    expect([...room.state.seatOrder]).toContain(droppedId);
+    expect(room.state.phase).toBe('decision');
+
+    const rejoined = await colyseus.sdk.reconnect(token);
+    expect(rejoined.sessionId).toBe(droppedId);
+    await waitUntil(() => room.state.players.get(droppedId)?.isConnected === true);
+  });
+
+  test('an expired reconnection window keeps the seat playing via timers', async () => {
+    // 1-second reconnection window; decision timer auto-stays after 300ms.
+    const { room, clients } = await startedRoom(2, {
+      reconnectWindow: 1,
+      decisionTimeLimit: 300,
+    });
+    const dropped = clients[1]!;
+    const droppedId = dropped.sessionId;
+
+    await dropped.leave(false);
+    await waitUntil(() => room.state.players.get(droppedId)?.isConnected === false);
+
+    // The window lapses without a reconnect: the seat stays in the game,
+    // stays disconnected, and the decision timer keeps the round moving.
+    await waitUntil(() => room.state.players.get(droppedId)?.hasDecided === true, 6000);
+    expect(room.state.players.has(droppedId)).toBe(true);
+    expect(room.state.players.get(droppedId)!.isConnected).toBe(false);
+    expect(room.state.phase).toBe('swap');
   });
 
   test('ends the game and broadcasts gameOver when a player reaches zero', async () => {

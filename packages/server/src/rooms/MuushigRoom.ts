@@ -7,6 +7,9 @@ import { parseCard, parseIndices, sanitizeString } from './roomHelpers';
 const DEFAULT_TURN_TIME_MS = 30_000;
 const DEFAULT_SWAP_TIME_MS = 60_000;
 const DEFAULT_DECISION_TIME_MS = 45_000;
+// How long a mid-game seat is held for the same client to reconnect (Discord
+// iframe reloads are routine: device rotation, client updates, network blips).
+const DEFAULT_RECONNECT_WINDOW_S = 60;
 const RATE_LIMIT_MAX = 15; // messages per window
 const RATE_LIMIT_WINDOW_MS = 1_000;
 
@@ -23,6 +26,7 @@ interface CreateOptions extends JoinOptions {
   turnTimeLimit?: number;
   swapTimeLimit?: number;
   decisionTimeLimit?: number;
+  reconnectWindow?: number;
 }
 
 /**
@@ -42,6 +46,7 @@ export class MuushigRoom extends Room<GameState> {
   private turnTimeLimit = DEFAULT_TURN_TIME_MS;
   private swapTimeLimit = DEFAULT_SWAP_TIME_MS;
   private decisionTimeLimit = DEFAULT_DECISION_TIME_MS;
+  private reconnectWindow = DEFAULT_RECONNECT_WINDOW_S;
   private discordInstanceId: string | null = null;
   private rematchVotes = new Set<string>();
   private rateLimit = new Map<string, number[]>();
@@ -60,6 +65,8 @@ export class MuushigRoom extends Room<GameState> {
     if (typeof options.swapTimeLimit === 'number') this.swapTimeLimit = options.swapTimeLimit;
     if (typeof options.decisionTimeLimit === 'number')
       this.decisionTimeLimit = options.decisionTimeLimit;
+    if (typeof options.reconnectWindow === 'number' && options.reconnectWindow >= 0)
+      this.reconnectWindow = options.reconnectWindow;
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
@@ -101,7 +108,7 @@ export class MuushigRoom extends Room<GameState> {
     this.syncMetadata();
   }
 
-  onLeave(client: Client, _consented?: boolean): void {
+  async onLeave(client: Client, _consented?: boolean): Promise<void> {
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
     player.isConnected = false;
@@ -114,8 +121,26 @@ export class MuushigRoom extends Room<GameState> {
       if (this.state.hostId === client.sessionId) {
         this.state.hostId = this.state.seatOrder[0] ?? '';
       }
+      this.syncMetadata();
+      return;
     }
+
+    // Mid-game: hold the seat for the same client to reconnect. Held even on
+    // consented leaves — a Discord iframe teardown can look consented, and a
+    // held seat costs nothing: the per-phase timers (auto-stay, keep-cards,
+    // auto-play) keep the table moving whether or not the player returns.
     this.syncMetadata();
+    if (this.reconnectWindow <= 0) return;
+    try {
+      await this.allowReconnection(client, this.reconnectWindow);
+      const rejoined = this.state.players.get(client.sessionId);
+      if (rejoined) {
+        rejoined.isConnected = true;
+        this.syncMetadata();
+      }
+    } catch {
+      // Window expired (or room disposed) — the seat plays on via timers.
+    }
   }
 
   onDispose(): void {

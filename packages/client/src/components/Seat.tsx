@@ -10,6 +10,10 @@ interface Props {
 }
 
 function statusLabel(seat: SeatVM, phase: Phase): { text: string; cls: string } | null {
+  // A held seat (reconnection window) trumps any phase status.
+  if (phase !== 'waiting' && !seat.isConnected) {
+    return { text: 'Reconnecting…', cls: 'text-danger' };
+  }
   if (phase === 'waiting') {
     return seat.isReady
       ? { text: 'Ready', cls: 'text-success' }
@@ -159,7 +163,7 @@ export function Seat({ seat, phase, seatNumber }: Props) {
           : seat.isTurn
             ? 'anim-turn rounded-[10px]'
             : ''
-      } ${seat.hasResigned ? 'opacity-55' : ''}`}
+      } ${seat.hasResigned || !seat.isConnected ? 'opacity-55' : ''}`}
       style={{ width: `${w}px`, height: `${h}px` }}
     >
       {/* CSS placard backing (no image) */}

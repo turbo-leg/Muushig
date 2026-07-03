@@ -99,7 +99,26 @@ function GameView() {
         </Centered>
       )}
 
-      {status === 'connected' && state && <Table state={state} sessionId={sessionId} send={send} />}
+      {/* While reconnecting, keep the last-known table visible under a banner. */}
+      {status === 'reconnecting' &&
+        (state ? (
+          <div
+            className="fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-lg border-2 border-amber-deep bg-parchment px-4 py-1.5 font-hand text-lg text-wood shadow-lg"
+            role="status"
+          >
+            Reconnecting to the table…
+          </div>
+        ) : (
+          <Centered>
+            <p className="text-center font-hand text-2xl text-cream/80">
+              Reconnecting to the table…
+            </p>
+          </Centered>
+        ))}
+
+      {(status === 'connected' || status === 'reconnecting') && state && (
+        <Table state={state} sessionId={sessionId} send={send} />
+      )}
 
       {showProfile && session && (
         <Profile session={session} onClose={() => setShowProfile(false)} />
