@@ -20,6 +20,14 @@ const DEFAULT_RECONNECT_WINDOW_S = 60;
 // A beat before a bot acts, so its moves read as play rather than a glitch.
 const BOT_ACT_DELAY_MS = 900;
 const BOT_NAMES = ['Баатар', 'Сараа', 'Дорж', 'Оюунаа', 'Тэмүүлэн'];
+// Connection slots kept above the seat count so mid-game joiners can watch.
+const SPECTATOR_HEADROOM = 10;
+
+interface SpectatorProfile {
+  username: string;
+  avatarUrl: string;
+  discordId: string;
+}
 const RATE_LIMIT_MAX = 15; // messages per window
 const RATE_LIMIT_WINDOW_MS = 1_000;
 
@@ -64,6 +72,8 @@ export class MuushigRoom extends Room<GameState> {
   private rateLimit = new Map<string, number[]>();
   private botTimer: Delayed | null = null;
   private botCounter = 0;
+  /** Identity of each spectator, kept for their promotion to a seat. */
+  private spectatorProfiles = new Map<string, SpectatorProfile>();
 
   onCreate(options: CreateOptions = {}): void {
     this.setState(new GameState());
@@ -73,7 +83,8 @@ export class MuushigRoom extends Room<GameState> {
       ? Math.min(Math.max(requested, MIN_PLAYERS), MAX_PLAYERS)
       : MAX_PLAYERS;
     this.state.maxPlayers = max;
-    this.maxClients = max;
+    // Seats are enforced in onJoin; extra connection slots carry spectators.
+    this.maxClients = max + SPECTATOR_HEADROOM;
 
     if (typeof options.turnTimeLimit === 'number') this.turnTimeLimit = options.turnTimeLimit;
     if (typeof options.swapTimeLimit === 'number') this.swapTimeLimit = options.swapTimeLimit;
@@ -112,11 +123,25 @@ export class MuushigRoom extends Room<GameState> {
   }
 
   onJoin(client: Client, options: JoinOptions = {}): void {
+    const username = sanitizeString(options.username) || `Player-${this.state.players.size + 1}`;
+
+    // Mid-game joiners watch from the rail and are seated for the next game.
     if (this.state.phase !== 'waiting') {
-      throw new Error('Game already in progress');
+      this.spectatorProfiles.set(client.sessionId, {
+        username,
+        avatarUrl: sanitizeString(options.avatarUrl, 256),
+        discordId: sanitizeString(options.discordId),
+      });
+      this.state.spectators.set(client.sessionId, username);
+      this.syncMetadata();
+      return;
+    }
+
+    if (this.state.players.size >= this.state.maxPlayers) {
+      throw new Error('Room is full');
     }
     const player = new Player(client.sessionId);
-    player.username = sanitizeString(options.username) || `Player-${this.state.players.size + 1}`;
+    player.username = username;
     player.avatarUrl = sanitizeString(options.avatarUrl, 256);
     player.discordId = sanitizeString(options.discordId);
     player.isConnected = true;
@@ -129,6 +154,13 @@ export class MuushigRoom extends Room<GameState> {
   }
 
   async onLeave(client: Client, _consented?: boolean): Promise<void> {
+    // Spectators come and go freely — no seat to hold.
+    if (this.state.spectators.has(client.sessionId)) {
+      this.state.spectators.delete(client.sessionId);
+      this.spectatorProfiles.delete(client.sessionId);
+      return;
+    }
+
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
     player.isConnected = false;
@@ -263,7 +295,31 @@ export class MuushigRoom extends Room<GameState> {
       }
       this.state.winners.splice(0, this.state.winners.length);
       this.state.phase = 'waiting';
+      this.promoteSpectators();
       this.syncMetadata();
+    }
+  }
+
+  /** Back in the lobby: seat waiting spectators while chairs remain. */
+  private promoteSpectators(): void {
+    for (const sessionId of [...this.state.spectators.keys()]) {
+      if (this.state.players.size >= this.state.maxPlayers) break;
+      const profile = this.spectatorProfiles.get(sessionId);
+      const player = new Player(sessionId);
+      player.username = this.state.spectators.get(sessionId) ?? 'Player';
+      player.avatarUrl = profile?.avatarUrl ?? '';
+      player.discordId = profile?.discordId ?? '';
+      player.isConnected = true;
+      this.state.players.set(sessionId, player);
+      this.state.seatOrder.push(sessionId);
+      this.state.spectators.delete(sessionId);
+      this.spectatorProfiles.delete(sessionId);
+    }
+    // The host must be someone who can press Deal.
+    const host = this.state.hostId ? this.state.players.get(this.state.hostId) : null;
+    if (!host || host.isBot) {
+      this.state.hostId =
+        this.state.seatOrder.find((id) => !this.state.players.get(id)!.isBot) ?? '';
     }
   }
 
@@ -528,6 +584,7 @@ export class MuushigRoom extends Room<GameState> {
       discordInstanceId: this.discordInstanceId,
       maxPlayers: this.state.maxPlayers,
       playerCount: this.state.players.size,
+      spectatorCount: this.state.spectators.size,
       phase: this.state.phase,
     }).catch(() => {});
   }

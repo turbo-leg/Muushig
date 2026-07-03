@@ -197,6 +197,7 @@ describe('HoldButton', () => {
 describe('ActionBar', () => {
   const base = {
     phase: 'waiting' as const,
+    isSpectator: false,
     isHost: true,
     canStart: false,
     meReady: false,
@@ -234,6 +235,12 @@ describe('ActionBar', () => {
     expect(screen.getByRole('button', { name: /wait/i })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: /ready/i }));
     expect(onReady).toHaveBeenCalledOnce();
+  });
+
+  test('spectators get a watching notice instead of actions', () => {
+    render(<ActionBar {...base} isSpectator phase="playing" />);
+    expect(screen.getByText(/watching/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ready/i })).not.toBeInTheDocument();
   });
 
   test('host can add a bot while seats remain', async () => {

@@ -5,6 +5,8 @@ import { HoldButton } from './HoldButton';
 
 interface Props {
   phase: Phase;
+  /** Watching from the rail (joined mid-game) — no actions until reseated. */
+  isSpectator: boolean;
   isHost: boolean;
   canStart: boolean;
   meReady: boolean;
@@ -86,6 +88,15 @@ function MuteButton({ muted, onClick }: { muted: boolean; onClick: () => void })
 
 export function ActionBar(props: Props) {
   const { phase, isHost, canStart, meReady, needPlayers, canSwap, isMyTurn } = props;
+
+  if (props.isSpectator) {
+    return (
+      <div className="flex w-full items-center justify-center gap-3 select-none">
+        <StatusScroll>Watching — you join the next game</StatusScroll>
+        <MuteButton muted={props.muted} onClick={props.onToggleMute} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full items-center justify-center gap-3 select-none">
