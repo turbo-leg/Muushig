@@ -119,6 +119,36 @@ describe('MuushigRoom — private tables & join codes', () => {
   });
 });
 
+describe('MuushigRoom — username moderation', () => {
+  test('a profane join name is replaced with a tavern guest name', async () => {
+    const room = await createRoom();
+    const c = await colyseus.connectTo(room, { username: 'fucker99' });
+    await waitUntil(() => room.state.players.size === 1);
+    const name = room.state.players.get(c.sessionId)!.username;
+    expect(name).not.toMatch(/fuck/i);
+    expect(name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+  });
+});
+
+describe('POST /api/client-error', () => {
+  test('accepts a report and rate-limits floods', async () => {
+    const payload = { message: 'boom', stack: 'at x', context: 'test', url: 'http://x' };
+    const first = await colyseus.http.post('/api/client-error', { body: payload });
+    expect(first.data).toMatchObject({ ok: true });
+
+    // 10/minute per IP — the 11th in a burst is refused.
+    let rejected = false;
+    for (let i = 0; i < 12; i++) {
+      try {
+        await colyseus.http.post('/api/client-error', { body: payload });
+      } catch {
+        rejected = true;
+      }
+    }
+    expect(rejected).toBe(true);
+  });
+});
+
 describe('GET /api/table/:code', () => {
   test('resolves a live code to room info and 404s unknown codes', async () => {
     const room = await createRoom({ privateTable: true, joinCode: 'FQRS' });

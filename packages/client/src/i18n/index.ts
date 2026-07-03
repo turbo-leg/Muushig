@@ -166,6 +166,14 @@ const messages = {
     mn: 'Муушиг — мөрцөөд нэг ч нүд аваагүй: +5 оноо.\nНавших — хуваагчийн ил хөзөр солих эрх.\nХаранхуй — 3 тарсны дараах албан тоглолт.\nАманхүзүү — хуваагчийн зүүн гарт, түрүүлж явна.\nТал — дарсан 6 хөзөр.',
   },
 
+  // ── Crash fallback ──
+  crashTitle: { en: 'The table wobbled', mn: 'Ширээ ганхлаа' },
+  crashBody: {
+    en: 'Something broke on our side. Reload to sit back down — your seat is held.',
+    mn: 'Манай талд алдаа гарлаа. Дахин ачаалбал суудал чинь хүлээж байгаа.',
+  },
+  crashReload: { en: 'Reload', mn: 'Дахин ачаалах' },
+
   // ── Lobby / tables ──
   lobbyTitle: { en: 'Welcome to the tavern', mn: 'Мууштай тавтай морил' },
   lobbySubtitle: { en: 'find a table to sit at', mn: 'суух ширээгээ сонго' },
