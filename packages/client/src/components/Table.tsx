@@ -8,6 +8,7 @@ import { Seat } from './Seat';
 import { Scoreboard } from './Scoreboard';
 import { RoundSummary, type RoundRow } from './RoundSummary';
 import { Celebration } from './Celebration';
+import { MatchRecap } from './MatchRecap';
 import { ScoreSheet } from './ScoreSheet';
 import { PipView } from './PipView';
 import { Trick } from './Trick';
@@ -551,6 +552,9 @@ export function Table({ state, sessionId, send }: Props) {
       </div>
 
       <div className="flex flex-col items-center gap-4">
+        {phase === 'finished' && me && me.scoreLog.length > 0 && (
+          <MatchRecap scoreLog={me.scoreLog} />
+        )}
         {me && <Seat seat={me} phase={phase} seatNumber={1} />}
         <Hand
           cards={myHand}

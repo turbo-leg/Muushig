@@ -10,6 +10,7 @@ import { HoldButton } from '../components/HoldButton';
 import { ActionBar } from '../components/ActionBar';
 import { RoundSummary } from '../components/RoundSummary';
 import { Celebration } from '../components/Celebration';
+import { MatchRecap, summarizeScoreLog } from '../components/MatchRecap';
 import type { SeatVM } from '../game/types';
 
 const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
@@ -218,6 +219,28 @@ describe('Celebration', () => {
   test('names the winners on the plaque', () => {
     render(<Celebration winnerNames={['Ariun', 'Bat']} />);
     expect(screen.getByText(/Ariun & Bat wins the pot!/)).toBeInTheDocument();
+  });
+});
+
+describe('MatchRecap', () => {
+  test('summarizeScoreLog decodes folds, tricks, shut-outs, and perfect rounds', () => {
+    // From 15: fold, take 3 (→12), get muushig'd (→17), take all 5 (→12).
+    const s = summarizeScoreLog(['-', '12', '17', '12']);
+    expect(s).toEqual({
+      roundsTotal: 4,
+      roundsStayed: 3,
+      tricks: 8, // 3 + 5
+      muushigd: 1,
+      perfectRounds: 1,
+    });
+  });
+
+  test('renders the recap chips from a scoreLog', () => {
+    render(<MatchRecap scoreLog={['-', '12', '17', '12']} />);
+    expect(screen.getByText('Bid 3/4 rounds')).toBeInTheDocument();
+    expect(screen.getByText('8 tricks')).toBeInTheDocument();
+    expect(screen.getByText('muushig’d ×1')).toBeInTheDocument();
+    expect(screen.getByText('perfect round ×1')).toBeInTheDocument();
   });
 });
 

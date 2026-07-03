@@ -1,7 +1,16 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, test, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { ColyseusTestServer, boot } from '@colyseus/testing';
 import { MuushigEngine, Card, HAND_SIZE } from '@muushig/shared';
+import type { MatchRecord } from '../src/stats/StatsCollector';
 import appConfig from '../app.config';
+
+// Persistence is stubbed: a magic token verifies as a fixed account, anything
+// else is a guest; supabaseAdmin=null keeps the default recorder disabled.
+vi.mock('../src/lib/supabase', () => ({
+  supabaseAdmin: null,
+  verifyUser: async (token?: string) =>
+    token === 'token-alice' ? { id: 'uuid-alice', username: 'Alice', avatarUrl: '' } : null,
+}));
 
 let colyseus: ColyseusTestServer;
 
@@ -87,6 +96,113 @@ async function playOneRound(room: AnyRoom, clients: AnyClient[]): Promise<void> 
     await waitUntil(() => totalCardsInHands(room) < before || room.state.phase !== 'playing');
   }
 }
+
+describe('MuushigRoom — stats recording', () => {
+  test('records a full match once, with identities, navshih, and rounds — and again after a rematch', async () => {
+    const records: MatchRecord[] = [];
+    const recorder = async (r: MatchRecord) => {
+      records.push(r);
+    };
+    const room = await createRoom({ recorder });
+    const alice = await colyseus.connectTo(room, { username: 'A', accessToken: 'token-alice' });
+    const guest = await colyseus.connectTo(room, { username: 'B' });
+    const clients = [alice, guest];
+    await waitUntil(() => room.state.players.size === 2);
+
+    for (const c of clients) c.send('ready');
+    await waitUntil(() =>
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+    );
+    alice.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    // One round from the finish line.
+    for (const id of [...room.state.seatOrder]) room.state.players.get(id)!.score = 1;
+
+    // Round 1: both stay; the dealer uses navshih; play out the tricks.
+    for (const id of [...room.state.seatOrder]) clientFor(clients, id).send('stay');
+    await waitUntil(() => room.state.phase === 'swap');
+    const dealerId = room.state.dealerId;
+    clientFor(clients, dealerId).send('exchangeTrump', { index: 0 });
+    await waitUntil(() => room.state.trumpExchanged === true);
+    for (const id of [...room.state.seatOrder])
+      clientFor(clients, id).send('swap', { indices: [] });
+    await waitUntil(() => room.state.phase === 'playing');
+    while (room.state.phase === 'playing' && totalCardsInHands(room) > 0) {
+      const before = totalCardsInHands(room);
+      playTurn(room, clients);
+      await waitUntil(() => totalCardsInHands(room) < before || room.state.phase !== 'playing');
+    }
+    await waitUntil(() => room.state.phase === 'finished');
+    await waitUntil(() => records.length === 1);
+
+    const rec = records[0]!;
+    expect(rec.playerCount).toBe(2);
+    expect(rec.withBots).toBe(false);
+    expect(rec.roundsPlayed).toBe(1);
+    expect(rec.rounds).toHaveLength(2);
+
+    const pAlice = rec.players.find((p) => p.seatId === alice.sessionId)!;
+    const pGuest = rec.players.find((p) => p.seatId === guest.sessionId)!;
+    expect(pAlice.userId).toBe('uuid-alice'); // verified token
+    expect(pGuest.userId).toBeNull(); // guest
+    expect(pAlice.opponents).toEqual(['B']);
+
+    // The dealer's round row carries the navshih.
+    const dealerRow = rec.rounds.find((r) => r.seatId === dealerId)!;
+    expect(dealerRow.navshihUsed).toBe(true);
+
+    // Winner bookkeeping is internally consistent.
+    const winners = rec.players.filter((p) => p.won);
+    expect(winners.length).toBeGreaterThanOrEqual(1);
+    expect(winners.some((p) => p.placement === 1)).toBe(true);
+    for (const p of rec.players) {
+      expect(p.stats.roundsStayed + p.stats.roundsFolded).toBe(1);
+    }
+
+    // ── Rematch: a second, separate record (no double-recording) ──
+    for (const c of clients) c.send('rematch');
+    await waitUntil(() => room.state.phase === 'waiting');
+    expect(records).toHaveLength(1); // rematch reset alone records nothing
+
+    // Age out the per-session rate-limit window before the next burst.
+    await new Promise((r) => setTimeout(r, 1100));
+
+    for (const c of clients) c.send('ready');
+    await waitUntil(() =>
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+    );
+    alice.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+    for (const id of [...room.state.seatOrder]) room.state.players.get(id)!.score = 1;
+
+    // Round 2 flavor: the second decider folds, the other plays it out alone.
+    const [first, second] = [...room.state.seatOrder];
+    clientFor(clients, first!).send('stay');
+    await waitUntil(() => room.state.currentTurn === second);
+    clientFor(clients, second!).send('resign');
+    await waitUntil(() => room.state.phase !== 'decision');
+    if (room.state.phase === 'swap') {
+      clientFor(clients, first!).send('swap', { indices: [] });
+      await waitUntil(() => room.state.phase !== 'swap');
+    }
+    while (room.state.phase === 'playing' && totalCardsInHands(room) > 0) {
+      const before = totalCardsInHands(room);
+      playTurn(room, clients);
+      await waitUntil(() => totalCardsInHands(room) < before || room.state.phase !== 'playing');
+    }
+    await waitUntil(() => records.length === 2, 6000);
+
+    const rec2 = records[1]!;
+    const folded = rec2.players.find((p) => p.seatId === second)!;
+    const stayer = rec2.players.find((p) => p.seatId === first)!;
+    expect(folded.stats.roundsFolded).toBe(1);
+    expect(stayer.stats.roundsStayed).toBe(1);
+    expect(stayer.stats.tricks).toBe(HAND_SIZE); // played the round alone
+    expect(stayer.stats.perfectRounds).toBe(1);
+    expect(stayer.won).toBe(true);
+  });
+});
 
 describe('MuushigRoom — bots', () => {
   test('host adds a bot and the bot plays a full round on its own', async () => {

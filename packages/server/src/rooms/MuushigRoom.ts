@@ -8,6 +8,9 @@ import {
   MAX_PLAYERS,
 } from '@muushig/shared';
 import { parseCard, parseIndices, sanitizeString } from './roomHelpers';
+import { verifyUser, type AuthedUser } from '../lib/supabase';
+import { StatsCollector, type SeatIdentity } from '../stats/StatsCollector';
+import { createSupabaseRecorder, type MatchRecorderFn } from '../stats/MatchRecorder';
 
 // These are PER-TURN budgets: each player gets the full window when it becomes
 // their turn to act (decisions and swaps are taken one player at a time).
@@ -38,6 +41,8 @@ interface JoinOptions {
   username?: string;
   avatarUrl?: string;
   discordId?: string;
+  /** Supabase access token — verified server-side; absent/invalid = guest. */
+  accessToken?: string;
 }
 
 interface CreateOptions extends JoinOptions {
@@ -80,6 +85,15 @@ export class MuushigRoom extends Room<GameState> {
   private botCounter = 0;
   /** Identity of each spectator, kept for their promotion to a seat. */
   private spectatorProfiles = new Map<string, SpectatorProfile>();
+  /**
+   * Verified Supabase identities by sessionId. Server-side only — auth UUIDs
+   * never go on the synced schema, where every client (spectators included)
+   * would see them. Reconnection reuses the sessionId, so entries survive
+   * mid-game drops.
+   */
+  private identities = new Map<string, AuthedUser>();
+  private collector = new StatsCollector();
+  private recorder: MatchRecorderFn | null = null;
 
   onCreate(options: CreateOptions = {}): void {
     this.setState(new GameState());
@@ -105,6 +119,13 @@ export class MuushigRoom extends Room<GameState> {
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
+
+    // Injectable for tests; client-sent JSON can never be a function, so this
+    // stays inert against untrusted options (same idea as the timer knobs).
+    const injected = (options as { recorder?: unknown }).recorder;
+    this.recorder =
+      typeof injected === 'function' ? (injected as MatchRecorderFn) : createSupabaseRecorder();
+
     this.syncMetadata();
 
     this.onMessage('ready', (client) => this.guard(client, () => this.handleReady(client)));
@@ -130,7 +151,14 @@ export class MuushigRoom extends Room<GameState> {
     });
   }
 
-  onJoin(client: Client, options: JoinOptions = {}): void {
+  async onJoin(client: Client, options: JoinOptions = {}): Promise<void> {
+    // Verify the (optional) account token before anything else so both seated
+    // players and spectators land in the identity map. Failure = guest join.
+    const authed = await verifyUser(
+      typeof options.accessToken === 'string' ? options.accessToken : undefined,
+    );
+    if (authed) this.identities.set(client.sessionId, authed);
+
     const username = sanitizeString(options.username) || `Player-${this.state.players.size + 1}`;
 
     // Mid-game joiners watch from the rail and are seated for the next game.
@@ -166,6 +194,7 @@ export class MuushigRoom extends Room<GameState> {
     if (this.state.spectators.has(client.sessionId)) {
       this.state.spectators.delete(client.sessionId);
       this.spectatorProfiles.delete(client.sessionId);
+      this.identities.delete(client.sessionId);
       return;
     }
 
@@ -175,6 +204,7 @@ export class MuushigRoom extends Room<GameState> {
 
     // Before the game starts, free the seat entirely.
     if (this.state.phase === 'waiting') {
+      this.identities.delete(client.sessionId);
       this.state.players.delete(client.sessionId);
       const idx = this.state.seatOrder.indexOf(client.sessionId);
       if (idx !== -1) this.state.seatOrder.splice(idx, 1);
@@ -219,6 +249,7 @@ export class MuushigRoom extends Room<GameState> {
     this.botTimer = null;
     this.roundPauseTimer?.clear();
     this.roundPauseTimer = null;
+    this.collector.abort();
   }
 
   // ──────────────────────────── Handlers ────────────────────────────
@@ -365,6 +396,19 @@ export class MuushigRoom extends Room<GameState> {
   // ──────────────────────────── Flow ────────────────────────────
 
   private startGame(): void {
+    // Snapshot who holds each seat NOW — a bot takeover later does not
+    // reassign the result (abandoning a losing game still records the loss).
+    const seats: SeatIdentity[] = [...this.state.seatOrder].map((id) => {
+      const p = this.state.players.get(id)!;
+      return {
+        seatId: id,
+        username: p.username,
+        userId: this.identities.get(id)?.id ?? null,
+        isBot: p.isBot,
+      };
+    });
+    this.collector.begin(seats, Date.now());
+
     MuushigEngine.initializeGame(this.state, [...this.state.seatOrder]);
     this.syncMetadata();
     this.startDecisionTimer();
@@ -419,11 +463,16 @@ export class MuushigRoom extends Room<GameState> {
     this.clearSwapTimer();
     this.clearDecisionTimer();
     const result = MuushigEngine.scoreRound(this.state);
+    this.collector.recordRound(this.state);
     this.broadcast('roundEnd', { deltas: result.deltas });
 
     if (MuushigEngine.isGameOver(this.state)) {
       this.state.phase = 'finished';
       this.broadcast('gameOver', { winners: [...this.state.winners] });
+      // Persist the match after the broadcast, fire-and-forget — stats must
+      // never delay or break the game itself.
+      const record = this.collector.finish(this.state, Date.now());
+      if (record && this.recorder) void this.recorder(record).catch(() => {});
       this.syncMetadata();
       return;
     }
