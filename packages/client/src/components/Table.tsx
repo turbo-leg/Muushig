@@ -360,6 +360,31 @@ export function Table({ state, sessionId, send }: Props) {
   const onStart = () => act(() => send('start'));
   const onAddBot = () => act(() => send('addBot'));
   const onRemoveBot = (id: string) => act(() => send('removeBot', { id }));
+  const onLeaveTable = () => act(() => send('leaveTable'));
+
+  // Kicking a human takes a second tap on the same ✕ within a short window.
+  const [armedKickId, setArmedKickId] = useState<string | null>(null);
+  const armedKickTimer = useRef<number | null>(null);
+  const onKickSeat = (id: string) => {
+    if (armedKickId === id) {
+      if (armedKickTimer.current) window.clearTimeout(armedKickTimer.current);
+      setArmedKickId(null);
+      act(() => send('kick', { id }));
+      return;
+    }
+    setArmedKickId(id);
+    if (armedKickTimer.current) window.clearTimeout(armedKickTimer.current);
+    armedKickTimer.current = window.setTimeout(() => setArmedKickId(null), 2500);
+  };
+
+  // Copy-to-clipboard feedback for the private-table code.
+  const [copiedCode, setCopiedCode] = useState(false);
+  const onCopyCode = () => {
+    void navigator.clipboard?.writeText(state.joinCode).then(() => {
+      setCopiedCode(true);
+      window.setTimeout(() => setCopiedCode(false), 1500);
+    });
+  };
   const onStay = () => act(() => send('stay'));
   const onKeep = () => act(() => send('swap', { indices: [] }));
   const onResign = () => act(() => send('resign'));
@@ -532,7 +557,25 @@ export function Table({ state, sessionId, send }: Props) {
           {/* Center of the table: trump card + the trick in progress. */}
           <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-6">
             {phase === 'waiting' ? (
-              <MessagePanel title={t('pullUpStool')} subtitle={t('readyUpSubtitle')} />
+              <>
+                <MessagePanel title={t('pullUpStool')} subtitle={t('readyUpSubtitle')} />
+                {state.joinCode && (
+                  <button
+                    type="button"
+                    onClick={onCopyCode}
+                    className="z-10 flex items-center gap-2 rounded-lg border-2 border-[#c9a56e] bg-parchment px-3 py-1 font-hand shadow-md"
+                    aria-label={t('copyCode')}
+                  >
+                    <span className="text-sm text-ink-soft">{t('tableCode')}</span>
+                    <span className="num text-xl font-bold tracking-[0.25em] text-wood">
+                      {state.joinCode}
+                    </span>
+                    <span className="text-sm text-amber-deep">
+                      {copiedCode ? t('copiedCode') : '⧉'}
+                    </span>
+                  </button>
+                )}
+              </>
             ) : (
               <>
                 {trumpCard && <TrumpIndicator card={trumpCard} revealed={phase === 'decision'} />}
@@ -562,8 +605,13 @@ export function Table({ state, sessionId, send }: Props) {
                   compact
                   seatNumber={opponentSeatNum}
                   onRemove={
-                    isHost && phase === 'waiting' && s.isBot ? () => onRemoveBot(s.id) : undefined
+                    isHost && phase === 'waiting' && !s.isMe
+                      ? s.isBot
+                        ? () => onRemoveBot(s.id)
+                        : () => onKickSeat(s.id)
+                      : undefined
                   }
+                  removeArmed={armedKickId === s.id}
                 />
               </div>
             );
@@ -623,6 +671,7 @@ export function Table({ state, sessionId, send }: Props) {
           onToggleTrumpSwap={() => setTrumpSwapMode((v) => !v)}
           onInvite={() => void openInvite()}
           onToggleMute={onToggleMute}
+          onLeaveTable={onLeaveTable}
         />
       </div>
 

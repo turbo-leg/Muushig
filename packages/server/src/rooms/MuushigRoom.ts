@@ -1,4 +1,4 @@
-import { Room, Client, Delayed } from 'colyseus';
+import { Room, Client, Delayed, matchMaker } from 'colyseus';
 import {
   GameState,
   Player,
@@ -28,6 +28,12 @@ const SPECTATOR_HEADROOM = 10;
 // Breather between scoring a round and dealing the next, so players can read
 // the score reveal before the cards move again.
 const DEFAULT_ROUND_END_PAUSE_MS = 4_000;
+// Join-code alphabet drops lookalikes (I/L/O/0/1) so codes survive being read
+// aloud across a table.
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const CODE_LENGTH = 4;
+/** Close code sent to a kicked client — the client treats ≥4000 as terminal. */
+export const KICKED_CODE = 4001;
 
 interface SpectatorProfile {
   username: string;
@@ -55,6 +61,10 @@ interface CreateOptions extends JoinOptions {
   reconnectWindow?: number;
   botDelay?: number;
   roundEndPause?: number;
+  /** Create a private, code-joined table instead of a public matchmade one. */
+  privateTable?: boolean;
+  /** Explicit join code (tests) — only honored together with privateTable. */
+  joinCode?: string;
 }
 
 /**
@@ -85,6 +95,10 @@ export class MuushigRoom extends Room<GameState> {
   private botCounter = 0;
   /** Identity of each spectator, kept for their promotion to a seat. */
   private spectatorProfiles = new Map<string, SpectatorProfile>();
+  /** Stable ids (Supabase userId / discordId) of kicked players — rejected on rejoin. */
+  private bannedKeys = new Set<string>();
+  /** Sessions that chose Leave table — their seat is not held for reconnection. */
+  private deliberateLeaves = new Set<string>();
   /**
    * Verified Supabase identities by sessionId. Server-side only — auth UUIDs
    * never go on the synced schema, where every client (spectators included)
@@ -95,7 +109,7 @@ export class MuushigRoom extends Room<GameState> {
   private collector = new StatsCollector();
   private recorder: MatchRecorderFn | null = null;
 
-  onCreate(options: CreateOptions = {}): void {
+  async onCreate(options: CreateOptions = {}): Promise<void> {
     this.setState(new GameState());
 
     const requested = parseInt(String(options.maxPlayers ?? MAX_PLAYERS), 10);
@@ -119,6 +133,13 @@ export class MuushigRoom extends Room<GameState> {
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
+
+    // Private, code-joined table: hidden from matchmaking; friends resolve the
+    // code via GET /api/table/:code and joinById.
+    if (options.privateTable) {
+      this.setPrivate(true);
+      this.state.joinCode = await this.reserveJoinCode(options.joinCode);
+    }
 
     // Injectable for tests; client-sent JSON can never be a function, so this
     // stays inert against untrusted options (same idea as the timer knobs).
@@ -146,6 +167,10 @@ export class MuushigRoom extends Room<GameState> {
     this.onMessage('removeBot', (client, msg) =>
       this.guard(client, () => this.handleRemoveBot(client, msg)),
     );
+    this.onMessage('kick', (client, msg) => this.guard(client, () => this.handleKick(client, msg)));
+    this.onMessage('leaveTable', (client) =>
+      this.guard(client, () => this.handleLeaveTable(client)),
+    );
     this.onMessage('ping', (client, msg: { clientTime?: number }) => {
       client.send('pong', { clientTime: msg?.clientTime, serverTime: Date.now() });
     });
@@ -157,6 +182,15 @@ export class MuushigRoom extends Room<GameState> {
     const authed = await verifyUser(
       typeof options.accessToken === 'string' ? options.accessToken : undefined,
     );
+
+    // Kicked players (matched on stable ids) may not come back — not even to watch.
+    const discordId = sanitizeString(options.discordId);
+    if (
+      (authed && this.bannedKeys.has(authed.id)) ||
+      (discordId && this.bannedKeys.has(discordId))
+    ) {
+      throw new Error('You were removed from this table');
+    }
     if (authed) this.identities.set(client.sessionId, authed);
 
     const username = sanitizeString(options.username) || `Player-${this.state.players.size + 1}`;
@@ -190,6 +224,8 @@ export class MuushigRoom extends Room<GameState> {
   }
 
   async onLeave(client: Client, _consented?: boolean): Promise<void> {
+    const deliberate = this.deliberateLeaves.delete(client.sessionId);
+
     // Spectators come and go freely — no seat to hold.
     if (this.state.spectators.has(client.sessionId)) {
       this.state.spectators.delete(client.sessionId);
@@ -214,6 +250,17 @@ export class MuushigRoom extends Room<GameState> {
           this.state.seatOrder.find((id) => !this.state.players.get(id)!.isBot) ?? '';
       }
       this.syncMetadata();
+      return;
+    }
+
+    // A deliberate Leave-table is final: no reconnection hold, a bot takes the
+    // seat over immediately (the match record still credits the leaver — the
+    // anti-rage-quit policy from the stats work).
+    if (deliberate) {
+      player.isBot = true;
+      this.identities.delete(client.sessionId);
+      this.syncMetadata();
+      this.maybeActBot();
       return;
     }
 
@@ -378,6 +425,39 @@ export class MuushigRoom extends Room<GameState> {
     this.state.players.set(id, bot);
     this.state.seatOrder.push(id);
     this.syncMetadata();
+  }
+
+  /** Host removes a human from the lobby. Waiting phase only — mid-game
+   *  abandonment is already covered by the reconnect-window → bot-takeover
+   *  path, and a mid-game kick would invite griefing. */
+  private handleKick(client: Client, msg: unknown): void {
+    if (this.state.phase !== 'waiting') return;
+    if (client.sessionId !== this.state.hostId) return;
+    const targetId = sanitizeString((msg as { id?: unknown })?.id);
+    if (!targetId || targetId === client.sessionId) return;
+    const target = this.state.players.get(targetId);
+    if (!target || target.isBot) return;
+
+    // Remember stable ids so the kicked player can't simply rejoin. Anonymous
+    // guests have no stable key — a determined guest can return; kick again.
+    const authed = this.identities.get(targetId);
+    if (authed) this.bannedKeys.add(authed.id);
+    if (target.discordId) this.bannedKeys.add(target.discordId);
+
+    this.state.players.delete(targetId);
+    const idx = this.state.seatOrder.indexOf(targetId);
+    if (idx !== -1) this.state.seatOrder.splice(idx, 1);
+    this.identities.delete(targetId);
+    this.syncMetadata();
+
+    const targetClient = this.clients.find((c) => c.sessionId === targetId);
+    void targetClient?.leave(KICKED_CODE);
+  }
+
+  /** A player chooses to leave for good — see the deliberate branch in onLeave. */
+  private handleLeaveTable(client: Client): void {
+    this.deliberateLeaves.add(client.sessionId);
+    void client.leave();
   }
 
   private handleRemoveBot(client: Client, msg: unknown): void {
@@ -662,6 +742,39 @@ export class MuushigRoom extends Room<GameState> {
       playerCount: this.state.players.size,
       spectatorCount: this.state.spectators.size,
       phase: this.state.phase,
+      joinCode: this.state.joinCode || undefined,
     }).catch(() => {});
+  }
+
+  /** Picks a collision-free join code; an injected code (tests) is sanitized
+   *  to the alphabet and still collision-checked. */
+  private async reserveJoinCode(requested?: unknown): Promise<string> {
+    const sanitized =
+      typeof requested === 'string'
+        ? requested
+            .toUpperCase()
+            .split('')
+            .filter((c) => CODE_ALPHABET.includes(c))
+            .join('')
+            .slice(0, CODE_LENGTH)
+        : '';
+
+    const inUse = async (code: string): Promise<boolean> => {
+      const rooms = await matchMaker.query({ name: 'muushig' });
+      return rooms.some(
+        (r) =>
+          r.roomId !== this.roomId &&
+          (r.metadata as { joinCode?: string } | undefined)?.joinCode === code,
+      );
+    };
+
+    if (sanitized.length === CODE_LENGTH && !(await inUse(sanitized))) return sanitized;
+    for (;;) {
+      const code = Array.from(
+        { length: CODE_LENGTH },
+        () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)],
+      ).join('');
+      if (!(await inUse(code))) return code;
+    }
   }
 }

@@ -26,6 +26,7 @@ export default defineConfig({
     proxy: {
       '/matchmake': { target: SERVER, changeOrigin: true },
       '/colyseus': { target: SERVER, changeOrigin: true },
+      '/api': { target: SERVER, changeOrigin: true },
       '/ws': { target: SERVER.replace('http', 'ws'), ws: true },
     },
   },

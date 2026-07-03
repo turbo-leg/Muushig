@@ -97,6 +97,116 @@ async function playOneRound(room: AnyRoom, clients: AnyClient[]): Promise<void> 
   }
 }
 
+describe('MuushigRoom — private tables & join codes', () => {
+  test('privateTable rooms get a code on state and metadata, honoring a sanitized injected code', async () => {
+    const room = await createRoom({ privateTable: true, joinCode: 'ab#cd' });
+    expect(room.state.joinCode).toBe('ABCD');
+    expect(room.metadata.joinCode).toBe('ABCD');
+    expect(room.listing.private).toBe(true);
+  });
+
+  test('generates a fresh code when the requested one is taken', async () => {
+    await createRoom({ privateTable: true, joinCode: 'WXYZ' });
+    const second = await createRoom({ privateTable: true, joinCode: 'WXYZ' });
+    expect(second.state.joinCode).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
+    expect(second.state.joinCode).not.toBe('WXYZ');
+  });
+
+  test('public rooms carry no code', async () => {
+    const room = await createRoom();
+    expect(room.state.joinCode).toBe('');
+    expect(room.metadata.joinCode).toBeUndefined();
+  });
+});
+
+describe('GET /api/table/:code', () => {
+  test('resolves a live code to room info and 404s unknown codes', async () => {
+    const room = await createRoom({ privateTable: true, joinCode: 'FQRS' });
+    await colyseus.connectTo(room, { username: 'Host' });
+    await waitUntil(() => room.state.players.size === 1);
+
+    const found = await colyseus.http.get('/api/table/fqrs'); // case-insensitive
+    expect(found.data).toMatchObject({
+      roomId: room.roomId,
+      phase: 'waiting',
+      playerCount: 1,
+      maxPlayers: 5,
+    });
+
+    await expect(colyseus.http.get('/api/table/ZZZZ')).rejects.toBeTruthy();
+    await expect(colyseus.http.get('/api/table/nope!')).rejects.toBeTruthy();
+  });
+});
+
+describe('MuushigRoom — kick & leave', () => {
+  test('host kicks a lobby player; the banned identity cannot rejoin', async () => {
+    const room = await createRoom();
+    const host = await colyseus.connectTo(room, { username: 'Host' });
+    const alice = await colyseus.connectTo(room, { username: 'A', accessToken: 'token-alice' });
+    await waitUntil(() => room.state.players.size === 2);
+
+    let closeCode = 0;
+    alice.onLeave((code: number) => {
+      closeCode = code;
+    });
+
+    host.send('kick', { id: alice.sessionId });
+    await waitUntil(() => room.state.players.size === 1);
+    expect([...room.state.seatOrder]).toEqual([host.sessionId]);
+    await waitUntil(() => closeCode !== 0);
+    expect(closeCode).toBe(4001);
+
+    // The same verified account is banned from this table.
+    await expect(
+      colyseus.connectTo(room, { username: 'A2', accessToken: 'token-alice' }),
+    ).rejects.toBeTruthy();
+  });
+
+  test('non-hosts cannot kick, and bots are removed via removeBot instead', async () => {
+    const room = await createRoom();
+    const host = await colyseus.connectTo(room, { username: 'Host' });
+    const guest = await colyseus.connectTo(room, { username: 'B' });
+    await waitUntil(() => room.state.players.size === 2);
+
+    guest.send('kick', { id: host.sessionId });
+    await new Promise((r) => setTimeout(r, 150));
+    expect(room.state.players.size).toBe(2);
+
+    host.send('addBot');
+    await waitUntil(() => room.state.players.size === 3);
+    const botId = [...room.state.seatOrder].find((id) => id.startsWith('bot-'))!;
+    host.send('kick', { id: botId });
+    await new Promise((r) => setTimeout(r, 150));
+    expect(room.state.players.has(botId)).toBe(true); // kick refuses bots
+  });
+
+  test('leaveTable mid-game skips the reconnection hold — instant bot takeover', async () => {
+    const { room, clients } = await startedRoom(2, { botDelay: 5 });
+    const leaver = clients[1]!;
+    const leaverId = leaver.sessionId;
+
+    leaver.send('leaveTable');
+    await waitUntil(() => room.state.players.get(leaverId)?.isBot === true);
+    expect(room.state.players.get(leaverId)!.isConnected).toBe(false);
+
+    // The bot seat acts for itself once its turn comes.
+    await waitUntil(() => room.state.currentTurn === clients[0]!.sessionId);
+    clients[0]!.send('stay');
+    await waitUntil(() => room.state.players.get(leaverId)?.hasDecided === true, 6000);
+  });
+
+  test('leaveTable in the lobby frees the seat entirely', async () => {
+    const room = await createRoom();
+    const c1 = await colyseus.connectTo(room);
+    const c2 = await colyseus.connectTo(room);
+    await waitUntil(() => room.state.players.size === 2);
+
+    c2.send('leaveTable');
+    await waitUntil(() => room.state.players.size === 1);
+    expect([...room.state.seatOrder]).toEqual([c1.sessionId]);
+  });
+});
+
 describe('MuushigRoom — stats recording', () => {
   test('records a full match once, with identities, navshih, and rounds — and again after a rematch', async () => {
     const records: MatchRecord[] = [];

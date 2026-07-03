@@ -8,8 +8,10 @@ interface Props {
   /** Smaller placard for the opponents seated around the table edge. */
   compact?: boolean;
   seatNumber?: number;
-  /** Host-only in the lobby: removes this bot's seat. */
+  /** Host-only in the lobby: removes a bot instantly; kicks a human (two taps). */
   onRemove?: () => void;
+  /** A human kick is armed — the next tap confirms it. */
+  removeArmed?: boolean;
 }
 
 function statusLabel(seat: SeatVM, phase: Phase): { text: string; cls: string } | null {
@@ -143,7 +145,7 @@ function ScoreCoinSVG() {
 /**
  * A player/bot placard rendered with a hand-drawn vector wood/metal plate shape.
  */
-export function Seat({ seat, phase, seatNumber, onRemove }: Props) {
+export function Seat({ seat, phase, seatNumber, onRemove, removeArmed }: Props) {
   const status = statusLabel(seat, phase);
   const actualSeatNumber = seatNumber ?? seat.seatNumber;
 
@@ -189,13 +191,22 @@ export function Seat({ seat, phase, seatNumber, onRemove }: Props) {
       {/* Seat-number token (top-left) */}
       {actualSeatNumber != null && <SeatNumberBadge num={actualSeatNumber} />}
 
-      {/* Host-only: dismiss a lobby bot */}
+      {/* Host-only: dismiss a lobby bot / kick a human (armed = second tap fires) */}
       {onRemove && (
         <button
           type="button"
           onClick={onRemove}
-          aria-label={t('removeSeat', { name: seat.username })}
-          className="absolute -right-2 -top-2.5 z-30 grid h-6 w-6 place-items-center rounded-full border border-ink/50 bg-parchment font-hand text-sm font-bold leading-none text-danger shadow-sm hover:bg-parchment-deep"
+          aria-label={
+            removeArmed
+              ? t('confirmKick', { name: seat.username })
+              : t('removeSeat', { name: seat.username })
+          }
+          title={removeArmed ? t('confirmKick', { name: seat.username }) : undefined}
+          className={`absolute -right-2 -top-2.5 z-30 grid h-6 w-6 place-items-center rounded-full border font-hand text-sm font-bold leading-none shadow-sm ${
+            removeArmed
+              ? 'border-danger bg-danger text-cream'
+              : 'border-ink/50 bg-parchment text-danger hover:bg-parchment-deep'
+          }`}
         >
           ✕
         </button>

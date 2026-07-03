@@ -12,6 +12,7 @@ import { RoundSummary } from '../components/RoundSummary';
 import { Celebration } from '../components/Celebration';
 import { MatchRecap, summarizeScoreLog } from '../components/MatchRecap';
 import { HelpBook } from '../components/HelpBook';
+import { Lobby } from '../components/Lobby';
 import type { SeatVM } from '../game/types';
 
 const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
@@ -223,6 +224,39 @@ describe('Celebration', () => {
   });
 });
 
+describe('Lobby', () => {
+  test('offers quick play, hosting with a seat count, and code join', async () => {
+    const onJoin = vi.fn();
+    render(<Lobby onJoin={onJoin} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /play/i }));
+    expect(onJoin).toHaveBeenCalledWith({ mode: 'quick' });
+
+    await userEvent.click(screen.getByRole('radio', { name: '3' }));
+    await userEvent.click(screen.getByRole('button', { name: /host a table/i }));
+    expect(onJoin).toHaveBeenCalledWith({ mode: 'create', maxPlayers: 3 });
+  });
+
+  test('normalizes the code input and only enables join for valid codes', async () => {
+    const onJoin = vi.fn();
+    render(<Lobby onJoin={onJoin} />);
+    const input = screen.getByRole('textbox', { name: /join with code/i });
+    const joinBtn = screen.getByRole('button', { name: /join with code/i });
+
+    await userEvent.type(input, 'ab');
+    expect(joinBtn).toBeDisabled();
+    await userEvent.type(input, '!c d9'); // junk stripped, uppercased, capped at 4
+    expect(input).toHaveValue('ABCD');
+    await userEvent.click(joinBtn);
+    expect(onJoin).toHaveBeenCalledWith({ mode: 'code', code: 'ABCD' });
+  });
+
+  test('shows a notice from a previous session', () => {
+    render(<Lobby onJoin={vi.fn()} notice="That table is gone." />);
+    expect(screen.getByText('That table is gone.')).toBeInTheDocument();
+  });
+});
+
 describe('HelpBook', () => {
   test('pages forward through all six pages and finishes', async () => {
     const onClose = vi.fn();
@@ -313,6 +347,7 @@ describe('ActionBar', () => {
     onToggleTrumpSwap: vi.fn(),
     onInvite: vi.fn(),
     onToggleMute: vi.fn(),
+    onLeaveTable: vi.fn(),
   };
 
   test('host start is disabled until all are ready, ready fires callback', async () => {
@@ -334,6 +369,20 @@ describe('ActionBar', () => {
 
     rerender(<ActionBar {...base} phase="decision" hint={null} onHelp={onHelp} />);
     expect(screen.queryByText(/weak hand/i)).not.toBeInTheDocument();
+  });
+
+  test('leave is instant in the lobby but needs a second tap mid-game', async () => {
+    const onLeaveTable = vi.fn();
+    const { rerender } = render(<ActionBar {...base} onLeaveTable={onLeaveTable} />);
+    await userEvent.click(screen.getByRole('button', { name: /leave table/i }));
+    expect(onLeaveTable).toHaveBeenCalledOnce();
+
+    onLeaveTable.mockClear();
+    rerender(<ActionBar {...base} phase="playing" onLeaveTable={onLeaveTable} />);
+    await userEvent.click(screen.getByRole('button', { name: /leave table/i }));
+    expect(onLeaveTable).not.toHaveBeenCalled(); // armed only
+    await userEvent.click(screen.getByRole('button', { name: /leave table/i }));
+    expect(onLeaveTable).toHaveBeenCalledOnce();
   });
 
   test('spectators get a watching notice instead of actions', () => {
