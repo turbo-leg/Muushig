@@ -166,6 +166,23 @@ const messages = {
     mn: 'Муушиг — мөрцөөд нэг ч нүд аваагүй: +5 оноо.\nНавших — хуваагчийн ил хөзөр солих эрх.\nХаранхуй — 3 тарсны дараах албан тоглолт.\nАманхүзүү — хуваагчийн зүүн гарт, түрүүлж явна.\nТал — дарсан 6 хөзөр.',
   },
 
+  // ── Lobby / tables ──
+  lobbyTitle: { en: 'Welcome to the tavern', mn: 'Мууштай тавтай морил' },
+  lobbySubtitle: { en: 'find a table to sit at', mn: 'суух ширээгээ сонго' },
+  quickPlay: { en: 'Play', mn: 'Тоглох' },
+  hostTable: { en: 'Host a table', mn: 'Ширээ гаргах' },
+  joinWithCode: { en: 'Join with code', mn: 'Кодоор нэгдэх' },
+  codePlaceholder: { en: 'CODE', mn: 'КОД' },
+  seatsLabel: { en: '{n} seats', mn: '{n} суудал' },
+  tableCode: { en: 'Table code', mn: 'Ширээний код' },
+  copyCode: { en: 'Copy', mn: 'Хуулах' },
+  copiedCode: { en: 'Copied!', mn: 'Хуулагдлаа!' },
+  tableClosed: { en: 'That table is gone.', mn: 'Ширээ олдсонгүй.' },
+  backToLobby: { en: 'Back to the tavern', mn: 'Буцах' },
+  kickedNotice: { en: 'You were removed from the table.', mn: 'Таныг ширээнээс гаргалаа.' },
+  confirmKick: { en: 'Tap ✕ again to remove {name}', mn: '{name}-г гаргахын тулд ✕ дахин дар' },
+  leaveTable: { en: 'Leave table', mn: 'Ширээ орхих' },
+
   // ── First-game hints ──
   hintDecision: {
     en: 'Weak hand? Folding costs nothing — bidding and losing every trick costs +5.',

@@ -6,6 +6,7 @@ import { RedisPresence } from '@colyseus/redis-presence';
 import { RedisDriver } from '@colyseus/redis-driver';
 import cors from 'cors';
 import express from 'express';
+import { matchMaker } from 'colyseus';
 import { MuushigRoom } from './src/rooms/MuushigRoom';
 
 const redisUrl = process.env.REDIS_URL;
@@ -61,6 +62,36 @@ export default config({
         return res.json({ access_token: data.access_token });
       } catch {
         return res.status(500).json({ error: 'token exchange error' });
+      }
+    });
+
+    // Resolve a private-table join code to a joinable roomId. Codes only exist
+    // on privateTable rooms; the driver query sees private rooms (they are
+    // merely hidden from matchmaking), and works across processes via Redis.
+    app.get('/api/table/:code', async (req, res) => {
+      const code = String(req.params.code ?? '')
+        .toUpperCase()
+        .slice(0, 8);
+      if (!/^[A-Z2-9]{4}$/.test(code)) return res.status(404).json({ error: 'not found' });
+      try {
+        const rooms = await matchMaker.query({ name: 'muushig' });
+        const room = rooms.find(
+          (r) => (r.metadata as { joinCode?: string } | undefined)?.joinCode === code,
+        );
+        if (!room) return res.status(404).json({ error: 'not found' });
+        const meta = room.metadata as {
+          phase?: string;
+          playerCount?: number;
+          maxPlayers?: number;
+        };
+        return res.json({
+          roomId: room.roomId,
+          phase: meta.phase ?? 'waiting',
+          playerCount: meta.playerCount ?? 0,
+          maxPlayers: meta.maxPlayers ?? 5,
+        });
+      } catch {
+        return res.status(500).json({ error: 'lookup failed' });
       }
     });
 

@@ -6,7 +6,21 @@ import { resolveIdentity } from '../discord';
 import { useAuth } from '../auth/AuthContext';
 import { identityFromSession } from '../auth/identity';
 
-export type ConnStatus = 'connecting' | 'connected' | 'reconnecting' | 'error';
+export type ConnStatus =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'error'
+  /** Removed by the host — terminal; do not rejoin. */
+  | 'kicked'
+  /** Left the table / table gone — terminal; back to the lobby. */
+  | 'closed';
+
+/** How the player wants to reach a table. */
+export type JoinIntent =
+  | { mode: 'quick' }
+  | { mode: 'create'; maxPlayers: number }
+  | { mode: 'code'; code: string };
 
 export interface RoomConnection {
   status: ConnStatus;
@@ -18,10 +32,13 @@ export interface RoomConnection {
 
 /** Colyseus close code for a consented/normal leave. Anything else is a drop. */
 const CONSENTED_LEAVE_CODE = 1000;
+/** Server-initiated terminal closes (e.g. kick = 4001) — never auto-rejoin. */
+const TERMINAL_CODE_MIN = 4000;
 const REJOIN_ATTEMPTS = 5;
 const REJOIN_BASE_DELAY_MS = 500;
 
 const tokenKey = (roomName: string) => `muushig:reconnect:${roomName}`;
+const INTENT_KEY = 'muushig:intent';
 
 function readToken(roomName: string): string | null {
   try {
@@ -40,18 +57,55 @@ function writeToken(roomName: string, token: string | null): void {
   }
 }
 
+/** The intent survives iframe reloads next to the reconnect token. */
+export function readStoredIntent(): JoinIntent | null {
+  try {
+    const raw = sessionStorage.getItem(INTENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as JoinIntent;
+    if (parsed.mode === 'quick') return parsed;
+    if (parsed.mode === 'create' && typeof parsed.maxPlayers === 'number') return parsed;
+    if (parsed.mode === 'code' && typeof parsed.code === 'string') return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredIntent(intent: JoinIntent | null): void {
+  try {
+    if (intent) sessionStorage.setItem(INTENT_KEY, JSON.stringify(intent));
+    else sessionStorage.removeItem(INTENT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Resolves a join code to a roomId via the server (null = gone/unknown). */
+async function resolveCode(code: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/table/${encodeURIComponent(code)}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { roomId?: string };
+    return data.roomId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Joins (or creates) a Muushig room and keeps React in sync with the synced
- * GameState. The schema mutates in place, so we bump a version counter on every
- * patch to trigger re-renders while returning the live state object.
+ * Joins (or creates) a Muushig room per the given intent and keeps React in
+ * sync with the synced GameState. The schema mutates in place, so we bump a
+ * version counter on every patch to trigger re-renders.
  *
  * Reconnection: the server holds a mid-game seat for a window after a drop.
  * We persist the room's reconnection token in sessionStorage so an iframe
  * reload rejoins the same seat, and retry with backoff on abnormal closes.
+ * Codes ≥4000 (kick) and consented closes are terminal — no rejoin.
  */
-export function useRoom(roomName = 'muushig'): RoomConnection {
+export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnection {
   const { session } = useAuth();
   const [status, setStatus] = useState<ConnStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
@@ -61,10 +115,15 @@ export function useRoom(roomName = 'muushig'): RoomConnection {
 
   const rerender = useCallback(() => setVersion((v) => v + 1), []);
   const userId = session?.user.id;
+  const intentJson = JSON.stringify(intent);
 
   useEffect(() => {
     let cancelled = false;
     const client = createClient();
+    // A created table converts to a code intent once the code is known, so a
+    // reload (or rejoin fallback) never creates a second empty table.
+    let liveIntent: JoinIntent = JSON.parse(intentJson) as JoinIntent;
+    writeStoredIntent(liveIntent);
 
     const wire = (room: Room<GameState>) => {
       roomRef.current = room;
@@ -76,6 +135,10 @@ export function useRoom(roomName = 'muushig'): RoomConnection {
 
       room.onStateChange(() => {
         stateRef.current = room.state;
+        if (liveIntent.mode === 'create' && room.state.joinCode) {
+          liveIntent = { mode: 'code', code: room.state.joinCode };
+          writeStoredIntent(liveIntent);
+        }
         rerender();
       });
       room.onError((code, message) => {
@@ -85,8 +148,16 @@ export function useRoom(roomName = 'muushig'): RoomConnection {
       room.onLeave((code) => {
         roomRef.current = null;
         if (cancelled) return;
+        if (code >= TERMINAL_CODE_MIN) {
+          writeToken(roomName, null);
+          writeStoredIntent(null);
+          setStatus('kicked');
+          return;
+        }
         if (code === CONSENTED_LEAVE_CODE) {
           writeToken(roomName, null);
+          writeStoredIntent(null);
+          setStatus('closed');
           return;
         }
         void rejoin();
@@ -112,17 +183,19 @@ export function useRoom(roomName = 'muushig'): RoomConnection {
         }
       }
       if (cancelled) return;
-      // Seat unrecoverable (window expired / room gone) — try a fresh join so
-      // at least the lobby works; mid-game rooms reject new joins.
+      // Seat unrecoverable (window expired / room gone) — try the intent from
+      // scratch; a dead code table surfaces 'closed' instead of a stray join.
       try {
-        wire(await freshJoin());
+        const room = await freshJoin();
+        if (room) wire(room);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Connection lost');
         setStatus('error');
       }
     };
 
-    const freshJoin = async (): Promise<Room<GameState>> => {
+    /** Joins per the live intent. Returns null when the intent is terminal. */
+    const freshJoin = async (): Promise<Room<GameState> | null> => {
       // Prefer the signed-in account; otherwise fall back to Discord/guest.
       const acct = session ? identityFromSession(session) : null;
       const id = acct
@@ -134,13 +207,34 @@ export function useRoom(roomName = 'muushig'): RoomConnection {
             accessToken: acct.accessToken,
           }
         : await resolveIdentity();
-      return client.joinOrCreate<GameState>(roomName, {
+      const identityOptions = {
         username: id.username,
         avatarUrl: id.avatarUrl,
         discordId: id.discordId,
         discordInstanceId: id.discordInstanceId,
         accessToken: id.accessToken,
-      });
+      };
+
+      if (liveIntent.mode === 'create') {
+        return client.create<GameState>(roomName, {
+          ...identityOptions,
+          privateTable: true,
+          maxPlayers: liveIntent.maxPlayers,
+        });
+      }
+      if (liveIntent.mode === 'code') {
+        const roomId = await resolveCode(liveIntent.code);
+        if (!roomId) {
+          if (!cancelled) {
+            writeToken(roomName, null);
+            writeStoredIntent(null);
+            setStatus('closed');
+          }
+          return null;
+        }
+        return client.joinById<GameState>(roomId, identityOptions);
+      }
+      return client.joinOrCreate<GameState>(roomName, identityOptions);
     };
 
     (async () => {
@@ -157,6 +251,7 @@ export function useRoom(roomName = 'muushig'): RoomConnection {
           }
         }
         room ??= await freshJoin();
+        if (!room) return; // terminal intent (e.g. dead code) — status already set
 
         if (cancelled) {
           void room.leave();
@@ -176,9 +271,9 @@ export function useRoom(roomName = 'muushig'): RoomConnection {
       void roomRef.current?.leave();
       roomRef.current = null;
     };
-    // Reconnect on login/logout (stable userId), not on token refresh.
+    // Reconnect on login/logout (stable userId) or intent change, not on token refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomName, rerender, userId]);
+  }, [roomName, rerender, userId, intentJson]);
 
   const send = useCallback((type: string, payload?: unknown) => {
     roomRef.current?.send(type, payload as never);

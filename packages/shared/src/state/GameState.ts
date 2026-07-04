@@ -55,4 +55,8 @@ export class GameState extends Schema {
   /** Watchers who joined mid-game: sessionId → username. Promoted to seats
    *  when the table returns to the lobby. */
   @type({ map: 'string' }) spectators = new MapSchema<string>();
+
+  /** Private-table join code ('' for public tables). Only people already in
+   *  the room receive the synced state, so this is safe to sync. */
+  @type('string') joinCode: string = '';
 }

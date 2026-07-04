@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { Phase } from '../game/types';
 import { Button } from './Button';
 import { HoldButton } from './HoldButton';
@@ -45,6 +45,7 @@ interface Props {
   onToggleTrumpSwap: () => void;
   onInvite: () => void;
   onToggleMute: () => void;
+  onLeaveTable: () => void;
 }
 
 /** Cozy, hand-drawn unrolled parchment scroll strip. */
@@ -100,6 +101,44 @@ function HelpButton({ onClick }: { onClick: () => void }) {
       className="grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-ink/40 bg-wood-dark/55 font-hand text-lg font-bold text-cream/70 transition-colors select-none hover:bg-wood/50 hover:text-cream focus-visible:ring-2 focus-visible:ring-amber focus-visible:outline-none"
     >
       ?
+    </button>
+  );
+}
+
+/** Door out of the table. Instant in the lobby; mid-game a second tap confirms. */
+function LeaveButton({
+  onLeave,
+  requireConfirm,
+}: {
+  onLeave: () => void;
+  requireConfirm: boolean;
+}) {
+  const [armed, setArmed] = useState(false);
+  const timer = useRef<number | null>(null);
+  const onClick = () => {
+    if (!requireConfirm || armed) {
+      if (timer.current) window.clearTimeout(timer.current);
+      setArmed(false);
+      onLeave();
+      return;
+    }
+    setArmed(true);
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setArmed(false), 2500);
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t('leaveTable')}
+      title={t('leaveTable')}
+      className={`grid h-10 w-10 cursor-pointer place-items-center rounded-full border font-hand text-lg transition-colors select-none focus-visible:ring-2 focus-visible:ring-amber focus-visible:outline-none ${
+        armed
+          ? 'border-danger bg-danger/80 text-cream'
+          : 'border-ink/40 bg-wood-dark/55 text-cream/70 hover:bg-wood/50 hover:text-cream'
+      }`}
+    >
+      🚪
     </button>
   );
 }
@@ -258,6 +297,7 @@ export function ActionBar(props: Props) {
         <HelpButton onClick={props.onHelp} />
         <LocaleButton />
         <MuteButton muted={props.muted} onClick={props.onToggleMute} />
+        <LeaveButton onLeave={props.onLeaveTable} requireConfirm={phase !== 'waiting'} />
       </div>
     </div>
   );

@@ -6,7 +6,9 @@ import { Table } from './components/Table';
 import { Login } from './components/Login';
 import { Profile } from './components/Profile';
 import { Leaderboard } from './components/Leaderboard';
-import { useRoom } from './net/useRoom';
+import { Lobby } from './components/Lobby';
+import { Button } from './components/Button';
+import { useRoom, readStoredIntent, writeStoredIntent, type JoinIntent } from './net/useRoom';
 import { useAuth } from './auth/AuthContext';
 import { isEmbedded } from './discord';
 import { supabase } from './lib/supabase';
@@ -107,8 +109,15 @@ function HelpCornerButton({ onClick }: { onClick: () => void }) {
 }
 
 /** The connected game (only mounts once we're past the auth gate). */
-function GameView() {
-  const { status, error, state, sessionId, send } = useRoom();
+function GameView({
+  intent,
+  onExit,
+}: {
+  intent: JoinIntent;
+  /** Terminal status (kicked / table closed) hands control back to the shell. */
+  onExit: (notice: string | null) => void;
+}) {
+  const { status, error, state, sessionId, send } = useRoom(intent);
   const { session } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -128,6 +137,25 @@ function GameView() {
     markRulesSeen();
     setShowHelp(false);
   };
+
+  // Terminal statuses: a parchment notice with a way back.
+  if (status === 'kicked' || status === 'closed') {
+    const message = status === 'kicked' ? t('kickedNotice') : t('tableClosed');
+    return (
+      <>
+        <GlobalSVGDefs />
+        <Background />
+        <Centered>
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-center font-hand text-2xl text-cream/85">{message}</p>
+            <Button variant="coin" onClick={() => onExit(message)}>
+              {t('backToLobby')}
+            </Button>
+          </div>
+        </Centered>
+      </>
+    );
+  }
 
   return (
     <>
@@ -179,6 +207,64 @@ function GameView() {
   );
 }
 
+/** Picks the table (web Lobby) or auto-joins (Discord), then runs the game. */
+function TableRouter() {
+  // Inside Discord the activity instance IS the table — always quick-join.
+  const [intent, setIntent] = useState<JoinIntent | null>(() =>
+    isEmbedded ? { mode: 'quick' } : readStoredIntent(),
+  );
+  const [notice, setNotice] = useState<string | null>(null);
+  // Bumped on embedded exits so GameView remounts into a fresh join.
+  const [nonce, setNonce] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  useLocale();
+
+  if (!intent) {
+    return (
+      <>
+        <GlobalSVGDefs />
+        <Background />
+        {supabase && <LeaderboardButton onClick={() => setShowLeaderboard(true)} />}
+        <HelpCornerButton onClick={() => setShowHelp(true)} />
+        {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
+        {showHelp && (
+          <HelpBook
+            onClose={() => {
+              markRulesSeen();
+              setShowHelp(false);
+            }}
+          />
+        )}
+        <Lobby
+          notice={notice}
+          onJoin={(next) => {
+            setNotice(null);
+            setIntent(next);
+          }}
+        />
+      </>
+    );
+  }
+
+  return (
+    <GameView
+      key={nonce}
+      intent={intent}
+      onExit={(message) => {
+        writeStoredIntent(null);
+        if (isEmbedded) {
+          setIntent({ mode: 'quick' });
+          setNonce((n) => n + 1);
+        } else {
+          setNotice(message);
+          setIntent(null);
+        }
+      }}
+    />
+  );
+}
+
 export default function App() {
   const { enabled, loading, session } = useAuth();
 
@@ -205,5 +291,5 @@ export default function App() {
     );
   }
 
-  return <GameView />;
+  return <TableRouter />;
 }
