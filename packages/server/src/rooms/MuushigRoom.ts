@@ -7,8 +7,9 @@ import {
   MIN_PLAYERS,
   MAX_PLAYERS,
 } from '@muushig/shared';
-import { parseCard, parseIndices, sanitizeString } from './roomHelpers';
+import { parseCard, parseIndices, sanitizeString, sanitizeUsername } from './roomHelpers';
 import { verifyUser, type AuthedUser } from '../lib/supabase';
+import { log } from '../lib/log';
 import { StatsCollector, type SeatIdentity } from '../stats/StatsCollector';
 import { createSupabaseRecorder, type MatchRecorderFn } from '../stats/MatchRecorder';
 
@@ -148,6 +149,12 @@ export class MuushigRoom extends Room<GameState> {
       typeof injected === 'function' ? (injected as MatchRecorderFn) : createSupabaseRecorder();
 
     this.syncMetadata();
+    log('info', 'room_created', {
+      roomId: this.roomId,
+      maxPlayers: max,
+      private: !!options.privateTable,
+      discordInstanceId: this.discordInstanceId,
+    });
 
     this.onMessage('ready', (client) => this.guard(client, () => this.handleReady(client)));
     this.onMessage('start', (client) => this.guard(client, () => this.handleStart(client)));
@@ -193,7 +200,13 @@ export class MuushigRoom extends Room<GameState> {
     }
     if (authed) this.identities.set(client.sessionId, authed);
 
-    const username = sanitizeString(options.username) || `Player-${this.state.players.size + 1}`;
+    const username = sanitizeUsername(options.username) || `Player-${this.state.players.size + 1}`;
+    log('info', 'join', {
+      roomId: this.roomId,
+      sessionId: client.sessionId,
+      phase: this.state.phase,
+      authed: !!authed,
+    });
 
     // Mid-game joiners watch from the rail and are seated for the next game.
     if (this.state.phase !== 'waiting') {
@@ -283,6 +296,7 @@ export class MuushigRoom extends Room<GameState> {
       const abandoned = this.state.players.get(client.sessionId);
       if (abandoned && !abandoned.isConnected && this.state.phase !== 'waiting') {
         abandoned.isBot = true;
+        log('info', 'bot_takeover', { roomId: this.roomId, sessionId: client.sessionId });
         this.maybeActBot();
       }
     }
@@ -297,6 +311,7 @@ export class MuushigRoom extends Room<GameState> {
     this.roundPauseTimer?.clear();
     this.roundPauseTimer = null;
     this.collector.abort();
+    log('info', 'room_disposed', { roomId: this.roomId, phase: this.state.phase });
   }
 
   // ──────────────────────────── Handlers ────────────────────────────
@@ -450,6 +465,7 @@ export class MuushigRoom extends Room<GameState> {
     this.identities.delete(targetId);
     this.syncMetadata();
 
+    log('info', 'kick', { roomId: this.roomId, by: client.sessionId, target: targetId });
     const targetClient = this.clients.find((c) => c.sessionId === targetId);
     void targetClient?.leave(KICKED_CODE);
   }
@@ -488,6 +504,11 @@ export class MuushigRoom extends Room<GameState> {
       };
     });
     this.collector.begin(seats, Date.now());
+    log('info', 'game_started', {
+      roomId: this.roomId,
+      players: seats.length,
+      bots: seats.filter((s) => s.isBot).length,
+    });
 
     MuushigEngine.initializeGame(this.state, [...this.state.seatOrder]);
     this.syncMetadata();
@@ -552,7 +573,20 @@ export class MuushigRoom extends Room<GameState> {
       // Persist the match after the broadcast, fire-and-forget — stats must
       // never delay or break the game itself.
       const record = this.collector.finish(this.state, Date.now());
-      if (record && this.recorder) void this.recorder(record).catch(() => {});
+      log('info', 'game_finished', {
+        roomId: this.roomId,
+        rounds: record?.roundsPlayed,
+        durationSeconds: record?.durationSeconds,
+        winners: [...this.state.winners].length,
+        withBots: record?.withBots,
+      });
+      if (record && this.recorder)
+        void this.recorder(record).catch((e: unknown) => {
+          log('error', 'recorder_failed', {
+            roomId: this.roomId,
+            message: e instanceof Error ? e.message : String(e),
+          });
+        });
       this.syncMetadata();
       return;
     }

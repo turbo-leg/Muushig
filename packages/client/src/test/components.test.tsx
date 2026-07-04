@@ -13,6 +13,7 @@ import { Celebration } from '../components/Celebration';
 import { MatchRecap, summarizeScoreLog } from '../components/MatchRecap';
 import { HelpBook } from '../components/HelpBook';
 import { Lobby } from '../components/Lobby';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import type { SeatVM } from '../game/types';
 
 const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
@@ -221,6 +222,33 @@ describe('Celebration', () => {
   test('names the winners on the plaque', () => {
     render(<Celebration winnerNames={['Ariun', 'Bat']} />);
     expect(screen.getByText(/Ariun & Bat wins the pot!/)).toBeInTheDocument();
+  });
+});
+
+describe('ErrorBoundary', () => {
+  test('renders the crash fallback and reports the error', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const Bomb = () => {
+      throw new Error('kaboom');
+    };
+    render(
+      <ErrorBoundary>
+        <Bomb />
+      </ErrorBoundary>,
+    );
+
+    expect(screen.getByText('The table wobbled')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reload/i })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/client-error',
+      expect.objectContaining({ method: 'POST' }),
+    );
+
+    consoleError.mockRestore();
+    vi.unstubAllGlobals();
   });
 });
 

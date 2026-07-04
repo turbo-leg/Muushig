@@ -1,4 +1,5 @@
 import { Card, Suit, ALL_SUITS, ALL_RANKS } from '@muushig/shared';
+import { isProfane, tavernGuestName } from '../lib/profanity';
 
 export const MAX_STRING_LEN = 64;
 
@@ -6,6 +7,18 @@ export const MAX_STRING_LEN = 64;
 export function sanitizeString(value: unknown, max = MAX_STRING_LEN): string {
   if (typeof value !== 'string') return '';
   return value.slice(0, max);
+}
+
+/**
+ * Display-name sanitation at the trust boundary: length-cap, then replace the
+ * WHOLE name with a generated tavern guest name on a profanity hit — no
+ * asterisks, keeps the storybook tone. Empty input stays empty (callers keep
+ * their own Player-N fallback).
+ */
+export function sanitizeUsername(value: unknown): string {
+  const name = sanitizeString(value, 32).trim();
+  if (!name) return '';
+  return isProfane(name) ? tavernGuestName() : name;
 }
 
 /**

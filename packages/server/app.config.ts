@@ -8,6 +8,7 @@ import cors from 'cors';
 import express from 'express';
 import { matchMaker } from 'colyseus';
 import { MuushigRoom } from './src/rooms/MuushigRoom';
+import { log } from './src/lib/log';
 
 const redisUrl = process.env.REDIS_URL;
 
@@ -63,6 +64,29 @@ export default config({
       } catch {
         return res.status(500).json({ error: 'token exchange error' });
       }
+    });
+
+    // Client error reports land in the structured log (Fly log drain is the
+    // store — no Sentry). Per-IP sliding-window rate limit, hard field caps.
+    const errorReportHits = new Map<string, number[]>();
+    app.post('/api/client-error', express.json({ limit: '8kb' }), (req, res) => {
+      const ip = req.ip ?? 'unknown';
+      const now = Date.now();
+      const hits = (errorReportHits.get(ip) ?? []).filter((t) => now - t < 60_000);
+      hits.push(now);
+      errorReportHits.set(ip, hits);
+      if (hits.length > 10) return res.status(429).json({ error: 'rate limited' });
+
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const clip = (v: unknown, n: number) => String(v ?? '').slice(0, n);
+      log('error', 'client_error', {
+        message: clip(body.message, 500),
+        stack: clip(body.stack, 2000),
+        context: clip(body.context, 200),
+        url: clip(body.url, 200),
+        userAgent: clip(req.headers['user-agent'], 200),
+      });
+      return res.json({ ok: true });
     });
 
     // Resolve a private-table join code to a joinable roomId. Codes only exist
