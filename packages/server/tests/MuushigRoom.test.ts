@@ -4,12 +4,18 @@ import { MuushigEngine, Card, HAND_SIZE } from '@muushig/shared';
 import type { MatchRecord } from '../src/stats/StatsCollector';
 import appConfig from '../app.config';
 
-// Persistence is stubbed: a magic token verifies as a fixed account, anything
-// else is a guest; supabaseAdmin=null keeps the default recorder disabled.
+// Persistence is stubbed: magic tokens verify as fixed accounts (one premium,
+// one not), anything else is a guest; supabaseAdmin=null keeps the default
+// recorder disabled.
 vi.mock('../src/lib/supabase', () => ({
   supabaseAdmin: null,
   verifyUser: async (token?: string) =>
-    token === 'token-alice' ? { id: 'uuid-alice', username: 'Alice', avatarUrl: '' } : null,
+    token === 'token-alice'
+      ? { id: 'uuid-alice', username: 'Alice', avatarUrl: '' }
+      : token === 'token-premium'
+        ? { id: 'uuid-premium', username: 'Patron', avatarUrl: '' }
+        : null,
+  isPremium: async (userId: string) => userId === 'uuid-premium',
 }));
 
 let colyseus: ColyseusTestServer;
@@ -99,15 +105,23 @@ async function playOneRound(room: AnyRoom, clients: AnyClient[]): Promise<void> 
 
 describe('MuushigRoom — private tables & join codes', () => {
   test('privateTable rooms get a code on state and metadata, honoring a sanitized injected code', async () => {
-    const room = await createRoom({ privateTable: true, joinCode: 'ab#cd' });
+    const room = await createRoom({
+      privateTable: true,
+      joinCode: 'ab#cd',
+      accessToken: 'token-premium',
+    });
     expect(room.state.joinCode).toBe('ABCD');
     expect(room.metadata.joinCode).toBe('ABCD');
     expect(room.listing.private).toBe(true);
   });
 
   test('generates a fresh code when the requested one is taken', async () => {
-    await createRoom({ privateTable: true, joinCode: 'WXYZ' });
-    const second = await createRoom({ privateTable: true, joinCode: 'WXYZ' });
+    await createRoom({ privateTable: true, joinCode: 'WXYZ', accessToken: 'token-premium' });
+    const second = await createRoom({
+      privateTable: true,
+      joinCode: 'WXYZ',
+      accessToken: 'token-premium',
+    });
     expect(second.state.joinCode).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
     expect(second.state.joinCode).not.toBe('WXYZ');
   });
@@ -116,6 +130,60 @@ describe('MuushigRoom — private tables & join codes', () => {
     const room = await createRoom();
     expect(room.state.joinCode).toBe('');
     expect(room.metadata.joinCode).toBeUndefined();
+  });
+});
+
+describe('MuushigRoom — premium hosting gate', () => {
+  test('guests and non-premium accounts cannot host custom or private tables', async () => {
+    await expect(createRoom({ customTable: true })).rejects.toBeTruthy();
+    await expect(
+      createRoom({ customTable: true, accessToken: 'token-alice' }),
+    ).rejects.toBeTruthy();
+    await expect(
+      createRoom({ privateTable: true, accessToken: 'token-alice' }),
+    ).rejects.toBeTruthy();
+  });
+
+  test('a premium account hosts a named, browsable table', async () => {
+    const room = await createRoom({
+      customTable: true,
+      tableName: 'Baatar’s den',
+      accessToken: 'token-premium',
+    });
+    expect(room.metadata.tableName).toBe('Baatar’s den');
+    expect(room.listing.private).toBe(false); // browsable
+    expect(room.state.joinCode).toBe(''); // public — no code
+  });
+
+  test('plain quick-play rooms are created freely (no flags, no token)', async () => {
+    const room = await createRoom();
+    expect(room.metadata.tableName).toBeUndefined();
+  });
+});
+
+describe('GET /api/lobbies', () => {
+  test('lists public web tables with counts, hiding private ones', async () => {
+    const pub = await createRoom({
+      customTable: true,
+      tableName: 'Open den',
+      accessToken: 'token-premium',
+    });
+    await createRoom({ privateTable: true, joinCode: 'QRST', accessToken: 'token-premium' });
+    await colyseus.connectTo(pub, { username: 'Host' });
+    await waitUntil(() => pub.state.players.size === 1);
+
+    const res = await colyseus.http.get('/api/lobbies');
+    const lobbies = (res.data as { lobbies: Array<Record<string, unknown>> }).lobbies;
+    const mine = lobbies.find((l) => l.roomId === pub.roomId)!;
+    expect(mine).toMatchObject({
+      name: 'Open den',
+      host: 'Host',
+      phase: 'waiting',
+      playerCount: 1,
+      maxPlayers: 5,
+    });
+    expect(lobbies.some((l) => l.name === undefined && l.joinCode)).toBe(false);
+    expect(lobbies.every((l) => !('joinCode' in l))).toBe(true);
   });
 });
 
@@ -151,7 +219,11 @@ describe('POST /api/client-error', () => {
 
 describe('GET /api/table/:code', () => {
   test('resolves a live code to room info and 404s unknown codes', async () => {
-    const room = await createRoom({ privateTable: true, joinCode: 'FQRS' });
+    const room = await createRoom({
+      privateTable: true,
+      joinCode: 'FQRS',
+      accessToken: 'token-premium',
+    });
     await colyseus.connectTo(room, { username: 'Host' });
     await waitUntil(() => room.state.players.size === 1);
 

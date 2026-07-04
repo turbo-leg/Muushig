@@ -26,6 +26,20 @@ export interface AuthedUser {
  * returns the authenticated user, or `null` if the token is missing/invalid or
  * persistence is disabled.
  */
+/**
+ * Whether a verified user holds a premium account (gates creating custom
+ * lobbies). False for guests and whenever persistence is disabled.
+ */
+export async function isPremium(userId: string): Promise<boolean> {
+  if (!supabaseAdmin || !userId) return false;
+  const { data } = await supabaseAdmin
+    .from('profiles')
+    .select('premium')
+    .eq('id', userId)
+    .maybeSingle();
+  return !!(data as { premium?: boolean } | null)?.premium;
+}
+
 export async function verifyUser(accessToken: string | undefined): Promise<AuthedUser | null> {
   if (!supabaseAdmin || !accessToken) return null;
   const { data, error } = await supabaseAdmin.auth.getUser(accessToken);

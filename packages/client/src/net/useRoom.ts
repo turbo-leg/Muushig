@@ -19,8 +19,9 @@ export type ConnStatus =
 /** How the player wants to reach a table. */
 export type JoinIntent =
   | { mode: 'quick' }
-  | { mode: 'create'; maxPlayers: number }
-  | { mode: 'code'; code: string };
+  | { mode: 'create'; maxPlayers: number; isPrivate: boolean; tableName?: string }
+  | { mode: 'code'; code: string }
+  | { mode: 'room'; roomId: string };
 
 export interface RoomConnection {
   status: ConnStatus;
@@ -64,8 +65,12 @@ export function readStoredIntent(): JoinIntent | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as JoinIntent;
     if (parsed.mode === 'quick') return parsed;
-    if (parsed.mode === 'create' && typeof parsed.maxPlayers === 'number') return parsed;
+    if (parsed.mode === 'create' && typeof parsed.maxPlayers === 'number') {
+      // Older stored intents predate isPrivate; they meant a code table.
+      return { ...parsed, isPrivate: parsed.isPrivate ?? true };
+    }
     if (parsed.mode === 'code' && typeof parsed.code === 'string') return parsed;
+    if (parsed.mode === 'room' && typeof parsed.roomId === 'string') return parsed;
     return null;
   } catch {
     return null;
@@ -88,6 +93,23 @@ async function resolveCode(code: string): Promise<string | null> {
     if (!res.ok) return null;
     const data = (await res.json()) as { roomId?: string };
     return data.roomId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** First public table with a free seat (quick-play matchmaking). */
+async function findOpenTable(): Promise<string | null> {
+  try {
+    const res = await fetch('/api/lobbies');
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      lobbies?: Array<{ roomId: string; phase: string; playerCount: number; maxPlayers: number }>;
+    };
+    const open = (data.lobbies ?? []).find(
+      (l) => l.phase === 'waiting' && l.playerCount < l.maxPlayers,
+    );
+    return open?.roomId ?? null;
   } catch {
     return null;
   }
@@ -132,6 +154,14 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
       setStatus('connected');
       setError(null);
       rerender();
+
+      // A created PUBLIC table converts to a room intent right away; a private
+      // one converts to its code once it syncs (below). Either way a reload or
+      // rejoin fallback never creates a second empty table.
+      if (liveIntent.mode === 'create' && !liveIntent.isPrivate) {
+        liveIntent = { mode: 'room', roomId: room.roomId };
+        writeStoredIntent(liveIntent);
+      }
 
       room.onStateChange(() => {
         stateRef.current = room.state;
@@ -215,26 +245,63 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
         accessToken: id.accessToken,
       };
 
+      const surfaceClosed = () => {
+        if (!cancelled) {
+          writeToken(roomName, null);
+          writeStoredIntent(null);
+          setStatus('closed');
+        }
+      };
+
       if (liveIntent.mode === 'create') {
+        // Hosting is premium — the server verifies the token and rejects
+        // otherwise; the Lobby UI only offers this to premium accounts.
         return client.create<GameState>(roomName, {
           ...identityOptions,
-          privateTable: true,
+          customTable: true,
+          privateTable: liveIntent.isPrivate,
+          tableName: liveIntent.tableName ?? '',
           maxPlayers: liveIntent.maxPlayers,
         });
       }
       if (liveIntent.mode === 'code') {
         const roomId = await resolveCode(liveIntent.code);
         if (!roomId) {
-          if (!cancelled) {
-            writeToken(roomName, null);
-            writeStoredIntent(null);
-            setStatus('closed');
-          }
+          surfaceClosed();
           return null;
         }
         return client.joinById<GameState>(roomId, identityOptions);
       }
-      return client.joinOrCreate<GameState>(roomName, identityOptions);
+      if (liveIntent.mode === 'room') {
+        try {
+          return await client.joinById<GameState>(liveIntent.roomId, identityOptions);
+        } catch {
+          surfaceClosed(); // table filled or vanished between listing and join
+          return null;
+        }
+      }
+
+      // Quick play. Inside Discord the activity instance is the table —
+      // keep the instance-filtered joinOrCreate. On the web, matchmake
+      // through the lobby list so full tables never dead-end a player.
+      if (
+        id.discordInstanceId &&
+        id.discordInstanceId !== 'web' &&
+        id.discordInstanceId !== 'local-dev'
+      ) {
+        return client.joinOrCreate<GameState>(roomName, identityOptions);
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const roomId = await findOpenTable();
+        if (!roomId) break;
+        try {
+          return await client.joinById<GameState>(roomId, identityOptions);
+        } catch {
+          /* seat filled in the race — refetch and try again */
+        }
+      }
+      // No open table — start a plain one (free; not a premium custom table).
+      return client.create<GameState>(roomName, identityOptions);
     };
 
     (async () => {
