@@ -26,7 +26,8 @@ import { TrumpIndicator } from './TrumpIndicator';
 import { Hand } from './Hand';
 import { ActionBar } from './ActionBar';
 import { TitleBanner } from './TitleBanner';
-import { initAudio, isMuted, play as playSfx, toggleMuted } from '../audio/sound';
+import { initAudio, play as playSfx } from '../audio/sound';
+import { Settings } from './Settings';
 import { t, useLocale } from '../i18n';
 
 interface Props {
@@ -406,15 +407,7 @@ export function Table({ state, sessionId, send }: Props) {
     });
 
   const [showSheet, setShowSheet] = useState(false);
-  const [muted, setMuted] = useState(isMuted());
-  const onToggleMute = () => {
-    const m = toggleMuted();
-    setMuted(m);
-    if (!m) {
-      initAudio();
-      playSfx('click');
-    }
-  };
+  const [showSettings, setShowSettings] = useState(false);
 
   // ── Sound effects driven by state transitions ──
   const trickLen = trick.length;
@@ -658,7 +651,6 @@ export function Table({ state, sessionId, send }: Props) {
           hint={hintKey ? t(hintKey) : null}
           winnerNames={winnerNames}
           isWinner={isWinner}
-          muted={muted}
           onReady={onReady}
           onStart={onStart}
           onAddBot={onAddBot}
@@ -670,13 +662,22 @@ export function Table({ state, sessionId, send }: Props) {
           onRematch={onRematch}
           onToggleTrumpSwap={() => setTrumpSwapMode((v) => !v)}
           onInvite={() => void openInvite()}
-          onToggleMute={onToggleMute}
+          onSettings={() => setShowSettings(true)}
           onLeaveTable={onLeaveTable}
         />
       </div>
 
       {showSheet && <ScoreSheet seats={seats} onClose={() => setShowSheet(false)} />}
       {showHelp && <HelpBook onClose={() => setShowHelp(false)} />}
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          onOpenHelp={() => {
+            setShowSettings(false);
+            setShowHelp(true);
+          }}
+        />
+      )}
 
       {phase === 'finished' && winnerNames.length > 0 ? (
         <Celebration winnerNames={winnerNames} />

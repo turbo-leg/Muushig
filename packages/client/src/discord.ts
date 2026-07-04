@@ -32,11 +32,19 @@ function guestName(): string {
 }
 
 /**
+ * Builds the Discord CDN avatar URL for an authenticated user. Animated
+ * avatars (hash prefixed `a_`) get .gif; users without a custom avatar get ''.
+ */
+export function discordAvatarUrl(userId: string, avatarHash: string | null | undefined): string {
+  if (!userId || !avatarHash) return '';
+  const ext = avatarHash.startsWith('a_') ? 'gif' : 'png';
+  return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${ext}?size=128`;
+}
+
+/**
  * Resolves the player's identity. In Discord, waits for the SDK and uses the
- * activity instance id for matchmaking.
- *
- * NOTE: full OAuth (real username/avatar) needs a server `/api/token` exchange
- * endpoint — tracked as a #3 follow-up. For now a guest display name is used.
+ * activity instance id for matchmaking. With the server token exchange
+ * configured, OAuth yields the real username + avatar; otherwise guest.
  */
 export async function resolveIdentity(): Promise<Identity> {
   if (!sdk) {
@@ -56,7 +64,10 @@ export async function resolveIdentity(): Promise<Identity> {
   const user = await runOAuth();
   return {
     username: user ? (user.global_name ?? user.username) : guestName(),
-    avatarUrl: '',
+    // Real CDN avatar. NOTE: table seats deliberately ignore this and keep the
+    // storybook portraits (see Seat.tsx); it flows to Player.avatarUrl for
+    // account-level surfaces.
+    avatarUrl: user ? discordAvatarUrl(user.id, user.avatar) : '',
     discordId: user?.id ?? '',
     discordInstanceId: sdk.instanceId ?? 'discord',
   };
@@ -68,6 +79,7 @@ interface DiscordUser {
   id: string;
   username: string;
   global_name?: string | null;
+  avatar?: string | null;
 }
 
 /** The authenticated Discord user (null until/unless OAuth succeeds). */

@@ -14,6 +14,7 @@ import { MatchRecap, summarizeScoreLog } from '../components/MatchRecap';
 import { HelpBook } from '../components/HelpBook';
 import { Lobby } from '../components/Lobby';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { Settings } from '../components/Settings';
 import type { SeatVM } from '../game/types';
 
 const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
@@ -225,6 +226,25 @@ describe('Celebration', () => {
   });
 });
 
+describe('Settings', () => {
+  test('shows audio rows, toggles language, and links to the rules', async () => {
+    const onClose = vi.fn();
+    const onOpenHelp = vi.fn();
+    render(<Settings onClose={onClose} onOpenHelp={onOpenHelp} />);
+
+    expect(screen.getByRole('switch', { name: /mute all sound/i })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: /effects volume/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /tavern music/i })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: /music volume/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /how to play/i }));
+    expect(onOpenHelp).toHaveBeenCalledOnce();
+
+    await userEvent.click(screen.getByRole('button', { name: /✕|cancel/i }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
+
 describe('ErrorBoundary', () => {
   test('renders the crash fallback and reports the error', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
@@ -362,7 +382,6 @@ describe('ActionBar', () => {
     hint: null,
     winnerNames: [],
     isWinner: false,
-    muted: false,
     onReady: vi.fn(),
     onStart: vi.fn(),
     onAddBot: vi.fn(),
@@ -374,7 +393,7 @@ describe('ActionBar', () => {
     onRematch: vi.fn(),
     onToggleTrumpSwap: vi.fn(),
     onInvite: vi.fn(),
-    onToggleMute: vi.fn(),
+    onSettings: vi.fn(),
     onLeaveTable: vi.fn(),
   };
 
@@ -428,9 +447,11 @@ describe('ActionBar', () => {
     expect(screen.queryByRole('button', { name: /add bot/i })).not.toBeInTheDocument();
   });
 
-  test('mute toggle is labelled for accessibility', () => {
-    render(<ActionBar {...base} muted />);
-    expect(screen.getByRole('button', { name: /unmute sound/i })).toBeInTheDocument();
+  test('the gear opens settings', async () => {
+    const onSettings = vi.fn();
+    render(<ActionBar {...base} onSettings={onSettings} />);
+    await userEvent.click(screen.getByRole('button', { name: /open settings/i }));
+    expect(onSettings).toHaveBeenCalledOnce();
   });
 
   test('navshih button appears only when the dealer can exchange, and fires its callback', async () => {
