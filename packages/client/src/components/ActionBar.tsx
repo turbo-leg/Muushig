@@ -28,12 +28,15 @@ interface Props {
   canInvite: boolean;
   /** Host may seat a bot (lobby only, while seats remain). */
   canAddBot: boolean;
+  /** One-line first-game hint for the current phase (null once experienced). */
+  hint: string | null;
   winnerNames: string[];
   isWinner: boolean;
   muted: boolean;
   onReady: () => void;
   onStart: () => void;
   onAddBot: () => void;
+  onHelp: () => void;
   onStay: () => void;
   onResign: () => void;
   onSwap: () => void;
@@ -87,6 +90,20 @@ function MuteButton({ muted, onClick }: { muted: boolean; onClick: () => void })
   );
 }
 
+/** Opens the how-to-play book. */
+function HelpButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t('helpOpen')}
+      className="grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-ink/40 bg-wood-dark/55 font-hand text-lg font-bold text-cream/70 transition-colors select-none hover:bg-wood/50 hover:text-cream focus-visible:ring-2 focus-visible:ring-amber focus-visible:outline-none"
+    >
+      ?
+    </button>
+  );
+}
+
 /** Switches the whole UI between English and Mongolian. */
 function LocaleButton() {
   return (
@@ -108,6 +125,7 @@ export function ActionBar(props: Props) {
     return (
       <div className="flex w-full items-center justify-center gap-3 select-none">
         <StatusScroll>{t('watchingNotice')}</StatusScroll>
+        <HelpButton onClick={props.onHelp} />
         <LocaleButton />
         <MuteButton muted={props.muted} onClick={props.onToggleMute} />
       </div>
@@ -115,124 +133,132 @@ export function ActionBar(props: Props) {
   }
 
   return (
-    <div className="flex w-full items-center justify-center gap-3 select-none">
-      <div className="flex flex-1 flex-wrap items-center justify-center gap-3">
-        {phase === 'waiting' && (
-          <>
-            <Button
-              variant="coin"
-              sub={meReady ? tAlt('cancel') : tAlt('ready')}
-              onClick={props.onReady}
-            >
-              {meReady ? t('cancel') : t('ready')}
-            </Button>
-            {isHost ? (
+    <div className="flex w-full flex-col items-center gap-1.5 select-none">
+      {props.hint && (
+        <p className="max-w-[85vw] text-center font-hand text-sm leading-tight text-cream/70">
+          💡 {props.hint}
+        </p>
+      )}
+      <div className="flex w-full items-center justify-center gap-3">
+        <div className="flex flex-1 flex-wrap items-center justify-center gap-3">
+          {phase === 'waiting' && (
+            <>
               <Button
                 variant="coin"
-                sub={canStart ? tAlt('deal') : tAlt('wait')}
-                onClick={props.onStart}
-                disabled={!canStart}
+                sub={meReady ? tAlt('cancel') : tAlt('ready')}
+                onClick={props.onReady}
               >
-                {canStart ? t('deal') : t('wait')}
+                {meReady ? t('cancel') : t('ready')}
               </Button>
-            ) : (
-              <StatusScroll>{t('waitingHost')}</StatusScroll>
-            )}
-            {props.canInvite && (
-              <Button variant="coin" secondary sub={tAlt('invite')} onClick={props.onInvite}>
-                {t('invite')}
-              </Button>
-            )}
-            {props.canAddBot && (
-              <Button variant="coin" secondary sub={tAlt('addBot')} onClick={props.onAddBot}>
-                {t('addBot')}
-              </Button>
-            )}
-          </>
-        )}
-
-        {phase === 'decision' &&
-          (props.meDecided ? (
-            <StatusScroll>{t('waitingOthers')}</StatusScroll>
-          ) : props.canDecide ? (
-            <>
-              <Button variant="coin" sub={tAlt('bid')} onClick={props.onStay}>
-                {t('bid')}
-              </Button>
-              {props.mustPlay ? (
-                <StatusScroll>
-                  <span className="text-danger">{t('mustPlay')}</span>
-                </StatusScroll>
+              {isHost ? (
+                <Button
+                  variant="coin"
+                  sub={canStart ? tAlt('deal') : tAlt('wait')}
+                  onClick={props.onStart}
+                  disabled={!canStart}
+                >
+                  {canStart ? t('deal') : t('wait')}
+                </Button>
               ) : (
-                <HoldButton onConfirm={props.onResign} sub={tAlt('fold')}>
-                  {t('fold')}
-                </HoldButton>
+                <StatusScroll>{t('waitingHost')}</StatusScroll>
+              )}
+              {props.canInvite && (
+                <Button variant="coin" secondary sub={tAlt('invite')} onClick={props.onInvite}>
+                  {t('invite')}
+                </Button>
+              )}
+              {props.canAddBot && (
+                <Button variant="coin" secondary sub={tAlt('addBot')} onClick={props.onAddBot}>
+                  {t('addBot')}
+                </Button>
               )}
             </>
-          ) : (
-            <StatusScroll>{t('waitingTurn')}</StatusScroll>
-          ))}
+          )}
 
-        {phase === 'swap' &&
-          (canSwap ? (
-            <>
-              <Button
-                variant="coin"
-                sub={tAlt('swap')}
-                onClick={props.onSwap}
-                disabled={props.selectedCount === 0}
-              >
-                {props.selectedCount > 0 ? t('swapN', { n: props.selectedCount }) : t('swap')}
-              </Button>
-              <Button variant="coin" secondary sub={tAlt('keep')} onClick={props.onKeep}>
-                {t('keep')}
-              </Button>
-            </>
-          ) : props.meSwapped ? (
-            <StatusScroll>{t('waitingOthersSwap')}</StatusScroll>
-          ) : (
-            <StatusScroll>{t('waitingTurnSwap')}</StatusScroll>
-          ))}
+          {phase === 'decision' &&
+            (props.meDecided ? (
+              <StatusScroll>{t('waitingOthers')}</StatusScroll>
+            ) : props.canDecide ? (
+              <>
+                <Button variant="coin" sub={tAlt('bid')} onClick={props.onStay}>
+                  {t('bid')}
+                </Button>
+                {props.mustPlay ? (
+                  <StatusScroll>
+                    <span className="text-danger">{t('mustPlay')}</span>
+                  </StatusScroll>
+                ) : (
+                  <HoldButton onConfirm={props.onResign} sub={tAlt('fold')}>
+                    {t('fold')}
+                  </HoldButton>
+                )}
+              </>
+            ) : (
+              <StatusScroll>{t('waitingTurn')}</StatusScroll>
+            ))}
 
-        {phase === 'playing' && (
-          <StatusScroll>
-            <span className={isMyTurn ? 'text-amber-deep font-bold' : ''}>
-              {isMyTurn ? t('yourTurnThrow') : t('waitingCurrent')}
-            </span>
-          </StatusScroll>
-        )}
+          {phase === 'swap' &&
+            (canSwap ? (
+              <>
+                <Button
+                  variant="coin"
+                  sub={tAlt('swap')}
+                  onClick={props.onSwap}
+                  disabled={props.selectedCount === 0}
+                >
+                  {props.selectedCount > 0 ? t('swapN', { n: props.selectedCount }) : t('swap')}
+                </Button>
+                <Button variant="coin" secondary sub={tAlt('keep')} onClick={props.onKeep}>
+                  {t('keep')}
+                </Button>
+              </>
+            ) : props.meSwapped ? (
+              <StatusScroll>{t('waitingOthersSwap')}</StatusScroll>
+            ) : (
+              <StatusScroll>{t('waitingTurnSwap')}</StatusScroll>
+            ))}
 
-        {phase === 'finished' && (
-          <div className="flex flex-col items-center gap-2">
+          {phase === 'playing' && (
             <StatusScroll>
-              <span className="text-amber-deep font-bold">
-                {props.isWinner
-                  ? t('youWin')
-                  : t('playerWins', { names: props.winnerNames.join(', ') || t('someone') })}
+              <span className={isMyTurn ? 'text-amber-deep font-bold' : ''}>
+                {isMyTurn ? t('yourTurnThrow') : t('waitingCurrent')}
               </span>
             </StatusScroll>
-            <Button variant="coin" sub={tAlt('again')} onClick={props.onRematch} className="mt-1">
-              {t('again')}
-            </Button>
-          </div>
-        )}
+          )}
 
-        {/* The dealer's trump-card exchange (navshih), sitting beside the
+          {phase === 'finished' && (
+            <div className="flex flex-col items-center gap-2">
+              <StatusScroll>
+                <span className="text-amber-deep font-bold">
+                  {props.isWinner
+                    ? t('youWin')
+                    : t('playerWins', { names: props.winnerNames.join(', ') || t('someone') })}
+                </span>
+              </StatusScroll>
+              <Button variant="coin" sub={tAlt('again')} onClick={props.onRematch} className="mt-1">
+                {t('again')}
+              </Button>
+            </div>
+          )}
+
+          {/* The dealer's trump-card exchange (navshih), sitting beside the
             phase's regular actions during the decision and swap phases. */}
-        {props.canSwapTrump && (
-          <Button
-            variant="coin"
-            secondary={props.trumpSwapMode}
-            sub={props.trumpSwapMode ? tAlt('cancel') : tAlt('navshih')}
-            onClick={props.onToggleTrumpSwap}
-          >
-            {props.trumpSwapMode ? t('cancel') : t('navshih')}
-          </Button>
-        )}
-      </div>
+          {props.canSwapTrump && (
+            <Button
+              variant="coin"
+              secondary={props.trumpSwapMode}
+              sub={props.trumpSwapMode ? tAlt('cancel') : tAlt('navshih')}
+              onClick={props.onToggleTrumpSwap}
+            >
+              {props.trumpSwapMode ? t('cancel') : t('navshih')}
+            </Button>
+          )}
+        </div>
 
-      <LocaleButton />
-      <MuteButton muted={props.muted} onClick={props.onToggleMute} />
+        <HelpButton onClick={props.onHelp} />
+        <LocaleButton />
+        <MuteButton muted={props.muted} onClick={props.onToggleMute} />
+      </div>
     </div>
   );
 }

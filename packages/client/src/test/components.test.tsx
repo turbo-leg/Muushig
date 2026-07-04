@@ -11,6 +11,7 @@ import { ActionBar } from '../components/ActionBar';
 import { RoundSummary } from '../components/RoundSummary';
 import { Celebration } from '../components/Celebration';
 import { MatchRecap, summarizeScoreLog } from '../components/MatchRecap';
+import { HelpBook } from '../components/HelpBook';
 import type { SeatVM } from '../game/types';
 
 const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
@@ -222,6 +223,39 @@ describe('Celebration', () => {
   });
 });
 
+describe('HelpBook', () => {
+  test('pages forward through all six pages and finishes', async () => {
+    const onClose = vi.fn();
+    render(<HelpBook onClose={onClose} />);
+
+    expect(screen.getByText('The goal')).toBeInTheDocument();
+    expect(screen.getByText('1 / 6')).toBeInTheDocument();
+
+    // Walk to the last page.
+    for (let i = 0; i < 5; i++) {
+      await userEvent.click(screen.getByRole('button', { name: /next/i }));
+    }
+    expect(screen.getByText('The words')).toBeInTheDocument();
+    expect(screen.getByText('6 / 6')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /next/i })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /to the table/i }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  test('back button returns to the previous page and Escape closes', async () => {
+    const onClose = vi.fn();
+    render(<HelpBook onClose={onClose} />);
+    await userEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText('The deal')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByText('The goal')).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
+
 describe('MatchRecap', () => {
   test('summarizeScoreLog decodes folds, tricks, shut-outs, and perfect rounds', () => {
     // From 15: fold, take 3 (→12), get muushig'd (→17), take all 5 (→12).
@@ -263,12 +297,14 @@ describe('ActionBar', () => {
     trumpSwapMode: false,
     canInvite: false,
     canAddBot: false,
+    hint: null,
     winnerNames: [],
     isWinner: false,
     muted: false,
     onReady: vi.fn(),
     onStart: vi.fn(),
     onAddBot: vi.fn(),
+    onHelp: vi.fn(),
     onStay: vi.fn(),
     onSwap: vi.fn(),
     onKeep: vi.fn(),
@@ -285,6 +321,19 @@ describe('ActionBar', () => {
     expect(screen.getByRole('button', { name: /wait/i })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: /ready/i }));
     expect(onReady).toHaveBeenCalledOnce();
+  });
+
+  test('shows the first-game hint only when provided, and the help button always', async () => {
+    const onHelp = vi.fn();
+    const { rerender } = render(
+      <ActionBar {...base} phase="decision" hint="Weak hand? Fold." onHelp={onHelp} />,
+    );
+    expect(screen.getByText(/weak hand\? fold\./i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /how to play/i }));
+    expect(onHelp).toHaveBeenCalledOnce();
+
+    rerender(<ActionBar {...base} phase="decision" hint={null} onHelp={onHelp} />);
+    expect(screen.queryByText(/weak hand/i)).not.toBeInTheDocument();
   });
 
   test('spectators get a watching notice instead of actions', () => {
