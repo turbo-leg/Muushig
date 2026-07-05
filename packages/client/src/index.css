@@ -1,27 +1,34 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Kalam:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 /*
- * Muushig — "Cozy Hand-Drawn Tavern" theme.
- * Warm parchment + wood + amber, handwriting type.
+ * Muushig — "Midnight Casino" theme.
+ * Near-black walnut room, deep emerald felt, gold hairlines, glass panels.
+ * Token NAMES kept from the tavern era so every bg-parchment/text-ink pairing
+ * flips to the dark system without touching call sites:
+ *   parchment* = panel surfaces (now dark glass)   ink* = text ON panels (now light)
+ *   wood*      = room/chrome surfaces              cream = text on the room bg
  */
 @theme {
-  --color-parchment: #f5e6d3;
-  --color-parchment-deep: #e7d2b3;
-  --color-wood: #5c4033;
-  --color-wood-dark: #3e2a20;
-  --color-wood-light: #7a5a42;
-  --color-amber: #d98e04;
-  --color-amber-deep: #a8631f;
-  --color-ember: #f2a65a;
-  --color-ink: #3a2a1e;
-  --color-ink-soft: #6b4f3a;
-  --color-cream: #f5e6d3;
-  --color-success: #5c7a4a;
-  --color-danger: #a33b2a;
+  --color-parchment: #211c18;
+  --color-parchment-deep: #2b2521;
+  --color-wood: #332b25;
+  --color-wood-dark: #141110;
+  --color-wood-light: #403830;
+  --color-amber: #ca8a04;
+  --color-amber-deep: #dcaa3d;
+  --color-ember: #e7c368;
+  --color-ink: #f2ecdf;
+  --color-ink-soft: #a89e8c;
+  --color-cream: #f2ecdf;
+  --color-success: #63b57f;
+  --color-danger: #e2564e;
+  /* Structural gold hairline for borders (replaces the tavern tan #c9a56e). */
+  --color-gild: #86702f;
 
-  --font-hand: 'Caveat', 'Kalam', cursive;
-  --font-body: 'Caveat', 'Kalam', cursive;
+  --font-hand: 'Montserrat', system-ui, sans-serif;
+  --font-body: 'Montserrat', system-ui, sans-serif;
+  --font-display: 'Cormorant SC', 'Cormorant', serif;
 }
 
 :root {
@@ -49,7 +56,7 @@ body {
   background-color: var(--color-wood-dark);
   color: var(--color-ink);
   font-family: var(--font-body);
-  font-size: 18px; /* handwriting reads small — bump the base */
+  font-size: 15px; /* Montserrat runs wide — keep the table dense */
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   /* Kill the iOS tap delay / grey flash and stop accidental pinch-zoom on taps. */
@@ -72,23 +79,28 @@ body {
 
 /* ──────────────────────────── Surfaces ──────────────────────────── */
 
-/* The tavern room backdrop (dark wood + hearth glow). */
+/* The card-room backdrop: near-black walnut, one low overhead lamp. */
 .room {
-  background-color: #1e140f;
+  background-color: #121010;
   background-image:
-    radial-gradient(60% 48% at 50% 12%, rgba(242, 166, 90, 0.22), transparent 70%),
-    radial-gradient(130% 120% at 50% 125%, rgba(0, 0, 0, 0.6), transparent 60%),
-    linear-gradient(180deg, #2a1c14 0%, #1e140f 60%, #130c08 100%);
+    radial-gradient(55% 42% at 50% 8%, rgba(202, 138, 4, 0.14), transparent 70%),
+    radial-gradient(130% 120% at 50% 125%, rgba(0, 0, 0, 0.72), transparent 60%),
+    linear-gradient(180deg, #1b1715 0%, #141110 60%, #0c0a09 100%);
 }
 
-/* A hand-inked parchment panel */
+/* A dark glass panel with a gold hairline. */
 .parchment-panel {
-  background-color: var(--color-parchment);
-  border: 2.5px solid var(--color-ink);
-  border-radius: 12px 8px 14px 10px / 10px 14px 9px 12px;
+  background-color: rgba(33, 28, 24, 0.94);
+  border: 1px solid rgba(202, 138, 4, 0.4);
+  border-radius: 12px;
   box-shadow:
-    inset 0 0 18px rgba(120, 80, 40, 0.16),
-    0 6px 16px rgba(0, 0, 0, 0.4);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
 }
 
 /* ──────────────────────────── Carved wood buttons ──────────────────────────── */
@@ -108,16 +120,15 @@ body {
   min-width: 120px;
   padding: 0.45rem 1.25rem;
   cursor: pointer;
-  border: 2px solid var(--color-ink);
-  border-radius: 8px 12px 9px 11px / 11px 9px 12px 8px;
+  border: 1px solid rgba(202, 138, 4, 0.55);
+  border-radius: 10px;
   background-color: var(--color-wood);
-  background-image: linear-gradient(180deg, #7a5a42 0%, #5c4033 60%, #422e24 100%);
+  background-image: linear-gradient(180deg, #3a322b 0%, #2a2420 60%, #1d1916 100%);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
     inset 0 -2px 4px rgba(0, 0, 0, 0.45),
-    0 3px 0 var(--color-ink),
-    0 4px 6px rgba(0, 0, 0, 0.35);
+    0 4px 8px rgba(0, 0, 0, 0.45);
   transition: all 120ms ease;
 }
 .btn-wood:hover:not(:disabled) {
@@ -142,34 +153,26 @@ body {
     0 2px 0 var(--color-ink);
 }
 
-/* Amber "branded" button (Stay / Start / Play). */
+/* Gold "branded" button (Stay / Start / Play). */
 .btn-wood--primary {
-  color: var(--color-ink);
-  background-image: linear-gradient(180deg, #ecb45a 0%, #d98e04 55%, #b5651d 100%);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #1d1503;
+  background-image: linear-gradient(180deg, #ecc45e 0%, #ca8a04 55%, #8f6003 100%);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 226, 150, 0.5);
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -2px 4px rgba(120, 60, 10, 0.4),
-    0 3px 0 var(--color-ink),
-    0 4px 6px rgba(0, 0, 0, 0.35);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 4px rgba(90, 55, 5, 0.45),
+    0 4px 10px rgba(202, 138, 4, 0.25);
 }
 
-/* Four nail heads pressed into the plank corners */
+/* A faint inner bevel line in place of the tavern nail heads. */
 .btn-wood::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   border-radius: inherit;
   pointer-events: none;
-  background-image:
-    radial-gradient(circle at 4px 4px, rgba(0, 0, 0, 0.4) 1.2px, transparent 2px),
-    radial-gradient(circle at calc(100% - 4px) 4px, rgba(0, 0, 0, 0.4) 1.2px, transparent 2px),
-    radial-gradient(circle at 4px calc(100% - 4px), rgba(0, 0, 0, 0.4) 1.2px, transparent 2px),
-    radial-gradient(
-      circle at calc(100% - 4px) calc(100% - 4px),
-      rgba(0, 0, 0, 0.4) 1.2px,
-      transparent 2px
-    );
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 .btn-wood__en {
   font-size: 1.25rem;
@@ -251,20 +254,21 @@ body {
 
 /* ──────────────────────────── Playing cards ──────────────────────────── */
 
+/* Card faces stay ivory regardless of theme — readability over the felt. */
 .playing-card {
   container-type: inline-size;
   position: relative;
   aspect-ratio: 5 / 7;
-  border-radius: 8px 6px 8px 6px / 6px 8px 6px 8px;
-  background-color: var(--color-parchment);
+  border-radius: 7px;
+  background-color: #f6f1e4;
   background-image: var(--card-art);
   background-size: cover;
   background-position: center;
-  border: 1.5px solid var(--color-ink);
+  border: 1px solid rgba(0, 0, 0, 0.65);
   box-shadow:
-    0 2px 5px rgba(0, 0, 0, 0.35),
-    inset 0 0 18px rgba(120, 80, 40, 0.12);
-  color: var(--color-ink);
+    0 3px 8px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+  color: #221a12;
   font-family: var(--font-hand);
   overflow: hidden;
   transition:
@@ -272,19 +276,19 @@ body {
     box-shadow 150ms ease;
 }
 .playing-card--back {
-  background-color: #6b4a33;
+  background-color: #0e3b2e;
   background-image:
-    var(--card-back), repeating-linear-gradient(45deg, #5c4033 0 6px, #4e362b 6px 12px);
-  border: 1.5px solid var(--color-ink);
+    var(--card-back), repeating-linear-gradient(45deg, #114635 0 6px, #0b2f24 6px 12px);
+  border: 1px solid rgba(202, 138, 4, 0.5);
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.35),
+    0 3px 6px rgba(0, 0, 0, 0.5),
     inset 0 0 12px rgba(0, 0, 0, 0.55);
 }
 .playing-card--trump {
   border-color: var(--color-amber);
   box-shadow:
-    0 0 12px rgba(217, 142, 4, 0.6),
-    0 2px 5px rgba(0, 0, 0, 0.35);
+    0 0 14px rgba(202, 138, 4, 0.55),
+    0 3px 8px rgba(0, 0, 0, 0.5);
 }
 
 .card-index {

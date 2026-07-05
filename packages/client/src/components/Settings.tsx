@@ -92,8 +92,8 @@ export function Settings({ onClose, onOpenHelp }: { onClose: () => void; onOpenH
         >
           ✕
         </button>
-        <h2 className="mb-2 border-b-2 border-[#c9a56e] pb-2 font-hand text-2xl font-bold text-ink">
-          ⚙ {t('settingsTitle')}
+        <h2 className="mb-2 border-b-2 border-gild pb-2 font-display text-3xl font-bold text-ink">
+          {t('settingsTitle')}
         </h2>
 
         <Row label={t('muteAll')}>
@@ -143,7 +143,7 @@ export function Settings({ onClose, onOpenHelp }: { onClose: () => void; onOpenH
           <button
             type="button"
             onClick={toggleLocale}
-            className="rounded-lg border border-ink/30 bg-parchment-deep/50 px-3 py-1 font-hand text-lg font-bold text-wood"
+            className="rounded-lg border border-ink/30 bg-parchment-deep/50 px-3 py-1 font-hand text-lg font-bold text-ember"
           >
             {getLocale() === 'en' ? 'English → Монгол' : 'Монгол → English'}
           </button>
@@ -153,7 +153,7 @@ export function Settings({ onClose, onOpenHelp }: { onClose: () => void; onOpenH
           <button
             type="button"
             onClick={onOpenHelp}
-            className="grid h-8 w-8 place-items-center rounded-full border border-ink/30 bg-parchment-deep/50 font-hand text-lg font-bold text-wood"
+            className="grid h-8 w-8 place-items-center rounded-full border border-ink/30 bg-parchment-deep/50 font-hand text-lg font-bold text-ember"
             aria-label={t('helpOpen')}
           >
             ?

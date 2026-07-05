@@ -58,7 +58,7 @@ export function MatchRecap({ scoreLog }: { scoreLog: string[] }) {
         {chips.map((c, i) => (
           <span
             key={i}
-            className="rounded-full border border-[#c9a56e] bg-parchment px-3 py-0.5 font-hand text-sm text-ink shadow-sm"
+            className="rounded-full border border-gild bg-parchment px-3 py-0.5 font-hand text-sm text-ink shadow-sm"
           >
             {c}
           </span>

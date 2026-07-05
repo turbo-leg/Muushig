@@ -64,7 +64,7 @@ export function Scoreboard({ seats, onOpenSheet }: Props) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Show scores"
-          className="flex items-center gap-1.5 rounded-[8px] border-2 border-[#c9a56e] bg-parchment px-3 py-1 font-hand text-sm font-bold text-ink shadow-[0_3px_6px_rgba(0,0,0,0.3)]"
+          className="flex items-center gap-1.5 rounded-[8px] border-2 border-gild bg-parchment px-3 py-1 font-hand text-sm font-bold text-ink shadow-[0_3px_6px_rgba(0,0,0,0.3)]"
         >
           <PaperIcon />
           Scores
@@ -75,7 +75,7 @@ export function Scoreboard({ seats, onOpenSheet }: Props) {
   }
 
   return (
-    <div className="mx-auto flex max-w-full select-none items-center justify-center gap-1.5 rounded-[8px] border-2 border-[#c9a56e] bg-parchment px-2 py-1 shadow-[0_3px_6px_rgba(0,0,0,0.3),inset_0_0_12px_rgba(120,80,40,0.16)]">
+    <div className="mx-auto flex max-w-full select-none items-center justify-center gap-1.5 rounded-[8px] border-2 border-gild bg-parchment px-2 py-1 shadow-[0_3px_6px_rgba(0,0,0,0.3),inset_0_0_12px_rgba(0,0,0,0.45)]">
       <div className="flex flex-wrap items-center justify-center gap-1.5">
         {seats.map((s) => (
           <div
@@ -95,12 +95,12 @@ export function Scoreboard({ seats, onOpenSheet }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center gap-0.5 self-stretch border-l border-[#c9a56e] pl-1.5">
+      <div className="flex items-center gap-0.5 self-stretch border-l border-gild pl-1.5">
         <button
           type="button"
           onClick={onOpenSheet}
           aria-label={t('openScoresheet')}
-          className="grid h-7 w-7 place-items-center rounded text-wood hover:bg-wood/10 hover:text-amber-deep"
+          className="grid h-7 w-7 place-items-center rounded text-ember hover:bg-wood/10 hover:text-amber-deep"
         >
           <PaperIcon />
         </button>
@@ -108,7 +108,7 @@ export function Scoreboard({ seats, onOpenSheet }: Props) {
           type="button"
           onClick={() => setOpen(false)}
           aria-label="Hide scores"
-          className="grid h-7 w-7 place-items-center rounded text-wood hover:bg-wood/10 hover:text-amber-deep"
+          className="grid h-7 w-7 place-items-center rounded text-ember hover:bg-wood/10 hover:text-amber-deep"
         >
           <Chevron up />
         </button>

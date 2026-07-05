@@ -219,7 +219,7 @@ function DrinkingHornProp() {
 /** Marble message panel centered on the table */
 function MessagePanel({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="relative flex h-[146px] w-[min(256px,82vw)] -rotate-1 flex-col items-center justify-center rounded-[8px] border-2 border-[#c9a56e] bg-parchment px-5 py-4 text-center drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)] [box-shadow:inset_0_0_18px_rgba(120,80,40,0.2)]">
+    <div className="relative flex h-[146px] w-[min(256px,82vw)] -rotate-1 flex-col items-center justify-center rounded-[8px] border-2 border-gild bg-parchment px-5 py-4 text-center drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)] [box-shadow:inset_0_0_18px_rgba(0,0,0,0.45)]">
       <div className="relative z-10 flex select-none flex-col items-center justify-center">
         <p className="font-hand text-3xl font-bold leading-none text-ink">{title}</p>
         <p className="mt-1 font-hand text-xl leading-tight text-ink-soft">{subtitle}</p>
@@ -531,10 +531,10 @@ export function Table({ state, sessionId, send }: Props) {
         <div className="relative mx-auto aspect-[5/6] w-full max-w-md sm:aspect-[7/4] sm:max-w-3xl">
           {/* CSS teal felt table top (no image) */}
           <div
-            className="absolute inset-0 z-0 rounded-[42%/48%] border-[6px] border-[#6b4a2f] drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)] sm:rounded-[46%/40%]"
+            className="absolute inset-0 z-0 rounded-[42%/48%] border-[6px] border-[#3b332b] drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)] sm:rounded-[46%/40%]"
             style={{
               background:
-                'radial-gradient(circle at 50% 42%, #3aa0a0 0%, #2e8c8c 55%, #1f6f6f 100%)',
+                'radial-gradient(circle at 50% 42%, #1a6b52 0%, #12513e 55%, #0b3a2c 100%)',
               boxShadow: 'inset 0 0 60px rgba(0,0,0,0.35)',
             }}
           />
@@ -556,11 +556,11 @@ export function Table({ state, sessionId, send }: Props) {
                   <button
                     type="button"
                     onClick={onCopyCode}
-                    className="z-10 flex items-center gap-2 rounded-lg border-2 border-[#c9a56e] bg-parchment px-3 py-1 font-hand shadow-md"
+                    className="z-10 flex items-center gap-2 rounded-lg border-2 border-gild bg-parchment px-3 py-1 font-hand shadow-md"
                     aria-label={t('copyCode')}
                   >
                     <span className="text-sm text-ink-soft">{t('tableCode')}</span>
-                    <span className="num text-xl font-bold tracking-[0.25em] text-wood">
+                    <span className="num text-xl font-bold tracking-[0.25em] text-ember">
                       {state.joinCode}
                     </span>
                     <span className="text-sm text-amber-deep">
