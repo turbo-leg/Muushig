@@ -77,6 +77,7 @@ const messages = {
   },
   watchingCount: { en: '👁 {n} watching', mn: '👁 {n} үзэж байна' },
   trumpLabel: { en: 'Trump', mn: 'Хөзөр' },
+  noCardsYet: { en: 'No cards down yet…', mn: 'Хөзөр тавигдаагүй…' },
 
   // ── Round end / game end ──
   roundOver: { en: 'Round over', mn: 'Үе дууслаа' },

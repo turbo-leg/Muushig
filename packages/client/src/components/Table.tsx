@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState } from '@muushig/shared';
 import { MAX_CONSECUTIVE_FOLDS } from '@muushig/shared';
 import type { CardVM, SeatVM, TrickPlayVM, Phase } from '../game/types';
-import { cardKey, legalMoves } from '../game/legalMoves';
+import { cardKey, legalMoves, currentBest } from '../game/legalMoves';
 import { botAvatar } from '../game/avatars';
 import { Seat } from './Seat';
 import { Scoreboard } from './Scoreboard';
@@ -13,7 +13,8 @@ import { HelpBook } from './HelpBook';
 import { hasPlayedOnce, markPlayedOnce } from '../lib/firstRun';
 import { ScoreSheet } from './ScoreSheet';
 import { PipView } from './PipView';
-import { Trick } from './Trick';
+import { Trick, TrickPile } from './Trick';
+import { PlayingCard } from './PlayingCard';
 import {
   useLayoutMode,
   useThermalThrottle,
@@ -216,6 +217,39 @@ function DrinkingHornProp() {
   );
 }
 
+/**
+ * A ghost stack of face-down cards that flies from the table center to the
+ * trick winner's seat, then fades. Mounted fresh (keyed) per collected trick;
+ * left/top are arena percentages, matching the opponent ring coordinates.
+ */
+function TrickCollect({ left, top }: { left: number; top: number }) {
+  const [fly, setFly] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFly(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute z-30 transition-all duration-500 ease-in"
+      style={{
+        left: fly ? `${left}%` : '50%',
+        top: fly ? `${top}%` : '50%',
+        opacity: fly ? 0.1 : 1,
+        transform: `translate(-50%, -50%) scale(${fly ? 0.45 : 1})`,
+      }}
+    >
+      <div className="relative h-14 w-11">
+        {[-8, 0, 8].map((deg) => (
+          <div key={deg} className="absolute inset-0" style={{ transform: `rotate(${deg}deg)` }}>
+            <PlayingCard faceDown className="w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Marble message panel centered on the table */
 function MessagePanel({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -279,6 +313,22 @@ export function Table({ state, sessionId, send }: Props) {
       card: { suit: tp.card.suit, rank: tp.card.rank },
     }),
   );
+
+  // ── Trick reveal: while the server holds a completed trick face-up, work
+  // out who takes it so the winning card can glow (mirror of engine logic).
+  const activeSeatCount = seats.filter((s) => !s.hasResigned).length;
+  const trickComplete =
+    phase === 'playing' &&
+    trick.length > 0 &&
+    activeSeatCount > 0 &&
+    trick.length >= activeSeatCount;
+  let trickWinnerId: string | null = null;
+  if (trickComplete) {
+    const ledSuit = state.ledSuit || trick[0]!.card.suit;
+    const best = currentBest(trick, ledSuit, state.trumpSuit);
+    trickWinnerId =
+      trick.find((p) => p.card.suit === best?.suit && p.card.rank === best?.rank)?.playerId ?? null;
+  }
 
   const trumpCard: CardVM | null = state.trumpSuit
     ? { suit: state.trumpCard.suit, rank: state.trumpCard.rank }
@@ -481,6 +531,29 @@ export function Table({ state, sessionId, send }: Props) {
       ? [...seats.slice(meIdx + 1), ...seats.slice(0, meIdx)]
       : seats.filter((s) => !s.isMe);
 
+  // ── Fly the collected trick toward its winner when the server clears it ──
+  const [collect, setCollect] = useState<{ key: number; left: number; top: number } | null>(null);
+  const prevTrickRef = useRef({ len: 0, winnerId: null as string | null });
+  useEffect(() => {
+    const prev = prevTrickRef.current;
+    if (trick.length === 0 && prev.len >= 2 && prev.winnerId) {
+      const idx = opponents.findIndex((o) => o.id === prev.winnerId);
+      const pos =
+        prev.winnerId === sessionId
+          ? { left: 50, top: 106 } // my seat sits below the felt
+          : idx >= 0
+            ? ringSlot(ringSlots, opponents.length, idx)
+            : { left: 50, top: 50 };
+      setCollect({ key: Date.now(), ...pos });
+      const timer = window.setTimeout(() => setCollect(null), 700);
+      prevTrickRef.current = { len: 0, winnerId: null };
+      return () => window.clearTimeout(timer);
+    }
+    prevTrickRef.current = { len: trick.length, winnerId: trickWinnerId ?? prev.winnerId };
+    // The trick snapshot is rebuilt every render; length + winner are the real triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trick.length, trickWinnerId]);
+
   // Rich Presence on the friends list — updates only when phase/score changes.
   const myScore = me?.score ?? 15;
   useEffect(() => {
@@ -577,7 +650,7 @@ export function Table({ state, sessionId, send }: Props) {
                     {t('tapCardForTrump')}
                   </p>
                 )}
-                <Trick plays={trick} trumpSuit={state.trumpSuit} />
+                <Trick plays={trick} trumpSuit={state.trumpSuit} winnerId={trickWinnerId} />
               </>
             )}
           </div>
@@ -592,23 +665,29 @@ export function Table({ state, sessionId, send }: Props) {
                 className="absolute z-10 origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.78] sm:scale-100"
                 style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
               >
-                <Seat
-                  seat={s}
-                  phase={phase}
-                  compact
-                  seatNumber={opponentSeatNum}
-                  onRemove={
-                    isHost && phase === 'waiting' && !s.isMe
-                      ? s.isBot
-                        ? () => onRemoveBot(s.id)
-                        : () => onKickSeat(s.id)
-                      : undefined
-                  }
-                  removeArmed={armedKickId === s.id}
-                />
+                <div className="flex flex-col items-center gap-0.5">
+                  <Seat
+                    seat={s}
+                    phase={phase}
+                    compact
+                    seatNumber={opponentSeatNum}
+                    onRemove={
+                      isHost && phase === 'waiting' && !s.isMe
+                        ? s.isBot
+                          ? () => onRemoveBot(s.id)
+                          : () => onKickSeat(s.id)
+                        : undefined
+                    }
+                    removeArmed={armedKickId === s.id}
+                  />
+                  <TrickPile count={s.tricksWon} label={t('tricksShort', { n: s.tricksWon })} />
+                </div>
               </div>
             );
           })}
+
+          {/* The collected trick flying to its winner. */}
+          {collect && <TrickCollect key={collect.key} left={collect.left} top={collect.top} />}
         </div>
       </div>
 
@@ -616,7 +695,12 @@ export function Table({ state, sessionId, send }: Props) {
         {phase === 'finished' && me && me.scoreLog.length > 0 && (
           <MatchRecap scoreLog={me.scoreLog} />
         )}
-        {me && <Seat seat={me} phase={phase} seatNumber={1} />}
+        {me && (
+          <div className="flex items-center gap-2">
+            <Seat seat={me} phase={phase} seatNumber={1} />
+            <TrickPile count={me.tricksWon} label={t('tricksShort', { n: me.tricksWon })} />
+          </div>
+        )}
         <Hand
           cards={myHand}
           phase={phase}

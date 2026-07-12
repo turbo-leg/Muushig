@@ -14,6 +14,7 @@ import { MatchRecap, summarizeScoreLog } from '../components/MatchRecap';
 import { HelpBook } from '../components/HelpBook';
 import { Lobby } from '../components/Lobby';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { Trick, TrickPile } from '../components/Trick';
 import { Settings } from '../components/Settings';
 import type { SeatVM } from '../game/types';
 
@@ -393,6 +394,41 @@ describe('HelpBook', () => {
 
     await userEvent.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledOnce();
+  });
+});
+
+describe('Trick', () => {
+  const plays = [
+    { playerId: 'a', username: 'Ariun', card: { suit: 'Spades', rank: 10 } },
+    { playerId: 'b', username: 'Bat', card: { suit: 'Spades', rank: 13 } },
+  ];
+
+  test('highlights the winner during the reveal and dims the rest', () => {
+    const { container } = render(<Trick plays={plays} trumpSuit="Hearts" winnerId="b" />);
+    const winner = container.querySelector('[data-winner]');
+    expect(winner).not.toBeNull();
+    expect(winner!.textContent).toContain('Bat');
+    expect(container.querySelectorAll('[data-winner]')).toHaveLength(1);
+  });
+
+  test('no highlight while the trick is still open', () => {
+    const { container } = render(<Trick plays={plays} trumpSuit="Hearts" winnerId={null} />);
+    expect(container.querySelector('[data-winner]')).toBeNull();
+  });
+});
+
+describe('TrickPile', () => {
+  test('stacks one face-down card per trick, capped at five', () => {
+    const { rerender } = render(<TrickPile count={3} label="3 tricks" />);
+    expect(screen.getAllByLabelText('Face-down card')).toHaveLength(3);
+    rerender(<TrickPile count={7} label="7 tricks" />);
+    expect(screen.getAllByLabelText('Face-down card')).toHaveLength(5);
+    expect(screen.getByText('×7')).toBeInTheDocument();
+  });
+
+  test('renders nothing for zero tricks', () => {
+    const { container } = render(<TrickPile count={0} label="0 tricks" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
