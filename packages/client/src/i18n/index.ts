@@ -200,6 +200,16 @@ const messages = {
   kickedNotice: { en: 'You were removed from the table.', mn: 'Таныг ширээнээс гаргалаа.' },
   confirmKick: { en: 'Tap ✕ again to remove {name}', mn: '{name}-г гаргахын тулд ✕ дахин дар' },
   leaveTable: { en: 'Leave table', mn: 'Ширээ орхих' },
+  openTables: { en: 'Open tables', mn: 'Нээлттэй ширээнүүд' },
+  refreshTables: { en: 'Refresh', mn: 'Шинэчлэх' },
+  noTablesYet: { en: 'No tables yet — start one with Play.', mn: 'Ширээ алга — Тоглох дар.' },
+  joinTable: { en: 'Join', mn: 'Суух' },
+  watchTable: { en: 'Watch', mn: 'Үзэх' },
+  inGameLabel: { en: 'in game', mn: 'тоглож байна' },
+  unnamedTable: { en: '{host}’s table', mn: '{host}-н ширээ' },
+  tableNamePlaceholder: { en: 'Table name (optional)', mn: 'Ширээний нэр (заавал биш)' },
+  privateToggle: { en: 'Private (join by code)', mn: 'Хаалттай (кодоор орно)' },
+  premiumOnly: { en: 'Hosting tables is a premium perk.', mn: 'Ширээ гаргах нь premium эрх.' },
 
   // ── First-game hints ──
   hintDecision: {

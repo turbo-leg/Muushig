@@ -273,21 +273,79 @@ describe('ErrorBoundary', () => {
 });
 
 describe('Lobby', () => {
-  test('offers quick play, hosting with a seat count, and code join', async () => {
+  const lobbiesResponse = (lobbies: unknown[]) =>
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ lobbies }) });
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', lobbiesResponse([]));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('offers quick play, premium hosting with options, and code join', async () => {
     const onJoin = vi.fn();
-    render(<Lobby onJoin={onJoin} />);
+    render(<Lobby onJoin={onJoin} canHost />);
 
     await userEvent.click(screen.getByRole('button', { name: /play/i }));
     expect(onJoin).toHaveBeenCalledWith({ mode: 'quick' });
 
+    await userEvent.type(screen.getByRole('textbox', { name: /table name/i }), 'Ger');
     await userEvent.click(screen.getByRole('radio', { name: '3' }));
+    await userEvent.click(screen.getByRole('checkbox'));
     await userEvent.click(screen.getByRole('button', { name: /host a table/i }));
-    expect(onJoin).toHaveBeenCalledWith({ mode: 'create', maxPlayers: 3 });
+    expect(onJoin).toHaveBeenCalledWith({
+      mode: 'create',
+      maxPlayers: 3,
+      isPrivate: true,
+      tableName: 'Ger',
+    });
+  });
+
+  test('non-premium users see the host section locked', () => {
+    render(<Lobby onJoin={vi.fn()} canHost={false} />);
+    expect(screen.getByText(/premium/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /host a table/i })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: /table name/i })).toBeDisabled();
+  });
+
+  test('lists open tables with join/watch affordances', async () => {
+    vi.stubGlobal(
+      'fetch',
+      lobbiesResponse([
+        {
+          roomId: 'r1',
+          name: 'Ger',
+          host: 'A',
+          phase: 'waiting',
+          playerCount: 2,
+          maxPlayers: 5,
+          spectatorCount: 0,
+        },
+        {
+          roomId: 'r2',
+          name: null,
+          host: 'Bat',
+          phase: 'playing',
+          playerCount: 3,
+          maxPlayers: 3,
+          spectatorCount: 1,
+        },
+      ]),
+    );
+    const onJoin = vi.fn();
+    render(<Lobby onJoin={onJoin} canHost={false} />);
+
+    expect(await screen.findByText('Ger')).toBeInTheDocument();
+    expect(screen.getByText('Bat’s table')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^join$/i }));
+    expect(onJoin).toHaveBeenCalledWith({ mode: 'room', roomId: 'r1' });
+    expect(screen.getByRole('button', { name: /watch/i })).toBeInTheDocument();
   });
 
   test('normalizes the code input and only enables join for valid codes', async () => {
     const onJoin = vi.fn();
-    render(<Lobby onJoin={onJoin} />);
+    render(<Lobby onJoin={onJoin} canHost={false} />);
     const input = screen.getByRole('textbox', { name: /join with code/i });
     const joinBtn = screen.getByRole('button', { name: /join with code/i });
 
@@ -300,7 +358,7 @@ describe('Lobby', () => {
   });
 
   test('shows a notice from a previous session', () => {
-    render(<Lobby onJoin={vi.fn()} notice="That table is gone." />);
+    render(<Lobby onJoin={vi.fn()} notice="That table is gone." canHost={false} />);
     expect(screen.getByText('That table is gone.')).toBeInTheDocument();
   });
 });

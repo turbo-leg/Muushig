@@ -8,7 +8,7 @@ import {
   MAX_PLAYERS,
 } from '@muushig/shared';
 import { parseCard, parseIndices, sanitizeString, sanitizeUsername } from './roomHelpers';
-import { verifyUser, type AuthedUser } from '../lib/supabase';
+import { verifyUser, isPremium, type AuthedUser } from '../lib/supabase';
 import { log } from '../lib/log';
 import { StatsCollector, type SeatIdentity } from '../stats/StatsCollector';
 import { createSupabaseRecorder, type MatchRecorderFn } from '../stats/MatchRecorder';
@@ -66,6 +66,10 @@ interface CreateOptions extends JoinOptions {
   privateTable?: boolean;
   /** Explicit join code (tests) — only honored together with privateTable. */
   joinCode?: string;
+  /** A deliberately hosted (browsable, nameable) table — premium only, like
+   *  privateTable. Quick-play auto-creation sets neither flag and stays free. */
+  customTable?: boolean;
+  tableName?: string;
 }
 
 /**
@@ -109,6 +113,8 @@ export class MuushigRoom extends Room<GameState> {
   private identities = new Map<string, AuthedUser>();
   private collector = new StatsCollector();
   private recorder: MatchRecorderFn | null = null;
+  /** Display name for hosted tables (lobby browser). */
+  private tableName = '';
 
   async onCreate(options: CreateOptions = {}): Promise<void> {
     this.setState(new GameState());
@@ -134,6 +140,19 @@ export class MuushigRoom extends Room<GameState> {
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
+
+    // Hosting a custom table (named/browsable or private/code-joined) is a
+    // premium feature, verified server-side from the creator's token. Plain
+    // quick-play rooms (neither flag) are created freely by matchmaking.
+    if (options.privateTable || options.customTable) {
+      const creator = await verifyUser(
+        typeof options.accessToken === 'string' ? options.accessToken : undefined,
+      );
+      if (!creator || !(await isPremium(creator.id))) {
+        throw new Error('Hosting tables requires a premium account');
+      }
+      this.tableName = sanitizeUsername(options.tableName).slice(0, 24);
+    }
 
     // Private, code-joined table: hidden from matchmaking; friends resolve the
     // code via GET /api/table/:code and joinById.
@@ -777,6 +796,10 @@ export class MuushigRoom extends Room<GameState> {
       spectatorCount: this.state.spectators.size,
       phase: this.state.phase,
       joinCode: this.state.joinCode || undefined,
+      tableName: this.tableName || undefined,
+      hostName: this.state.hostId
+        ? (this.state.players.get(this.state.hostId)?.username ?? undefined)
+        : undefined,
     }).catch(() => {});
   }
 

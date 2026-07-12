@@ -207,12 +207,39 @@ function GameView({
   );
 }
 
+/** Display-only premium check for the Lobby's host section (server re-verifies). */
+function useCanHost(): boolean {
+  const { session } = useAuth();
+  const [canHost, setCanHost] = useState(false);
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setCanHost(false);
+      return;
+    }
+    let active = true;
+    void supabase
+      .from('profiles')
+      .select('premium')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setCanHost(!!(data as { premium?: boolean } | null)?.premium);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+  return canHost;
+}
+
 /** Picks the table (web Lobby) or auto-joins (Discord), then runs the game. */
 function TableRouter() {
   // Inside Discord the activity instance IS the table — always quick-join.
   const [intent, setIntent] = useState<JoinIntent | null>(() =>
     isEmbedded ? { mode: 'quick' } : readStoredIntent(),
   );
+  const canHost = useCanHost();
   const [notice, setNotice] = useState<string | null>(null);
   // Bumped on embedded exits so GameView remounts into a fresh join.
   const [nonce, setNonce] = useState(0);
@@ -238,6 +265,7 @@ function TableRouter() {
         )}
         <Lobby
           notice={notice}
+          canHost={canHost}
           onJoin={(next) => {
             setNotice(null);
             setIntent(next);

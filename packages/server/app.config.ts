@@ -89,6 +89,47 @@ export default config({
       return res.json({ ok: true });
     });
 
+    // Public web tables for the lobby browser. Private (code) tables and
+    // Discord activity-instance rooms are excluded — the latter belong to
+    // their voice channel, not the open web.
+    app.get('/api/lobbies', async (_req, res) => {
+      try {
+        const rooms = await matchMaker.query({ name: 'muushig', private: false });
+        const lobbies = rooms
+          .map((r) => {
+            const m = (r.metadata ?? {}) as {
+              tableName?: string;
+              hostName?: string;
+              phase?: string;
+              playerCount?: number;
+              maxPlayers?: number;
+              spectatorCount?: number;
+              discordInstanceId?: string | null;
+            };
+            return {
+              roomId: r.roomId,
+              name: m.tableName ?? null,
+              host: m.hostName ?? null,
+              phase: m.phase ?? 'waiting',
+              playerCount: m.playerCount ?? 0,
+              maxPlayers: m.maxPlayers ?? 5,
+              spectatorCount: m.spectatorCount ?? 0,
+              discord:
+                !!m.discordInstanceId &&
+                m.discordInstanceId !== 'web' &&
+                m.discordInstanceId !== 'local-dev',
+            };
+          })
+          .filter((l) => !l.discord)
+          .sort((a, b) => (a.phase === 'waiting' ? 0 : 1) - (b.phase === 'waiting' ? 0 : 1))
+          .slice(0, 50)
+          .map(({ discord: _discord, ...rest }) => rest);
+        return res.json({ lobbies });
+      } catch {
+        return res.status(500).json({ error: 'lookup failed' });
+      }
+    });
+
     // Resolve a private-table join code to a joinable roomId. Codes only exist
     // on privateTable rooms; the driver query sees private rooms (they are
     // merely hidden from matchmaking), and works across processes via Redis.
