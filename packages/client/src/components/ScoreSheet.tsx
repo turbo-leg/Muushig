@@ -34,13 +34,13 @@ export function ScoreSheet({ seats, onClose }: Props) {
         className="relative flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-[12px] border-2 border-ink bg-parchment shadow-[0_12px_40px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b-2 border-[#c9a56e] px-4 py-2">
-          <h2 className="font-hand text-2xl font-bold text-ink">{t('scoresheet')}</h2>
+        <div className="flex items-center justify-between border-b-2 border-gild px-4 py-2">
+          <h2 className="font-display text-3xl font-bold text-ink">{t('scoresheet')}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close scoresheet"
-            className="grid h-9 w-9 place-items-center rounded-full font-hand text-xl font-bold text-wood hover:bg-wood/10 hover:text-amber-deep"
+            className="grid h-9 w-9 place-items-center rounded-full font-hand text-xl font-bold text-ember hover:bg-wood/10 hover:text-amber-deep"
           >
             ✕
           </button>
@@ -105,7 +105,7 @@ export function ScoreSheet({ seats, onClose }: Props) {
           </table>
         </div>
 
-        <p className="border-t border-[#c9a56e] px-4 py-2 font-hand text-sm text-ink-soft">
+        <p className="border-t border-gild px-4 py-2 font-hand text-sm text-ink-soft">
           Start at 15, count down to 0. “-” = folded that round.
         </p>
       </div>

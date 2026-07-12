@@ -50,7 +50,7 @@ interface Props {
 /** Cozy, hand-drawn unrolled parchment scroll strip. */
 function StatusScroll({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex h-[50px] min-w-[180px] max-w-[82vw] select-none items-center justify-center rounded-[7px] border-2 border-[#c9a56e] bg-parchment px-5 shadow-[0_3px_6px_rgba(0,0,0,0.3),inset_0_0_14px_rgba(120,80,40,0.18)] sm:min-w-[260px] sm:px-8">
+    <div className="relative flex h-[50px] min-w-[180px] max-w-[82vw] select-none items-center justify-center rounded-[7px] border-2 border-gild bg-parchment px-5 shadow-[0_3px_6px_rgba(0,0,0,0.3),inset_0_0_14px_rgba(0,0,0,0.45)] sm:min-w-[260px] sm:px-8">
       <span className="relative z-10 mt-0.5 truncate font-hand text-lg font-bold leading-none text-ink">
         {children}
       </span>
@@ -105,7 +105,20 @@ function LeaveButton({
           : 'border-ink/40 bg-wood-dark/55 text-cream/70 hover:bg-wood/50 hover:text-cream'
       }`}
     >
-      🚪
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <path d="M16 17l5-5-5-5M21 12H9" />
+      </svg>
     </button>
   );
 }
@@ -119,7 +132,20 @@ function GearButton({ onClick }: { onClick: () => void }) {
       aria-label={t('openSettings')}
       className="grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-ink/40 bg-wood-dark/55 font-hand text-lg text-cream/70 transition-colors select-none hover:bg-wood/50 hover:text-cream focus-visible:ring-2 focus-visible:ring-amber focus-visible:outline-none"
     >
-      ⚙
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.98 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.98a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01A1.7 1.7 0 0 0 10.05 3.1V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03Z" />
+      </svg>
     </button>
   );
 }
@@ -141,7 +167,7 @@ export function ActionBar(props: Props) {
     <div className="flex w-full flex-col items-center gap-1.5 select-none">
       {props.hint && (
         <p className="max-w-[85vw] text-center font-hand text-sm leading-tight text-cream/70">
-          💡 {props.hint}
+          {props.hint}
         </p>
       )}
       <div className="flex w-full items-center justify-center gap-3">

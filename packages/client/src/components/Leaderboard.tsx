@@ -53,7 +53,7 @@ export function Leaderboard({ onClose }: { onClose: () => void }) {
         >
           ✕
         </button>
-        <h2 className="font-hand text-2xl font-bold text-ink">🏆 {t('leaderboardTitle')}</h2>
+        <h2 className="font-display text-3xl font-bold text-ink">{t('leaderboardTitle')}</h2>
 
         {!rows ? (
           <p className="font-hand text-ink-soft">{t('loadingEllipsis')}</p>
@@ -66,7 +66,7 @@ export function Leaderboard({ onClose }: { onClose: () => void }) {
                 key={`${r.username}-${i}`}
                 className="flex items-center gap-2 rounded border border-ink/15 bg-parchment-deep/40 px-3 py-1.5 font-hand"
               >
-                <span className="num w-6 shrink-0 text-right font-bold text-wood">{i + 1}</span>
+                <span className="num w-6 shrink-0 text-right font-bold text-ember">{i + 1}</span>
                 <span className="min-w-0 flex-1 truncate font-bold text-ink">{r.username}</span>
                 <span className="shrink-0 text-sm text-ink-soft">
                   {r.games_won}/{r.games_played} {t('colGames').toLowerCase()}

@@ -41,7 +41,7 @@ function TableRow({ row, onJoin }: { row: LobbyRow; onJoin: (intent: JoinIntent)
       <button
         type="button"
         onClick={() => onJoin({ mode: 'room', roomId: row.roomId })}
-        className="shrink-0 rounded-lg border border-amber-deep bg-amber px-3 py-0.5 font-hand text-sm font-bold text-ink shadow-sm disabled:opacity-40"
+        className="shrink-0 rounded-lg border border-amber-deep bg-amber px-3 py-0.5 font-hand text-sm font-bold text-[#1d1503] shadow-sm disabled:opacity-40"
         disabled={waiting && !seatFree}
       >
         {seatFree ? t('joinTable') : t('watchTable')}
@@ -87,7 +87,7 @@ export function Lobby({
     <main className="flex min-h-full items-center justify-center p-4">
       <div className="flex w-full max-w-sm flex-col items-center gap-4">
         <header className="text-center">
-          <h1 className="font-hand text-4xl font-bold text-cream">{t('lobbyTitle')}</h1>
+          <h1 className="font-display text-5xl font-bold text-cream">{t('lobbyTitle')}</h1>
           <p className="font-hand text-xl text-cream/70">{t('lobbySubtitle')}</p>
         </header>
 
@@ -102,7 +102,7 @@ export function Lobby({
         </Button>
 
         {/* Live table browser */}
-        <div className="w-full rounded-[10px] border-2 border-[#c9a56e] bg-parchment px-4 py-3 [box-shadow:inset_0_0_14px_rgba(120,80,40,0.18)]">
+        <div className="w-full rounded-[10px] border-2 border-gild bg-parchment px-4 py-3 [box-shadow:inset_0_0_14px_rgba(0,0,0,0.45)]">
           <div className="mb-1.5 flex items-baseline justify-between">
             <h2 className="font-hand text-lg font-bold text-ink">{t('openTables')}</h2>
             <button
@@ -128,12 +128,12 @@ export function Lobby({
 
         {/* Host a table — premium perk (server re-verifies) */}
         <div
-          className={`flex w-full flex-col items-center gap-2 rounded-[10px] border-2 border-[#c9a56e] bg-parchment px-4 py-3 [box-shadow:inset_0_0_14px_rgba(120,80,40,0.18)] ${
+          className={`flex w-full flex-col items-center gap-2 rounded-[10px] border-2 border-gild bg-parchment px-4 py-3 [box-shadow:inset_0_0_14px_rgba(0,0,0,0.45)] ${
             canHost ? '' : 'opacity-70'
           }`}
         >
           {!canHost && (
-            <p className="font-hand text-sm font-bold text-amber-deep">👑 {t('premiumOnly')}</p>
+            <p className="font-hand text-sm font-bold text-amber-deep">{t('premiumOnly')}</p>
           )}
           <input
             value={tableName}
@@ -141,7 +141,7 @@ export function Lobby({
             placeholder={t('tableNamePlaceholder')}
             aria-label={t('tableNamePlaceholder')}
             disabled={!canHost}
-            className="w-full rounded-lg border-2 border-[#c9a56e] bg-parchment px-3 py-1.5 text-center font-hand text-lg text-ink outline-none focus:border-amber-deep disabled:opacity-60"
+            className="w-full rounded-lg border-2 border-gild bg-parchment px-3 py-1.5 text-center font-hand text-lg text-ink outline-none focus:border-amber-deep disabled:opacity-60"
           />
           <div
             className="flex items-center gap-1.5"
@@ -158,7 +158,7 @@ export function Lobby({
                 onClick={() => setMaxPlayers(n)}
                 className={`grid h-9 w-9 place-items-center rounded-full border font-hand text-lg font-bold disabled:opacity-60 ${
                   maxPlayers === n
-                    ? 'border-amber-deep bg-amber text-ink'
+                    ? 'border-amber-deep bg-amber text-[#1d1503]'
                     : 'border-ink/30 bg-parchment-deep/50 text-ink-soft'
                 }`}
               >
@@ -215,7 +215,7 @@ export function Lobby({
             autoCapitalize="characters"
             autoCorrect="off"
             spellCheck={false}
-            className="num w-28 rounded-lg border-2 border-[#c9a56e] bg-parchment px-3 py-2 text-center font-hand text-xl font-bold tracking-[0.3em] text-ink outline-none focus:border-amber-deep"
+            className="num w-28 rounded-lg border-2 border-gild bg-parchment px-3 py-2 text-center font-hand text-xl font-bold tracking-[0.3em] text-ink outline-none focus:border-amber-deep"
           />
           <Button variant="coin" secondary sub={tAlt('joinWithCode')} disabled={!codeOk}>
             {t('joinWithCode')}

@@ -14,7 +14,7 @@ function RoleChip({ label, gold }: { label: string; gold?: boolean }) {
   return (
     <span
       className={`grid h-6 min-w-6 select-none place-items-center rounded-full border border-ink/40 px-1.5 font-hand text-xs font-bold leading-none shadow-sm ${
-        gold ? 'bg-amber text-ink' : 'bg-parchment text-wood'
+        gold ? 'bg-amber text-[#1d1503]' : 'bg-parchment text-ember'
       }`}
     >
       {label}
@@ -96,14 +96,14 @@ export function HelpBook({ onClose }: { onClose: () => void }) {
           ✕
         </button>
 
-        <header className="flex items-baseline justify-between gap-2 border-b-2 border-[#c9a56e] pb-2 pr-6">
-          <h2 className="font-hand text-2xl font-bold text-ink">{t('helpTitle')}</h2>
+        <header className="flex items-baseline justify-between gap-2 border-b-2 border-gild pb-2 pr-6">
+          <h2 className="font-display text-3xl font-bold text-ink">{t('helpTitle')}</h2>
           <span className="num font-hand text-sm text-ink-soft">
             {t('helpPageOf', { n: page + 1, total: PAGES.length })}
           </span>
         </header>
 
-        <h3 className="font-hand text-xl font-bold text-wood">{t(def.titleKey)}</h3>
+        <h3 className="font-hand text-xl font-bold text-ember">{t(def.titleKey)}</h3>
 
         {def.diagram && <div className="py-1">{def.diagram()}</div>}
 

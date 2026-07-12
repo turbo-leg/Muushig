@@ -25,7 +25,7 @@ function GlobalSVGDefs() {
           <feDisplacementMap
             in="SourceGraphic"
             in2="noise"
-            scale="2"
+            scale="0.6"
             xChannelSelector="R"
             yChannelSelector="G"
           />
@@ -64,7 +64,7 @@ function AccountBar({ onProfile }: { onProfile: () => void }) {
         type="button"
         onClick={onProfile}
         aria-label="Open profile"
-        className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center font-hand text-lg text-wood"
+        className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center font-hand text-lg text-ember"
         style={avatar ? { backgroundImage: `url("${avatar}")` } : undefined}
       >
         {!avatar && name.charAt(0).toUpperCase()}
@@ -89,7 +89,20 @@ function LeaderboardButton({ onClick }: { onClick: () => void }) {
       aria-label={t('openLeaderboard')}
       className="fixed left-[max(0.75rem,var(--safe-left))] top-[max(0.75rem,var(--safe-top))] z-40 grid h-10 w-10 place-items-center rounded-full border-2 border-amber-deep bg-parchment-deep text-lg select-none"
     >
-      🏆
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+        <path d="M7 6H4a2 2 0 0 0 2 4h1M17 6h3a2 2 0 0 1-2 4h-1" />
+      </svg>
     </button>
   );
 }
@@ -101,7 +114,7 @@ function HelpCornerButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label={t('helpOpen')}
-      className="fixed left-[max(0.75rem,var(--safe-left))] top-[calc(max(0.75rem,var(--safe-top))+3rem)] z-40 grid h-10 w-10 place-items-center rounded-full border-2 border-amber-deep bg-parchment-deep font-hand text-lg font-bold text-wood select-none"
+      className="fixed left-[max(0.75rem,var(--safe-left))] top-[calc(max(0.75rem,var(--safe-top))+3rem)] z-40 grid h-10 w-10 place-items-center rounded-full border-2 border-amber-deep bg-parchment-deep font-hand text-lg font-bold text-ember select-none"
     >
       ?
     </button>
@@ -185,7 +198,7 @@ function GameView({
       {status === 'reconnecting' &&
         (state ? (
           <div
-            className="fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-lg border-2 border-amber-deep bg-parchment px-4 py-1.5 font-hand text-lg text-wood shadow-lg"
+            className="fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-lg border-2 border-amber-deep bg-parchment px-4 py-1.5 font-hand text-lg text-ember shadow-lg"
             role="status"
           >
             {t('reconnectingTable')}

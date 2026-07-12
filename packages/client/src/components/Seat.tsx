@@ -48,7 +48,7 @@ function RoleBadge({ kind }: { kind: 'dealer' | 'amankhuzuu' }) {
       className={[
         'grid h-5 min-w-5 select-none place-items-center rounded-full px-1 font-hand text-[10px] font-bold leading-none shadow-sm',
         'border border-ink/40 ring-1 ring-black/5 z-20',
-        dealer ? 'bg-parchment text-wood' : 'bg-amber text-ink',
+        dealer ? 'bg-parchment text-ember' : 'bg-amber text-[#1d1503]',
       ].join(' ')}
     >
       {dealer ? 'D' : 'АМ'}
@@ -178,13 +178,13 @@ export function Seat({ seat, phase, seatNumber, onRemove, removeArmed }: Props) 
       {/* CSS placard backing (no image) */}
       <div
         className={`absolute inset-0 pointer-events-none rounded-[10px] border-2 drop-shadow-[0_4px_8px_rgba(0,0,0,0.35)] ${
-          seat.isMe ? 'border-amber-deep' : 'border-[#7a5a42]'
+          seat.isMe ? 'border-amber-deep' : 'border-[#4a3f33]'
         }`}
         style={{
           background: seat.isMe
-            ? 'linear-gradient(180deg, #f5e6d3, #e2c79f)'
-            : 'linear-gradient(180deg, #e7d2b3, #cdb088)',
-          boxShadow: 'inset 0 0 12px rgba(120,80,40,0.25)',
+            ? 'linear-gradient(180deg, #332c26, #262019)'
+            : 'linear-gradient(180deg, #2b2521, #1f1a16)',
+          boxShadow: 'inset 0 0 12px rgba(0,0,0,0.5)',
         }}
       />
 
@@ -224,7 +224,7 @@ export function Seat({ seat, phase, seatNumber, onRemove, removeArmed }: Props) 
       <div className="absolute inset-0 z-10 flex items-center select-none pointer-events-none">
         {/* Left: Avatar portrait inside gold circle */}
         <div
-          className="absolute left-[14px] top-[10px] h-[44px] w-[44px] rounded-full border border-ink bg-parchment-deep overflow-hidden flex items-center justify-center font-hand text-wood"
+          className="absolute left-[14px] top-[10px] h-[44px] w-[44px] rounded-full border border-ink bg-parchment-deep overflow-hidden flex items-center justify-center font-hand text-ember"
           style={avatarStyle}
         >
           {!seat.avatarUrl && (
@@ -253,7 +253,7 @@ export function Seat({ seat, phase, seatNumber, onRemove, removeArmed }: Props) 
           <div className="flex items-center gap-1.5 mt-0.5 leading-none">
             <div className="flex items-center gap-0.5">
               <ScoreCoinSVG />
-              <span className="num font-hand text-[14px] font-bold text-wood">{seat.score}</span>
+              <span className="num font-hand text-[14px] font-bold text-ember">{seat.score}</span>
             </div>
             {status && (
               <span

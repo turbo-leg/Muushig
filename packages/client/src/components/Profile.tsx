@@ -195,13 +195,13 @@ export function Profile({ session, onClose }: { session: Session; onClose: () =>
 
         <header className="flex items-center gap-3">
           <div
-            className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center grid place-items-center font-hand text-2xl text-wood"
+            className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center grid place-items-center font-hand text-2xl text-ember"
             style={me.avatarUrl ? { backgroundImage: `url("${me.avatarUrl}")` } : undefined}
           >
             {!me.avatarUrl && me.username.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate font-hand text-2xl font-bold text-ink">{me.username}</h2>
+            <h2 className="truncate font-display text-3xl font-bold text-ink">{me.username}</h2>
             <p className="font-hand text-sm text-ink-soft">{t('muushigPlayer')}</p>
           </div>
           <Sparkline values={ratingSeries} />
@@ -278,7 +278,7 @@ export function Profile({ session, onClose }: { session: Session; onClose: () =>
 function Stat({ label, value, small }: { label: string; value: number | string; small?: boolean }) {
   return (
     <div className="rounded-lg border border-ink/15 bg-parchment-deep/40 py-2">
-      <div className={`num font-hand font-bold text-wood ${small ? 'text-lg' : 'text-2xl'}`}>
+      <div className={`num font-hand font-bold text-ember ${small ? 'text-lg' : 'text-2xl'}`}>
         {value}
       </div>
       <div className="font-hand text-xs uppercase tracking-wide text-ink-soft leading-tight">
