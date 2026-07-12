@@ -46,6 +46,7 @@ function createRoom(options: Record<string, unknown> = {}) {
     swapTimeLimit: 0,
     decisionTimeLimit: 0,
     roundEndPause: 0,
+    trickEndPause: 0,
     ...options,
   });
 }
@@ -683,6 +684,41 @@ describe('MuushigRoom — round flow', () => {
     expect(room.state.players.has(droppedId)).toBe(true);
     expect(room.state.players.get(droppedId)!.isConnected).toBe(false);
     expect(room.state.phase).toBe('swap');
+  });
+
+  test('holds a completed trick on display before resolving it, ignoring extra plays', async () => {
+    const { room, clients } = await startedRoom(2, { trickEndPause: 250 });
+
+    // Reach trick play with kept hands.
+    for (const id of [...room.state.seatOrder]) clientFor(clients, id).send('stay');
+    await waitUntil(() => room.state.phase === 'swap');
+    for (const id of [...room.state.seatOrder])
+      clientFor(clients, id).send('swap', { indices: [] });
+    await waitUntil(() => room.state.phase === 'playing');
+
+    // Play out the first trick (both seats).
+    playTurn(room, clients);
+    await waitUntil(() => room.state.currentTrick.length === 1);
+    playTurn(room, clients);
+    await waitUntil(() => room.state.currentTrick.length === 2);
+
+    // The full trick stays face-up during the pause — nothing resolved yet.
+    expect(room.state.tricksPlayed).toBe(0);
+    expect(
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.tricksWon === 0),
+    ).toBe(true);
+
+    // A play during the display window is ignored (no 3rd card sneaks in).
+    playTurn(room, clients);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(room.state.currentTrick.length).toBe(2);
+
+    // After the pause the trick is awarded and cleared.
+    await waitUntil(() => room.state.currentTrick.length === 0, 4000);
+    expect(room.state.tricksPlayed).toBe(1);
+    expect(
+      [...room.state.seatOrder].reduce((s, id) => s + room.state.players.get(id)!.tricksWon, 0),
+    ).toBe(1);
   });
 
   test('broadcasts roundEnd deltas and pauses before dealing the next round', async () => {

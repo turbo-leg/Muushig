@@ -29,6 +29,9 @@ const SPECTATOR_HEADROOM = 10;
 // Breather between scoring a round and dealing the next, so players can read
 // the score reveal before the cards move again.
 const DEFAULT_ROUND_END_PAUSE_MS = 4_000;
+// The completed trick stays face-up on the felt for this long before it is
+// resolved and collected — otherwise the last card only flashes for a frame.
+const DEFAULT_TRICK_END_PAUSE_MS = 1_800;
 // Join-code alphabet drops lookalikes (I/L/O/0/1) so codes survive being read
 // aloud across a table.
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -62,6 +65,7 @@ interface CreateOptions extends JoinOptions {
   reconnectWindow?: number;
   botDelay?: number;
   roundEndPause?: number;
+  trickEndPause?: number;
   /** Create a private, code-joined table instead of a public matchmade one. */
   privateTable?: boolean;
   /** Explicit join code (tests) — only honored together with privateTable. */
@@ -93,6 +97,10 @@ export class MuushigRoom extends Room<GameState> {
   private botDelay = BOT_ACT_DELAY_MS;
   private roundEndPause = DEFAULT_ROUND_END_PAUSE_MS;
   private roundPauseTimer: Delayed | null = null;
+  private trickEndPause = DEFAULT_TRICK_END_PAUSE_MS;
+  private trickPauseTimer: Delayed | null = null;
+  /** True while a completed trick sits on display — plays are ignored. */
+  private trickResolving = false;
   private discordInstanceId: string | null = null;
   private rematchVotes = new Set<string>();
   private rateLimit = new Map<string, number[]>();
@@ -137,6 +145,8 @@ export class MuushigRoom extends Room<GameState> {
       this.botDelay = options.botDelay;
     if (typeof options.roundEndPause === 'number' && options.roundEndPause >= 0)
       this.roundEndPause = options.roundEndPause;
+    if (typeof options.trickEndPause === 'number' && options.trickEndPause >= 0)
+      this.trickEndPause = options.trickEndPause;
 
     this.setPrivate(!!options.isPrivate);
     this.discordInstanceId = options.discordInstanceId ?? null;
@@ -329,6 +339,8 @@ export class MuushigRoom extends Room<GameState> {
     this.botTimer = null;
     this.roundPauseTimer?.clear();
     this.roundPauseTimer = null;
+    this.trickPauseTimer?.clear();
+    this.trickPauseTimer = null;
     this.collector.abort();
     log('info', 'room_disposed', { roomId: this.roomId, phase: this.state.phase });
   }
@@ -391,6 +403,7 @@ export class MuushigRoom extends Room<GameState> {
 
   private handlePlayCard(client: Client, msg: unknown): void {
     if (this.state.phase !== 'playing') return;
+    if (this.trickResolving) return; // full trick on display — nothing to play into
     if (this.state.currentTurn !== client.sessionId) return;
     const card = parseCard(msg);
     if (!card) return;
@@ -569,11 +582,32 @@ export class MuushigRoom extends Room<GameState> {
   /** Resolves a completed trick and either continues, ends the round, or ends play. */
   private afterPlay(): void {
     if (MuushigEngine.isTrickComplete(this.state)) {
-      MuushigEngine.resolveTrick(this.state);
-      if (MuushigEngine.isRoundComplete(this.state)) {
-        this.concludeRound();
+      // Leave the full trick face-up for a beat so the last card is actually
+      // seen; plays are ignored meanwhile (trickResolving) and no turn timer
+      // runs. Clients highlight the winning card during this window.
+      this.clearTurnTimer();
+      if (this.trickEndPause <= 0) {
+        this.finishTrick();
         return;
       }
+      this.trickResolving = true;
+      this.trickPauseTimer?.clear();
+      this.trickPauseTimer = this.clock.setTimeout(() => this.finishTrick(), this.trickEndPause);
+      return;
+    }
+    this.startTurnTimer();
+  }
+
+  /** End of the trick-reveal pause: award the trick and move on. */
+  private finishTrick(): void {
+    this.trickPauseTimer?.clear();
+    this.trickPauseTimer = null;
+    this.trickResolving = false;
+    if (this.state.phase !== 'playing' || !MuushigEngine.isTrickComplete(this.state)) return;
+    MuushigEngine.resolveTrick(this.state);
+    if (MuushigEngine.isRoundComplete(this.state)) {
+      this.concludeRound();
+      return;
     }
     this.startTurnTimer();
   }
@@ -682,7 +716,7 @@ export class MuushigRoom extends Room<GameState> {
 
   /** Plays the first legal card for whoever is on turn (timeout / disconnect). */
   private autoPlayTurn(): void {
-    if (this.state.phase !== 'playing') return;
+    if (this.state.phase !== 'playing' || this.trickResolving) return;
     const turnId = this.state.currentTurn;
     const player = this.state.players.get(turnId);
     if (!player) return;
@@ -722,6 +756,7 @@ export class MuushigRoom extends Room<GameState> {
 
   /** Performs one bot action for whichever phase the game is in. */
   private actBot(id: string): void {
+    if (this.trickResolving) return;
     if (this.state.currentTurn !== id) return;
     const player = this.state.players.get(id);
     if (!player?.isBot) return;
