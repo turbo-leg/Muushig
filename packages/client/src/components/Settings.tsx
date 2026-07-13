@@ -159,6 +159,15 @@ export function Settings({ onClose, onOpenHelp }: { onClose: () => void; onOpenH
             ?
           </button>
         </Row>
+
+        <div className="mt-3 flex justify-center gap-4 text-sm text-ink-soft">
+          <a href="/privacy" target="_blank" rel="noreferrer" className="underline hover:text-ink">
+            {t('privacyLink')}
+          </a>
+          <a href="/terms" target="_blank" rel="noreferrer" className="underline hover:text-ink">
+            {t('termsLink')}
+          </a>
+        </div>
       </div>
     </div>
   );

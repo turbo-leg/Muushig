@@ -176,6 +176,8 @@ const messages = {
   musicVolume: { en: 'Music volume', mn: 'Хөгжмийн дуу' },
   languageRow: { en: 'Language', mn: 'Хэл' },
   rulesRow: { en: 'How to play', mn: 'Тоглох заавар' },
+  privacyLink: { en: 'Privacy Policy', mn: 'Нууцлалын бодлого' },
+  termsLink: { en: 'Terms of Service', mn: 'Үйлчилгээний нөхцөл' },
 
   // ── Crash fallback ──
   crashTitle: { en: 'The table wobbled', mn: 'Ширээ ганхлаа' },

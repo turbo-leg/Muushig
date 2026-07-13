@@ -167,6 +167,9 @@ export default config({
     const clientDist = path.resolve(__dirname, '../client/dist');
     if (fs.existsSync(clientDist)) {
       app.use(express.static(clientDist));
+      // Legal pages at clean URLs (Discord app verification links here).
+      app.get('/privacy', (_req, res) => res.sendFile(path.join(clientDist, 'privacy.html')));
+      app.get('/terms', (_req, res) => res.sendFile(path.join(clientDist, 'terms.html')));
       // SPA fallback for client routes (never for API / matchmaking / monitor).
       app.get('*', (req, res, next) => {
         if (/^\/(api|colyseus|matchmake|health)/.test(req.path)) return next();
