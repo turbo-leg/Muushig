@@ -8,6 +8,7 @@ import { Profile } from './components/Profile';
 import { Leaderboard } from './components/Leaderboard';
 import { Lobby } from './components/Lobby';
 import { Button } from './components/Button';
+import { LoadingIndicator } from './components/LoadingIndicator';
 import { useRoom, readStoredIntent, writeStoredIntent, type JoinIntent } from './net/useRoom';
 import { useAuth } from './auth/AuthContext';
 import { isEmbedded } from './discord';
@@ -182,7 +183,10 @@ function GameView({
 
       {status === 'connecting' && (
         <Centered>
-          <p className="text-center font-hand text-2xl text-cream/80">{t('settlingIn')}</p>
+          <div className="flex flex-col items-center gap-2">
+            <LoadingIndicator />
+            <p className="text-center font-hand text-2xl text-cream/80">{t('settlingIn')}</p>
+          </div>
         </Centered>
       )}
 
@@ -315,7 +319,10 @@ export default function App() {
         <GlobalSVGDefs />
         <Background />
         <Centered>
-          <p className="text-center font-hand text-2xl text-cream/80">{t('settlingIn')}</p>
+          <div className="flex flex-col items-center gap-2">
+            <LoadingIndicator />
+            <p className="text-center font-hand text-2xl text-cream/80">{t('settlingIn')}</p>
+          </div>
         </Centered>
       </>
     );
