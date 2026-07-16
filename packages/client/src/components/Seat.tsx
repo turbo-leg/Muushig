@@ -5,38 +5,41 @@ import { t } from '../i18n';
 interface Props {
   seat: SeatVM;
   phase: Phase;
-  /** Smaller placard for the opponents seated around the table edge. */
-  compact?: boolean;
-  seatNumber?: number;
   /** Host-only in the lobby: removes a bot instantly; kicks a human (two taps). */
   onRemove?: () => void;
   /** A human kick is armed — the next tap confirms it. */
   removeArmed?: boolean;
 }
 
-function statusLabel(seat: SeatVM, phase: Phase): { text: string; cls: string } | null {
-  // A held seat (reconnection window) trumps any phase status. Once a bot
-  // takes the seat over it plays on, so show that instead of an endless wait.
+/** The single status chip overlapping the avatar. Null = nothing to say. */
+function statusPill(
+  seat: SeatVM,
+  phase: Phase,
+): { glyph: string; label: string; cls: string } | null {
+  // A held seat (reconnection window) trumps any phase status; a bot takeover
+  // plays on silently.
   if (phase !== 'waiting' && !seat.isConnected) {
     return seat.isBot
-      ? { text: t('seatBot'), cls: 'text-ink-soft' }
-      : { text: t('seatReconnecting'), cls: 'text-danger' };
+      ? null
+      : { glyph: '↻', label: t('seatReconnecting'), cls: 'bg-danger text-cream' };
   }
   if (phase === 'waiting') {
     return seat.isReady
-      ? { text: t('seatReady'), cls: 'text-success' }
-      : { text: t('seatWaiting'), cls: 'text-ink-soft' };
+      ? { glyph: '✓', label: t('seatReady'), cls: 'bg-success text-[#0c1f10]' }
+      : null;
   }
+  if (seat.hasResigned) return { glyph: '✕', label: t('seatFold'), cls: 'bg-danger text-cream' };
   if (phase === 'decision') {
-    if (seat.hasResigned) return { text: t('seatFold'), cls: 'text-danger' };
     return seat.hasDecided
-      ? { text: t('seatBid'), cls: 'text-success' }
-      : { text: t('seatBidding'), cls: 'text-ink-soft' };
+      ? { glyph: '✓', label: t('seatBid'), cls: 'bg-success text-[#0c1f10]' }
+      : { glyph: '…', label: t('seatBidding'), cls: 'bg-parchment text-ink-soft' };
   }
-  if (seat.hasResigned) return { text: t('seatFold'), cls: 'text-danger' };
-  if (phase === 'playing' && seat.isTurn)
-    return { text: t('seatTurn'), cls: 'text-amber-deep font-bold' };
-  return null;
+  if (phase === 'swap') {
+    return seat.hasSwapped
+      ? { glyph: '⇄', label: t('seatSwapped'), cls: 'bg-success text-[#0c1f10]' }
+      : { glyph: '…', label: t('seatBidding'), cls: 'bg-parchment text-ink-soft' };
+  }
+  return null; // playing: the turn ring says it all
 }
 
 /** A small chip marking a player's round role: dealer button / amankhuzuu. */
@@ -46,61 +49,13 @@ function RoleBadge({ kind }: { kind: 'dealer' | 'amankhuzuu' }) {
     <span
       title={dealer ? t('dealerTooltip') : t('amankhuzuuTooltip')}
       className={[
-        'grid h-5 min-w-5 select-none place-items-center rounded-full px-1 font-hand text-[10px] font-bold leading-none shadow-sm',
-        'border border-ink/40 ring-1 ring-black/5 z-20',
+        'grid h-4.5 min-w-4.5 select-none place-items-center rounded-full px-0.5 font-hand text-[9px] font-bold leading-none shadow-sm',
+        'border border-ink/40 z-20',
         dealer ? 'bg-parchment text-ember' : 'bg-amber text-[#1d1503]',
       ].join(' ')}
     >
       {dealer ? 'D' : 'АМ'}
     </span>
-  );
-}
-
-/** Vector drawing of a bronze seat number badge */
-function SeatNumberBadge({ num }: { num: number }) {
-  return (
-    <svg
-      className="absolute -left-2 -top-2.5 z-30 h-7 w-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)] select-none"
-      viewBox="0 0 32 32"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <radialGradient id={`bronzeCoin-${num}`} cx="35%" cy="35%" r="50%">
-          <stop offset="0%" stopColor="#f2d184" />
-          <stop offset="50%" stopColor="#d98e04" />
-          <stop offset="100%" stopColor="#8a5a02" />
-        </radialGradient>
-      </defs>
-      <circle
-        cx="16"
-        cy="16"
-        r="14"
-        fill={`url(#bronzeCoin-${num})`}
-        stroke="#3a2a1e"
-        strokeWidth="1.8"
-      />
-      <circle
-        cx="16"
-        cy="16"
-        r="11"
-        fill="none"
-        stroke="#f5e6d3"
-        strokeWidth="0.75"
-        strokeDasharray="2 1.5"
-        opacity="0.6"
-      />
-      <text
-        x="16"
-        y="21.5"
-        fontFamily="var(--font-hand)"
-        fontSize="17"
-        fontWeight="bold"
-        fill="#3a2a1e"
-        textAnchor="middle"
-      >
-        {num}
-      </text>
-    </svg>
   );
 }
 
@@ -143,18 +98,13 @@ function ScoreCoinSVG() {
 }
 
 /**
- * A player/bot placard rendered with a hand-drawn vector wood/metal plate shape.
+ * A seat is a bare avatar stack floating on the felt (no placard): ringed
+ * avatar + one status chip, then score and name as plain text. Everything
+ * else (turn, voice, fold) is carried by the ring, the chip, and dimming.
  */
-export function Seat({ seat, phase, seatNumber, onRemove, removeArmed }: Props) {
-  const status = statusLabel(seat, phase);
-  const actualSeatNumber = seatNumber ?? seat.seatNumber;
-
-  const w = seat.isMe ? 198 : 156;
-  const h = 64;
-
-  // Hand-drawn asymmetric bezier curves for placard borders
-  const d1 = `M 6,5 Q ${w / 2},7 ${w - 6},5 Q ${w - 4},${h / 2} ${w - 6},${h - 5} Q ${w / 2},${h - 7} 6,${h - 5} Q 4,${h / 2} 6,5 Z`;
-  const d2 = `M 10,9 Q ${w / 2},11 ${w - 10},9 Q ${w - 8},${h / 2} ${w - 10},${h - 9} Q ${w / 2},${h - 11} 10,${h - 9} Q 8,${h / 2} 10,9 Z`;
+export function Seat({ seat, phase, onRemove, removeArmed }: Props) {
+  const pill = statusPill(seat, phase);
+  const dim = seat.hasResigned || (!seat.isConnected && !seat.isBot);
 
   const avatarStyle: CSSProperties = seat.avatarUrl
     ? {
@@ -165,66 +115,14 @@ export function Seat({ seat, phase, seatNumber, onRemove, removeArmed }: Props) 
     : {};
 
   return (
-    <div
-      className={`relative flex items-center justify-start ${
-        seat.isSpeaking
-          ? 'anim-speaking rounded-[10px]'
-          : seat.isTurn
-            ? 'anim-turn rounded-[10px]'
-            : ''
-      } ${seat.hasResigned || (!seat.isConnected && !seat.isBot) ? 'opacity-55' : ''}`}
-      style={{ width: `${w}px`, height: `${h}px` }}
-    >
-      {/* CSS placard backing (no image) */}
-      <div
-        className={`absolute inset-0 pointer-events-none rounded-[10px] border-2 drop-shadow-[0_4px_8px_rgba(0,0,0,0.35)] ${
-          seat.isMe ? 'border-amber-deep' : 'border-[#4a3f33]'
-        }`}
-        style={{
-          background: seat.isMe
-            ? 'linear-gradient(180deg, #332c26, #262019)'
-            : 'linear-gradient(180deg, #2b2521, #1f1a16)',
-          boxShadow: 'inset 0 0 12px rgba(0,0,0,0.5)',
-        }}
-      />
-
-      {/* Seat-number token (top-left) */}
-      {actualSeatNumber != null && <SeatNumberBadge num={actualSeatNumber} />}
-
-      {/* Host-only: dismiss a lobby bot / kick a human (armed = second tap fires) */}
-      {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={
-            removeArmed
-              ? t('confirmKick', { name: seat.username })
-              : t('removeSeat', { name: seat.username })
-          }
-          title={removeArmed ? t('confirmKick', { name: seat.username }) : undefined}
-          className={`absolute -right-2 -top-2.5 z-30 grid h-6 w-6 place-items-center rounded-full border font-hand text-sm font-bold leading-none shadow-sm ${
-            removeArmed
-              ? 'border-danger bg-danger text-cream'
-              : 'border-ink/50 bg-parchment text-danger hover:bg-parchment-deep'
-          }`}
-        >
-          ✕
-        </button>
-      )}
-
-      {/* Role badges (top-right) */}
-      {(seat.isDealer || seat.isAmankhuzuu) && (
-        <div className="absolute -right-1 -top-1.5 z-30 flex gap-1 select-none">
-          {seat.isAmankhuzuu && <RoleBadge kind="amankhuzuu" />}
-          {seat.isDealer && <RoleBadge kind="dealer" />}
-        </div>
-      )}
-
-      {/* Contents arranged horizontally and aligned to vector coordinates */}
-      <div className="absolute inset-0 z-10 flex items-center select-none pointer-events-none">
-        {/* Left: Avatar portrait inside gold circle */}
+    <div className={`relative flex flex-col items-center select-none ${dim ? 'opacity-55' : ''}`}>
+      <div className="relative">
         <div
-          className="absolute left-[14px] top-[10px] h-[44px] w-[44px] rounded-full border border-ink bg-parchment-deep overflow-hidden flex items-center justify-center font-hand text-ember"
+          className={[
+            'flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 bg-parchment-deep font-hand text-ember',
+            seat.isMe ? 'border-amber-deep' : 'border-gild/70',
+            seat.isSpeaking ? 'anim-speaking' : seat.isTurn ? 'anim-turn' : '',
+          ].join(' ')}
           style={avatarStyle}
         >
           {!seat.avatarUrl && (
@@ -234,39 +132,65 @@ export function Seat({ seat, phase, seatNumber, onRemove, removeArmed }: Props) 
           )}
         </div>
 
-        {/* Right: User stats inside parchment box */}
-        <div
-          className="absolute left-[72px] top-[10px] bottom-[10px] flex flex-col justify-center leading-none"
-          style={{ width: `${w - 86}px` }}
-        >
-          <div className="flex items-center gap-1">
-            <span className="font-hand text-[15px] font-bold text-ink truncate leading-tight max-w-[85%]">
-              {seat.username}
-            </span>
-            {seat.isHost && (
-              <span className="text-amber-deep text-xs leading-none" title="Room Host">
-                ★
-              </span>
-            )}
+        {/* Round roles on the rim (unique info: dealer / amankhuzuu) */}
+        {(seat.isDealer || seat.isAmankhuzuu) && (
+          <div className="absolute -left-1.5 -top-1 z-20 flex flex-col gap-0.5">
+            {seat.isAmankhuzuu && <RoleBadge kind="amankhuzuu" />}
+            {seat.isDealer && <RoleBadge kind="dealer" />}
           </div>
+        )}
 
-          <div className="flex items-center gap-1.5 mt-0.5 leading-none">
-            <div className="flex items-center gap-0.5">
-              <ScoreCoinSVG />
-              <span className="num font-hand text-[14px] font-bold text-ember">{seat.score}</span>
-            </div>
-            {status && (
-              <span
-                className={`font-hand text-[10px] font-bold uppercase tracking-wider ${status.cls}`}
-              >
-                {status.text}
-              </span>
-            )}
-            {seat.isMe && (
-              <span className="font-hand text-[10px] text-ink-soft opacity-75">{t('you')}</span>
-            )}
-          </div>
-        </div>
+        {/* Host-only: dismiss a lobby bot / kick a human (armed = second tap fires) */}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={
+              removeArmed
+                ? t('confirmKick', { name: seat.username })
+                : t('removeSeat', { name: seat.username })
+            }
+            title={removeArmed ? t('confirmKick', { name: seat.username }) : undefined}
+            className={`absolute -right-1.5 -top-1 z-30 grid h-5 w-5 place-items-center rounded-full border font-hand text-xs font-bold leading-none shadow-sm ${
+              removeArmed
+                ? 'border-danger bg-danger text-cream'
+                : 'border-ink/50 bg-parchment text-danger hover:bg-parchment-deep'
+            }`}
+          >
+            ✕
+          </button>
+        )}
+
+        {/* The one status chip, overlapping the avatar's bottom edge */}
+        {pill && (
+          <span
+            title={pill.label}
+            aria-label={pill.label}
+            className={`absolute -bottom-1.5 left-1/2 z-20 grid h-5 min-w-5 -translate-x-1/2 place-items-center rounded-full border border-black/30 px-1 font-hand text-[11px] font-bold leading-none shadow-sm ${pill.cls}`}
+          >
+            {pill.glyph}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-2 flex items-center gap-1 leading-none">
+        <ScoreCoinSVG />
+        <span className="num font-hand text-[14px] font-bold text-ember drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]">
+          {seat.score}
+        </span>
+      </div>
+
+      {/* On very short screens (landscape phones) position + avatar identify
+          the player; the name line gives its pixels to the felt. */}
+      <div className="mt-0.5 flex max-w-[96px] items-center gap-0.5 leading-none [@media(max-height:600px)]:hidden">
+        <span className="truncate font-hand text-[13px] font-bold text-cream drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]">
+          {seat.username}
+        </span>
+        {seat.isHost && (
+          <span className="text-[10px] leading-none text-amber-deep" title={t('hostTooltip')}>
+            ★
+          </span>
+        )}
       </div>
     </div>
   );

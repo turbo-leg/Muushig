@@ -60,8 +60,7 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
 }
 
@@ -78,15 +77,62 @@ body {
   touch-action: manipulation;
 }
 
-/* The app scrolls inside #root (not the body) so the fixed tavern backdrop
-   stays put, and on short screens the controls stay reachable instead of being
-   clipped by body overflow:hidden. */
+/* The app is locked to the visual viewport: every screen lays itself out to
+   fit (the felt shrinks, the hand overlaps) instead of growing past the fold.
+   Long-form content (rules book, score sheet) scrolls inside its own modal.
+   100dvh tracks mobile browser chrome; in the Discord iframe it is the iframe
+   height. */
 #root {
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  height: 100dvh;
+  overflow: hidden;
 }
 
+/* An aspect-ratio box that shrinks to fit BOTH axes of its container instead
+   of forcing height on narrow screens. Wrapper measures itself (container-type:
+   size); the box takes min(full width, the width whose height fits). */
+.felt-fit-wrap {
+  container-type: size;
+  display: grid;
+  place-items: center;
+  /* Never let the chrome squeeze the felt out of existence. */
+  min-height: 130px;
+}
+.felt-fit {
+  width: min(100%, calc(100cqh * var(--felt-ratio)));
+  aspect-ratio: var(--felt-ratio);
+}
+
+/* Modal-overlay padding that respects device notches / Discord insets. */
+.safe-pad {
+  padding: max(0.75rem, var(--safe-top)) max(0.75rem, var(--safe-right))
+    max(0.75rem, var(--safe-bottom)) max(0.75rem, var(--safe-left));
+}
+
+/* The hand is always ONE row: when the cards don't fit the width they overlap
+   into a fan instead of wrapping to a second row (which used to push the
+   action bar below the fold on phones). Overlap is computed from the spare
+   space; gaps are capped at 8px when there's room. */
+.hand-row {
+  --card-w: clamp(50px, 12vw, 78px);
+  /* inline-size containment zeroes content-driven width, so claim the full
+     row explicitly — otherwise 100cqw collapses and the fan over-overlaps. */
+  width: 100%;
+  container-type: inline-size;
+  display: flex;
+  justify-content: center;
+}
+@media (max-height: 600px) {
+  .hand-row {
+    --card-w: clamp(40px, 14vh, 60px);
+  }
+}
+.hand-row > * + * {
+  margin-left: clamp(
+    calc(var(--card-w) * -0.55),
+    calc((100cqw - var(--hand-n) * var(--card-w)) / max(1, calc(var(--hand-n) - 1))),
+    8px
+  );
+}
 .num {
   font-variant-numeric: tabular-nums;
 }
@@ -234,6 +280,16 @@ body {
 .btn-coin--gold:active:not(:disabled) {
   transform: translateY(1px) scale(0.97);
   filter: brightness(0.92);
+}
+
+/* Cramped screens: smaller coins so the action row stays one line and the
+   felt keeps its space. */
+@media (max-height: 600px), (max-width: 380px) {
+  .btn-coin {
+    width: 58px;
+    height: 58px;
+    font-size: 0.85em;
+  }
 }
 
 /* Steel Grey/Silver Medallion Button */

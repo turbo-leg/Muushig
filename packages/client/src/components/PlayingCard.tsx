@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { cardArt, cardBackArt } from '../game/cardArt';
 
-const SUIT_GLYPH: Record<string, string> = {
+export const SUIT_GLYPH: Record<string, string> = {
   Spades: '♠',
   Hearts: '♥',
   Diamonds: '♦',

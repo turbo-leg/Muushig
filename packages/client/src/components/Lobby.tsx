@@ -84,8 +84,8 @@ export function Lobby({
   }, [refresh]);
 
   return (
-    <main className="flex min-h-full items-center justify-center p-4">
-      <div className="flex w-full max-w-sm flex-col items-center gap-4">
+    <main className="flex h-full justify-center overflow-y-auto p-4 pt-[max(1rem,var(--safe-top))] pb-[max(1rem,var(--safe-bottom))]">
+      <div className="my-auto flex w-full max-w-sm flex-col items-center gap-4">
         <header className="text-center">
           <h1 className="font-display text-5xl font-bold text-cream">{t('lobbyTitle')}</h1>
           <p className="font-hand text-xl text-cream/70">{t('lobbySubtitle')}</p>

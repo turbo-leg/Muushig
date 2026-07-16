@@ -26,7 +26,6 @@ import {
 import { TrumpIndicator } from './TrumpIndicator';
 import { Hand } from './Hand';
 import { ActionBar } from './ActionBar';
-import { TitleBanner } from './TitleBanner';
 import { initAudio, play as playSfx } from '../audio/sound';
 import { Settings } from './Settings';
 import { t, useLocale } from '../i18n';
@@ -134,89 +133,6 @@ function UlziiKnotSVG() {
   );
 }
 
-/** Vector drawing of a rolled parchment scroll table prop */
-function TableScrollProp() {
-  return (
-    <div className="absolute bottom-5 left-12 h-10 w-16 -rotate-15 pointer-events-none select-none z-10">
-      <svg
-        className="w-full h-full drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]"
-        viewBox="0 0 80 50"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <g filter="url(#handDrawn)">
-          {/* Scroll rolls */}
-          <path
-            d="M 5,20 L 70,12 C 75,12 75,28 70,28 L 5,36 Z"
-            fill="#f5e6d3"
-            stroke="#3a2a1e"
-            strokeWidth="1.8"
-          />
-          <path
-            d="M 8,16 L 72,9 C 77,9 77,22 72,22 L 8,29 Z"
-            fill="#e7d2b3"
-            stroke="#3a2a1e"
-            strokeWidth="1.8"
-          />
-          {/* Ribbon tie */}
-          <rect
-            x="35"
-            y="14"
-            width="7"
-            height="15"
-            fill="#a33b2a"
-            stroke="#3a2a1e"
-            strokeWidth="1.5"
-            rx="1.5"
-          />
-          <path
-            d="M 38,29 Q 36,38 31,41 M 38,29 Q 41,38 44,40"
-            stroke="#a33b2a"
-            strokeWidth="1.5"
-            fill="none"
-          />
-        </g>
-      </svg>
-    </div>
-  );
-}
-
-/** Vector drawing of a carved drinking horn cup table prop */
-function DrinkingHornProp() {
-  return (
-    <div className="absolute bottom-4 right-14 h-11 w-16 rotate-15 pointer-events-none select-none z-10">
-      <svg
-        className="w-full h-full drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]"
-        viewBox="0 0 80 50"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <g filter="url(#handDrawn)">
-          {/* Horn body */}
-          <path
-            d="M 12,10 C 26,5 56,18 66,36 C 66,36 53,42 46,34 C 36,24 22,19 12,10 Z"
-            fill="#f5e6d3"
-            stroke="#3a2a1e"
-            strokeWidth="1.8"
-          />
-          {/* Metal band accent at opening */}
-          <ellipse
-            cx="13"
-            cy="11"
-            rx="3.5"
-            ry="5.5"
-            fill="#c8962a"
-            stroke="#3a2a1e"
-            strokeWidth="1.5"
-            transform="rotate(-30, 13, 11)"
-          />
-          {/* Band details */}
-          <path d="M 48,30 C 50,33 53,34 56,33" stroke="#c8962a" strokeWidth="1.8" fill="none" />
-          <path d="M 61,34 Q 64,36 66,36" stroke="#c8962a" strokeWidth="1.8" fill="none" />
-        </g>
-      </svg>
-    </div>
-  );
-}
-
 /**
  * A ghost stack of face-down cards that flies from the table center to the
  * trick winner's seat, then fades. Mounted fresh (keyed) per collected trick;
@@ -290,6 +206,7 @@ export function Table({ state, sessionId, send }: Props) {
         state.currentTurn === id &&
         (phase === 'decision' || phase === 'swap' || phase === 'playing'),
       hasDecided: p?.hasDecided ?? false,
+      hasSwapped: p?.hasSwapped ?? false,
       hasResigned: p?.hasResigned ?? false,
       isConnected: p?.isConnected ?? true,
       isBot: p?.isBot ?? false,
@@ -531,6 +448,18 @@ export function Table({ state, sessionId, send }: Props) {
       ? [...seats.slice(meIdx + 1), ...seats.slice(0, meIdx)]
       : seats.filter((s) => !s.isMe);
 
+  // Where each player's thrown card lands: partway from felt center toward
+  // their seat, so the trick reads spatially without name labels.
+  const trickPositions = new Map<string, { left: number; top: number }>();
+  opponents.forEach((s, i) => {
+    const pos = ringSlot(ringSlots, opponents.length, i);
+    trickPositions.set(s.id, {
+      left: 50 + (pos.left - 50) * 0.45,
+      top: 50 + (pos.top - 50) * 0.45,
+    });
+  });
+  if (me) trickPositions.set(me.id, { left: 50, top: 78 });
+
   // ── Fly the collected trick toward its winner when the server clears it ──
   const [collect, setCollect] = useState<{ key: number; left: number; top: number } | null>(null);
   const prevTrickRef = useRef({ len: 0, winnerId: null as string | null });
@@ -585,9 +514,18 @@ export function Table({ state, sessionId, send }: Props) {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-3 px-3 pt-[max(0.5rem,var(--safe-top))] pb-[max(0.75rem,var(--safe-bottom))] select-none sm:gap-4">
-      <TitleBanner />
-      <Scoreboard seats={seats} onOpenSheet={() => setShowSheet(true)} />
+    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col gap-2 px-3 pt-[max(0.5rem,var(--safe-top))] pb-[max(0.75rem,var(--safe-bottom))] select-none sm:gap-4 [@media(max-height:600px)]:gap-1">
+      {/* Clear the floating corner buttons on phones. */}
+      <div className="w-full shrink-0 px-12 sm:px-0">
+        <Scoreboard
+          phase={phase}
+          trumpSuit={state.trumpSuit}
+          tricksPlayed={state.tricksPlayed}
+          turnName={seats.find((s) => s.id === state.currentTurn)?.username ?? null}
+          isMyTurn={isMyTurn}
+          onOpenSheet={() => setShowSheet(true)}
+        />
+      </div>
       {spectatorNames.length > 0 && (
         <p
           className="z-10 -mt-1 text-center font-hand text-sm text-cream/70"
@@ -600,25 +538,17 @@ export function Table({ state, sessionId, send }: Props) {
       {/* The table arena. On phones the felt is a tall, height-driven oval so
           opponents seat down the sides; on sm+ it's the wide landscape felt.
           min-h-0 lets it shrink so the hand and action bar always fit. */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center py-1 sm:py-2">
-        <div className="relative mx-auto aspect-[5/6] w-full max-w-md sm:aspect-[7/4] sm:max-w-3xl">
+      <div className="felt-fit-wrap relative min-h-0 flex-1 py-1 sm:py-2">
+        <div className="felt-fit relative max-w-md [--felt-ratio:0.62] sm:max-w-3xl sm:[--felt-ratio:7/4]">
           {/* CSS teal felt table top (no image) */}
           <div
-            className="absolute inset-0 z-0 rounded-[42%/48%] border-[6px] border-[#3b332b] drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)] sm:rounded-[46%/40%]"
+            className="absolute inset-0 z-0 rounded-[48px] border-[6px] border-[#3b332b] drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)] sm:rounded-[56px]"
             style={{
               background:
                 'radial-gradient(circle at 50% 42%, #1a6b52 0%, #12513e 55%, #0b3a2c 100%)',
               boxShadow: 'inset 0 0 60px rgba(0,0,0,0.35)',
             }}
           />
-
-          {/* Decorative props — desktop only; they crowd the narrow portrait felt. */}
-          {!isCompact && (
-            <>
-              <TableScrollProp />
-              <DrinkingHornProp />
-            </>
-          )}
 
           {/* Center of the table: trump card + the trick in progress. */}
           <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-6">
@@ -644,33 +574,43 @@ export function Table({ state, sessionId, send }: Props) {
               </>
             ) : (
               <>
-                {trumpCard && <TrumpIndicator card={trumpCard} revealed={phase === 'decision'} />}
+                {/* The big trump reveal matters only while people bid (or the
+                    dealer arms navshih); afterwards trump lives in the HUD. */}
+                {trumpCard && (phase === 'decision' || trumpSwapMode) && (
+                  <TrumpIndicator card={trumpCard} revealed={phase === 'decision'} />
+                )}
                 {trumpSwapMode && (
                   <p className="z-30 select-none font-hand text-base font-bold text-cream drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
                     {t('tapCardForTrump')}
                   </p>
                 )}
-                <Trick plays={trick} trumpSuit={state.trumpSuit} winnerId={trickWinnerId} />
               </>
             )}
           </div>
 
+          {/* The trick, spatially: each card lands toward its thrower. */}
+          {phase !== 'waiting' && (
+            <Trick
+              plays={trick}
+              trumpSuit={state.trumpSuit}
+              winnerId={trickWinnerId}
+              positions={trickPositions}
+            />
+          )}
+
           {/* Opponents seated around the rim of the felt. */}
           {opponents.map((s, i) => {
             const pos = ringSlot(ringSlots, opponents.length, i);
-            const opponentSeatNum = i + 2;
             return (
               <div
                 key={s.id}
-                className="absolute z-10 origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.78] sm:scale-100"
+                className="absolute z-10 origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.85] sm:scale-100"
                 style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
               >
                 <div className="flex flex-col items-center gap-0.5">
                   <Seat
                     seat={s}
                     phase={phase}
-                    compact
-                    seatNumber={opponentSeatNum}
                     onRemove={
                       isHost && phase === 'waiting' && !s.isMe
                         ? s.isBot
@@ -691,13 +631,13 @@ export function Table({ state, sessionId, send }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-4">
+      <div className="relative z-10 -mt-6 flex shrink-0 flex-col items-center gap-2 sm:mt-0 sm:gap-4 [@media(max-height:600px)]:gap-1">
         {phase === 'finished' && me && me.scoreLog.length > 0 && (
           <MatchRecap scoreLog={me.scoreLog} />
         )}
         {me && (
           <div className="flex items-center gap-2">
-            <Seat seat={me} phase={phase} seatNumber={1} />
+            <Seat seat={me} phase={phase} />
             <TrickPile count={me.tricksWon} label={t('tricksShort', { n: me.tricksWon })} />
           </div>
         )}

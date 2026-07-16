@@ -166,7 +166,7 @@ export function ActionBar(props: Props) {
   return (
     <div className="flex w-full flex-col items-center gap-1.5 select-none">
       {props.hint && (
-        <p className="max-w-[85vw] text-center font-hand text-sm leading-tight text-cream/70">
+        <p className="max-w-[85vw] text-center font-hand text-sm leading-tight text-cream/70 [@media(max-height:600px)]:hidden">
           {props.hint}
         </p>
       )}
@@ -206,54 +206,44 @@ export function ActionBar(props: Props) {
             </>
           )}
 
-          {phase === 'decision' &&
-            (props.meDecided ? (
-              <StatusScroll>{t('waitingOthers')}</StatusScroll>
-            ) : props.canDecide ? (
-              <>
-                <Button variant="coin" sub={tAlt('bid')} onClick={props.onStay}>
-                  {t('bid')}
-                </Button>
-                {props.mustPlay ? (
-                  <StatusScroll>
-                    <span className="text-danger">{t('mustPlay')}</span>
-                  </StatusScroll>
-                ) : (
-                  <HoldButton onConfirm={props.onResign} sub={tAlt('fold')}>
-                    {t('fold')}
-                  </HoldButton>
-                )}
-              </>
-            ) : (
-              <StatusScroll>{t('waitingTurn')}</StatusScroll>
-            ))}
+          {/* Passive "waiting for X" texts are gone — the HUD pill names whose
+              turn it is. The bar only carries actionable content. */}
+          {phase === 'decision' && !props.meDecided && props.canDecide && (
+            <>
+              <Button variant="coin" sub={tAlt('bid')} onClick={props.onStay}>
+                {t('bid')}
+              </Button>
+              {props.mustPlay ? (
+                <StatusScroll>
+                  <span className="text-danger">{t('mustPlay')}</span>
+                </StatusScroll>
+              ) : (
+                <HoldButton onConfirm={props.onResign} sub={tAlt('fold')}>
+                  {t('fold')}
+                </HoldButton>
+              )}
+            </>
+          )}
 
-          {phase === 'swap' &&
-            (canSwap ? (
-              <>
-                <Button
-                  variant="coin"
-                  sub={tAlt('swap')}
-                  onClick={props.onSwap}
-                  disabled={props.selectedCount === 0}
-                >
-                  {props.selectedCount > 0 ? t('swapN', { n: props.selectedCount }) : t('swap')}
-                </Button>
-                <Button variant="coin" secondary sub={tAlt('keep')} onClick={props.onKeep}>
-                  {t('keep')}
-                </Button>
-              </>
-            ) : props.meSwapped ? (
-              <StatusScroll>{t('waitingOthersSwap')}</StatusScroll>
-            ) : (
-              <StatusScroll>{t('waitingTurnSwap')}</StatusScroll>
-            ))}
+          {phase === 'swap' && canSwap && (
+            <>
+              <Button
+                variant="coin"
+                sub={tAlt('swap')}
+                onClick={props.onSwap}
+                disabled={props.selectedCount === 0}
+              >
+                {props.selectedCount > 0 ? t('swapN', { n: props.selectedCount }) : t('swap')}
+              </Button>
+              <Button variant="coin" secondary sub={tAlt('keep')} onClick={props.onKeep}>
+                {t('keep')}
+              </Button>
+            </>
+          )}
 
-          {phase === 'playing' && (
+          {phase === 'playing' && isMyTurn && (
             <StatusScroll>
-              <span className={isMyTurn ? 'text-amber-deep font-bold' : ''}>
-                {isMyTurn ? t('yourTurnThrow') : t('waitingCurrent')}
-              </span>
+              <span className="text-amber-deep font-bold">{t('yourTurnThrow')}</span>
             </StatusScroll>
           )}
 

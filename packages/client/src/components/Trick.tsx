@@ -10,55 +10,55 @@ interface Props {
   trumpSuit: string;
   /** Set during the server's trick-reveal pause — highlights the taker. */
   winnerId?: string | null;
+  /** playerId → felt-percent coordinates for where that player's card lands. */
+  positions: Map<string, { left: number; top: number }>;
 }
 
-/** The center of the table — cards thrown down at natural, seeded angles. */
-export function Trick({ plays, trumpSuit, winnerId }: Props) {
+/**
+ * The trick, laid out spatially: each thrown card sits on the felt toward the
+ * player who threw it, like a real table — no name labels needed. The first
+ * play (the lead) carries a small gold pip.
+ */
+export function Trick({ plays, trumpSuit, winnerId, positions }: Props) {
   return (
-    <div className="flex min-h-[88px] items-center justify-center gap-1 sm:min-h-[120px]">
-      {plays.length === 0 ? (
-        <span className="font-hand text-lg text-cream/70">{t('noCardsYet')}</span>
-      ) : (
-        plays.map((p, i) => {
-          const rot = tiltFor(`${p.playerId}:${cardKey(p.card)}`);
-          const isWinner = winnerId != null && p.playerId === winnerId;
-          const dimmed = winnerId != null && !isWinner;
-          return (
+    <div className="pointer-events-none absolute inset-0 z-[5] select-none">
+      {plays.map((p, i) => {
+        const rot = tiltFor(`${p.playerId}:${cardKey(p.card)}`);
+        const isWinner = winnerId != null && p.playerId === winnerId;
+        const dimmed = winnerId != null && !isWinner;
+        const pos = positions.get(p.playerId) ?? { left: 50, top: 50 };
+        return (
+          <div
+            key={p.playerId}
+            data-winner={isWinner || undefined}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+              isWinner ? 'z-10 scale-110' : dimmed ? 'opacity-50' : ''
+            }`}
+            style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
+          >
             <div
-              key={p.playerId}
-              data-winner={isWinner || undefined}
-              className={`flex flex-col items-center gap-1 transition-all duration-300 ${
-                isWinner ? 'z-10 scale-110' : dimmed ? 'opacity-50' : ''
+              className={`card-thrown anim-play-in relative w-[clamp(46px,10vw,66px)] ${
+                isWinner ? 'rounded-lg ring-2 ring-amber shadow-[0_0_18px_rgba(202,138,4,0.8)]' : ''
               }`}
+              style={{ '--throw-rot': `${rot}deg`, animationDelay: `${i * 40}ms` } as CSSProperties}
             >
-              <div
-                className={`card-thrown anim-play-in w-[clamp(46px,10vw,66px)] ${
-                  isWinner
-                    ? 'rounded-lg ring-2 ring-amber shadow-[0_0_18px_rgba(202,138,4,0.8)]'
-                    : ''
-                }`}
-                style={
-                  { '--throw-rot': `${rot}deg`, animationDelay: `${i * 40}ms` } as CSSProperties
-                }
-              >
-                <PlayingCard
-                  suit={p.card.suit}
-                  rank={p.card.rank}
-                  trump={p.card.suit === trumpSuit}
-                  className="w-full"
+              <PlayingCard
+                suit={p.card.suit}
+                rank={p.card.rank}
+                trump={p.card.suit === trumpSuit}
+                className="w-full"
+              />
+              {i === 0 && (
+                <span
+                  title={t('ledTooltip')}
+                  aria-label={t('ledTooltip')}
+                  className="absolute -left-1 -top-1 h-3 w-3 rounded-full border border-black/40 bg-amber shadow-[0_0_6px_rgba(202,138,4,0.9)]"
                 />
-              </div>
-              <span
-                className={`max-w-[64px] truncate font-hand text-sm ${
-                  isWinner ? 'font-bold text-amber-deep' : 'text-cream/80'
-                }`}
-              >
-                {p.username}
-              </span>
+              )}
             </div>
-          );
-        })
-      )}
+          </div>
+        );
+      })}
     </div>
   );
 }

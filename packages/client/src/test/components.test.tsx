@@ -30,6 +30,7 @@ const makeSeat = (over: Partial<SeatVM>): SeatVM => ({
   isHost: false,
   isTurn: false,
   hasDecided: false,
+  hasSwapped: false,
   hasResigned: false,
   isConnected: true,
   isBot: false,
@@ -55,31 +56,17 @@ describe('PlayingCard', () => {
 });
 
 describe('Seat', () => {
-  const seat: SeatVM = {
+  const seat: SeatVM = makeSeat({
     id: 'p1',
     username: 'Golden Falcon',
-    avatarUrl: '',
-    score: 15,
-    scoreLog: [],
-    tricksWon: 0,
-    handCount: 5,
     isReady: true,
     isHost: true,
-    isTurn: false,
-    hasDecided: false,
-    hasResigned: false,
-    isConnected: true,
-    isBot: false,
-    isMe: false,
-    isSpeaking: false,
-    isDealer: false,
-    isAmankhuzuu: false,
-  };
+  });
 
-  test('shows name and ready state in the waiting phase', () => {
+  test('shows name and a ready chip in the waiting phase', () => {
     render(<Seat seat={seat} phase="waiting" />);
     expect(screen.getByText('Golden Falcon')).toBeInTheDocument();
-    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ready')).toBeInTheDocument();
   });
 
   test('marks the dealer and amankhuzuu roles', () => {
@@ -88,15 +75,19 @@ describe('Seat', () => {
     expect(screen.getByTitle('Amankhuzuu — first to swap')).toBeInTheDocument();
   });
 
-  test('shows a reconnecting badge for a held mid-game seat', () => {
-    render(<Seat seat={{ ...seat, isConnected: false }} phase="playing" />);
-    expect(screen.getByText('Reconnecting…')).toBeInTheDocument();
+  test('shows a swapped chip once the player has exchanged cards', () => {
+    render(<Seat seat={{ ...seat, hasSwapped: true }} phase="swap" />);
+    expect(screen.getByLabelText('Swapped')).toBeInTheDocument();
   });
 
-  test('shows a bot badge once a bot takes the seat over', () => {
+  test('shows a reconnecting chip for a held mid-game seat', () => {
+    render(<Seat seat={{ ...seat, isConnected: false }} phase="playing" />);
+    expect(screen.getByLabelText('Reconnecting…')).toBeInTheDocument();
+  });
+
+  test('a bot takeover plays on silently (no reconnecting chip)', () => {
     render(<Seat seat={{ ...seat, isConnected: false, isBot: true }} phase="playing" />);
-    expect(screen.getByText('Bot')).toBeInTheDocument();
-    expect(screen.queryByText('Reconnecting…')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Reconnecting…')).not.toBeInTheDocument();
   });
 
   test('offers a remove button only when onRemove is provided', async () => {
@@ -110,34 +101,49 @@ describe('Seat', () => {
   });
 });
 
-describe('Scoreboard', () => {
-  test('lists every player with their score and opens the sheet', async () => {
+describe('Scoreboard (game HUD)', () => {
+  test('shows trump, trick counter, and the turn player; opens the sheet', async () => {
     const onOpenSheet = vi.fn();
     render(
       <Scoreboard
+        phase="playing"
+        trumpSuit="Hearts"
+        tricksPlayed={2}
+        turnName="Ariun"
+        isMyTurn={false}
         onOpenSheet={onOpenSheet}
-        seats={[
-          makeSeat({ id: 'a', username: 'Ariun', score: 15 }),
-          makeSeat({ id: 'b', username: 'Bat', score: 12, isMe: true }),
-        ]}
       />,
     );
-    expect(screen.getByText('Ariun')).toBeInTheDocument();
-    expect(screen.getByText('Bat')).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('♥')).toBeInTheDocument();
+    expect(screen.getByText('3/5')).toBeInTheDocument();
+    expect(screen.getByText('Ariun…')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /open scoresheet/i }));
     expect(onOpenSheet).toHaveBeenCalledOnce();
   });
 
-  test('shows "-" for a folded player', () => {
-    render(
+  test('flags my own turn and hides outside live phases', () => {
+    const { rerender } = render(
       <Scoreboard
+        phase="playing"
+        trumpSuit="Spades"
+        tricksPlayed={0}
+        turnName="Bat"
+        isMyTurn={true}
         onOpenSheet={vi.fn()}
-        seats={[makeSeat({ id: 'a', username: 'Ariun', score: 15, hasResigned: true })]}
       />,
     );
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('Your turn!')).toBeInTheDocument();
+    rerender(
+      <Scoreboard
+        phase="waiting"
+        trumpSuit=""
+        tricksPlayed={0}
+        turnName={null}
+        isMyTurn={false}
+        onOpenSheet={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
 
@@ -403,17 +409,27 @@ describe('Trick', () => {
     { playerId: 'b', username: 'Bat', card: { suit: 'Spades', rank: 13 } },
   ];
 
-  test('highlights the winner during the reveal and dims the rest', () => {
-    const { container } = render(<Trick plays={plays} trumpSuit="Hearts" winnerId="b" />);
-    const winner = container.querySelector('[data-winner]');
-    expect(winner).not.toBeNull();
-    expect(winner!.textContent).toContain('Bat');
+  const positions = new Map([
+    ['a', { left: 40, top: 40 }],
+    ['b', { left: 60, top: 40 }],
+  ]);
+
+  test('highlights the winner during the reveal and marks the led card', () => {
+    const { container } = render(
+      <Trick plays={plays} trumpSuit="Hearts" winnerId="b" positions={positions} />,
+    );
     expect(container.querySelectorAll('[data-winner]')).toHaveLength(1);
+    // First play carries the lead pip.
+    expect(screen.getByLabelText('Led the trick')).toBeInTheDocument();
   });
 
-  test('no highlight while the trick is still open', () => {
-    const { container } = render(<Trick plays={plays} trumpSuit="Hearts" winnerId={null} />);
+  test('no highlight while the trick is still open, cards sit at their seats', () => {
+    const { container } = render(
+      <Trick plays={plays} trumpSuit="Hearts" winnerId={null} positions={positions} />,
+    );
     expect(container.querySelector('[data-winner]')).toBeNull();
+    const placed = container.querySelectorAll('div[style*="left: 40%"]');
+    expect(placed.length).toBe(1);
   });
 });
 

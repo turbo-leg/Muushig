@@ -21,11 +21,11 @@ export function Card({ card, trump, selected, playable, disabled, index = 0, onC
       onClick={onClick}
       aria-pressed={selected}
       className={[
-        'anim-deal relative block w-[clamp(50px,12vw,78px)] transition-transform duration-200',
+        'anim-deal relative block w-[var(--card-w,clamp(50px,12vw,78px))] transition-transform duration-200',
         interactive
-          ? 'cursor-pointer hover:-translate-y-2 focus-visible:-translate-y-2'
+          ? 'cursor-pointer hover:z-10 hover:-translate-y-2 focus-visible:z-10 focus-visible:-translate-y-2'
           : 'cursor-default',
-        selected ? '-translate-y-3' : '',
+        selected ? 'z-10 -translate-y-3' : '',
         disabled ? 'opacity-55 saturate-50' : '',
         'focus-visible:outline-none',
       ].join(' ')}
