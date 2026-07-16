@@ -46,15 +46,17 @@ export function ScoreSheet({ seats, onClose }: Props) {
           </button>
         </div>
 
-        <div className="overflow-auto px-4 py-3">
-          <table className="w-full border-collapse font-hand text-ink">
+        {/* table-fixed: player columns share the width and names truncate, so
+            the sheet never scrolls sideways no matter the player count. */}
+        <div className="overflow-y-auto overflow-x-hidden px-4 py-3">
+          <table className="w-full table-fixed border-collapse font-hand text-ink">
             <thead>
               <tr className="border-b-2 border-ink">
-                <th className="px-2 py-1 text-left text-sm text-ink-soft">#</th>
+                <th className="w-8 px-2 py-1 text-left text-sm text-ink-soft">#</th>
                 {seats.map((s) => (
                   <th
                     key={s.id}
-                    className={`max-w-[88px] truncate px-2 py-1 text-center text-base font-bold ${
+                    className={`truncate px-1 py-1 text-center text-base font-bold ${
                       s.isMe ? 'text-amber-deep' : 'text-ink'
                     }`}
                     title={s.username}
