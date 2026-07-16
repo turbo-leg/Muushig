@@ -16,6 +16,8 @@ export interface SeatVM {
   isHost: boolean;
   isTurn: boolean;
   hasDecided: boolean;
+  /** Finished (or declined) the card swap this round. */
+  hasSwapped: boolean;
   hasResigned: boolean;
   /** False while the seat is held for a dropped player (reconnection window). */
   isConnected: boolean;

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { CardVM, Phase } from '../game/types';
 import { cardKey } from '../game/legalMoves';
 import { Card } from './Card';
@@ -33,7 +34,7 @@ export function Hand({
   if (cards.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap justify-center gap-[clamp(2px,1vw,8px)]">
+    <div className="hand-row" style={{ '--hand-n': cards.length } as CSSProperties}>
       {cards.map((c, i) => {
         const key = cardKey(c);
         // In trump-swap mode every card is pickable; otherwise normal play/swap rules.
