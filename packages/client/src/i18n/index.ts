@@ -22,7 +22,7 @@ const messages = {
   invite: { en: 'Invite', mn: 'Урих' },
   addBot: { en: 'Add bot', mn: 'Робот нэмэх' },
   bid: { en: 'Bid', mn: 'Мөрцөх' },
-  fold: { en: 'Fold', mn: 'Тарах' },
+  fold: { en: 'Fold', mn: 'Хаях' },
   swap: { en: 'Swap', mn: 'Солих' },
   swapN: { en: 'Swap {n}', mn: '{n} солих' },
   keep: { en: 'Keep', mn: 'Үлдээх' },
@@ -33,13 +33,13 @@ const messages = {
   waitingHost: { en: 'Waiting for host to deal…', mn: 'Хуваахыг хүлээж байна…' },
   waitingOthers: { en: 'Waiting for others…', mn: 'Бусдыг хүлээж байна…' },
   waitingTurn: { en: 'Waiting for your turn…', mn: 'Ээлжээ хүлээж байна…' },
-  waitingOthersSwap: { en: 'Waiting for others to swap…', mn: 'Бусдын сольхыг хүлээж байна…' },
+  waitingOthersSwap: { en: 'Waiting for others to swap…', mn: 'Бусдын солихыг хүлээж байна…' },
   waitingTurnSwap: { en: 'Waiting for your turn to swap…', mn: 'Солих ээлжээ хүлээж байна…' },
   yourTurnThrow: { en: 'Your turn — throw a card', mn: 'Таны ээлж — хөзрөө тавь' },
   waitingCurrent: { en: 'Waiting for current player…', mn: 'Тоглогчийг хүлээж байна…' },
   watchingNotice: {
     en: 'Watching — you join the next game',
-    mn: 'Үзэж байна — дараагийн тоглолтод суана',
+    mn: 'Үзэж байна — дараагийн тоглолтод сууна',
   },
   mustPlay: { en: 'Haranhui — must play', mn: 'Харанхуй орох — заавал тоглоно' },
   youWin: { en: 'You win!', mn: 'Та хожлоо!' },
@@ -51,7 +51,7 @@ const messages = {
   seatWaiting: { en: 'Waiting', mn: 'Хүлээж…' },
   seatBid: { en: 'Bid', mn: 'Мөрцсөн' },
   seatBidding: { en: 'Bidding…', mn: 'Бодож байна…' },
-  seatFold: { en: 'Fold', mn: 'Тарсан' },
+  seatFold: { en: 'Fold', mn: 'Хаясан' },
   seatTurn: { en: 'Turn', mn: 'Ээлж' },
   seatBot: { en: 'Bot', mn: 'Робот' },
   seatSwapped: { en: 'Swapped', mn: 'Сольсон' },
@@ -63,12 +63,16 @@ const messages = {
   removeSeat: { en: 'Remove {name}', mn: '{name}-г гаргах' },
   dealerTooltip: { en: 'Dealer', mn: 'Хуваагч' },
   amankhuzuuTooltip: {
-    en: 'Amankhuzuu — first to swap',
-    mn: 'Аманхүзүү — эхэлж солино',
+    en: 'Amankhuzuu — first to act',
+    mn: 'Аманхүзүү — түрүүлж явна',
+  },
+  deadAceTooltip: {
+    en: 'Dying Ace — player failed to open trick with the trump Ace. It is dead and cannot win.',
+    mn: 'Үхсэн тамга — модны тамгаар түрүүлж яваагүй тул тамга нь үхсэн (хожих хүчингүй).',
   },
 
   // ── Connection (App shell) ──
-  settlingIn: { en: 'Settling in by the fire…', mn: 'Галын дэргэд тухлаж байна…' },
+  settlingIn: { en: 'Settling in by the fire…', mn: 'Галын дэргэд тухалж байна…' },
   reconnectingTable: { en: 'Reconnecting to the table…', mn: 'Ширээнд эргэн холбогдож байна…' },
   connectionFailed: { en: 'Connection failed', mn: 'Холболт амжилтгүй боллоо' },
 
@@ -77,15 +81,15 @@ const messages = {
   readyUpSubtitle: { en: 'ready up to deal the cards', mn: 'бэлэн болбол хөзөр хуваана' },
   tapCardForTrump: {
     en: 'Tap a card to give for the trump',
-    mn: 'Хөзрийн оронд өгөх картаа сонго',
+    mn: 'Модоор солих гарынхаа хөзрийг сонго',
   },
   watchingCount: { en: '👁 {n} watching', mn: '👁 {n} үзэж байна' },
-  trumpLabel: { en: 'Trump', mn: 'Хөзөр' },
+  trumpLabel: { en: 'Trump', mn: 'Мод' },
   noCardsYet: { en: 'No cards down yet…', mn: 'Хөзөр тавигдаагүй…' },
 
   // ── Round end / game end ──
   roundOver: { en: 'Round over', mn: 'Үе дууслаа' },
-  foldedRow: { en: 'folded', mn: 'тарсан' },
+  foldedRow: { en: 'folded', mn: 'хаясан' },
   winsThePot: { en: '🏆 {names} wins the pot!', mn: '🏆 {names} данхыг хожлоо!' },
 
   // ── Scoresheet / PiP ──
@@ -103,34 +107,41 @@ const messages = {
   statPlayed: { en: 'Played', mn: 'Тоглосон' },
   statWon: { en: 'Won', mn: 'Хожсон' },
   statWinPct: { en: 'Win %', mn: 'Хожлын %' },
-  statRating: { en: 'Rating', mn: 'Зэрэглэл' },
-  statStreak: { en: 'Streak', mn: 'Дараалал' },
+  statRating: { en: 'Rating', mn: 'Чансаа' },
+  statStreak: { en: 'Streak', mn: 'Цуврал' },
   deepStatsTitle: { en: 'Deep stats', mn: 'Нарийн үзүүлэлт' },
   statFoldRate: { en: 'Fold rate', mn: 'Тарах хувь' },
-  statAvgTricks: { en: 'Avg tricks', mn: 'Дундаж нүд' },
+  statAvgTricks: { en: 'Avg tricks', mn: 'Дундаж идсэн' },
   statMuushigd: { en: "Muushig'd", mn: 'Муушиг болсон' },
   statMuushigdOthers: { en: 'Muushig’d others', mn: 'Муушиг оруулсан' },
   statNavshih: { en: 'Navshih', mn: 'Навших' },
   statHaranhui: { en: 'Haranhui', mn: 'Харанхуй' },
-  statPerfect: { en: 'Perfect rounds', mn: 'Бүх нүд авсан' },
-  statBestStreak: { en: 'Best streak', mn: 'Шилдэг дараалал' },
-  ratingHistory: { en: 'Rating history', mn: 'Зэрэглэлийн түүх' },
+  statPerfect: { en: 'Perfect rounds', mn: 'Бүгдийг идсэн' },
+  statBestStreak: { en: 'Best streak', mn: 'Шилдэг цуврал' },
+  ratingHistory: { en: 'Rating history', mn: 'Чансааны түүх' },
   recentGames: { en: 'Recent games', mn: 'Сүүлийн тоглолтууд' },
   loadingEllipsis: { en: 'Loading…', mn: 'Ачаалж байна…' },
   noGamesYet: { en: 'No games yet — go deal a round.', mn: 'Тоглолт алга — хөзрөө хуваа.' },
+  tabStats: { en: 'Stats', mn: 'Үзүүлэлт' },
+  tabShop: { en: 'Shop', mn: 'Дэлгүүр' },
+  activeLabel: { en: 'Equipped', mn: 'Идэвхтэй' },
+  equipAction: { en: 'Equip', mn: 'Сонгох' },
+  buyAction: { en: 'Unlock', mn: 'Авах' },
+  shopTitle: { en: 'Card Back Shop', mn: 'Хөзрийн арны дэлгүүр' },
+  skinUnlocked: { en: 'Unlocked', mn: 'Нээсэн' },
   winLabel: { en: 'Win', mn: 'Хожил' },
   lossLabel: { en: 'Loss', mn: 'Хожигдол' },
   vsLabel: { en: 'vs {names}', mn: '{names}-тэй' },
   placementLabel: { en: '#{n}', mn: '#{n}' },
   roundsColumn: { en: 'Round-by-round', mn: 'Үе тус бүрээр' },
   roundShort: { en: 'R{n}', mn: 'Ү{n}' },
-  foldedShort: { en: 'fold', mn: 'тарсан' },
-  tricksShort: { en: '{n} tricks', mn: '{n} нүд' },
+  foldedShort: { en: 'fold', mn: 'хаясан' },
+  tricksShort: { en: '{n} tricks', mn: '{n} идсэн' },
 
   // ── Leaderboard ──
   leaderboardTitle: { en: 'Leaderboard', mn: 'Тэргүүлэгчид' },
-  openLeaderboard: { en: 'Open leaderboard', mn: 'Тэргүүлэгчид харах' },
-  leaderboardEmpty: { en: 'No ranked players yet.', mn: 'Зэрэглэлтэй тоглогч алга.' },
+  openLeaderboard: { en: 'Open leaderboard', mn: 'Тэргүүлэгчдийг харах' },
+  leaderboardEmpty: { en: 'No ranked players yet.', mn: 'Чансаатай тоглогч алга.' },
   colGames: { en: 'Games', mn: 'Тоглолт' },
 
   // ── Help book (page bodies are '\n'-separated lines) ──
@@ -143,32 +154,32 @@ const messages = {
   helpGoalTitle: { en: 'The goal', mn: 'Зорилго' },
   helpGoalBody: {
     en: 'Muushig is a trick-taking card game for 2–5 players.\nEveryone starts at 15 points and counts DOWN — first to 0 wins.\nEvery trick you take removes 1 point.\nBid and take no tricks? +5 points — you got muushig’d!',
-    mn: 'Муушиг бол 2–5 хүн тоглодог нүд авалцах хөзрийн тоглоом.\nБүгд 15 оноотой эхэлж, ДООШОО тоолно — эхэлж 0 хүрсэн нь хожно.\nАвсан нүд бүр 1 оноо хасна.\nМөрцөөд нэг ч нүд аваагүй бол +5 оноо — муушиг боллоо!',
+    mn: 'Муушиг бол 2-5 тоглогч тоглодог, хөзөр идэх зорилготой тоглоом юм.\nТоглогч бүр 15 оноотой эхэлж, оноогоо хассаар хамгийн түрүүнд 0 оноотой болсон нь хожно.\nИдсэн хөзөр бүрийн тоогоор оноо хасагдана.\nТоглохоор ороод нэг ч хөзөр идэж чадаагүй бол 5 оноо нэмэгдэж, муушигтана!',
   },
   helpDealTitle: { en: 'The deal', mn: 'Хуваалт' },
   helpDealBody: {
     en: 'A 32-card deck: 7 through Ace in four suits.\nEveryone gets 5 cards, then one card is turned face-up — its suit is trump for the round.\n6 face-down cards form the stock (tal).\nD marks the dealer; АМ marks the amankhuzuu, who always acts first.',
-    mn: '32 хөзөр: дөрвөн өнгийн 7-оос Тамга.\nХүн бүрд 5 хөзөр тараагаад нэгийг нь ил дэлгэнэ — тэр өнгө энэ үеийн хөзөр (диргэх өнгө) болно.\nДарсан 6 хөзөр тал болно.\nD — хуваагч; АМ — аманхүзүү, үргэлж түрүүлж явна.',
+    mn: '4 өнгийн 7-оос Тамга хүртэлх нийт 32 хөзрөөр тоглоно.\nТоглогч бүрд 5 хөзөр тарааж, дараа нь 1 хөзрийг ил дэлгэнэ. Ил дэлгэсэн хөзрийн өнгө нь тухайн үеийн мод (давах өнгө) болно.\nҮлдсэн 6 хөзрийг доош харуулан тавихыг тал гэнэ.\nD тэмдэглэгээ нь хуваагчийг, харин АМ тэмдэглэгээ нь үргэлж түрүүлж явах аманхүзүүг заана.',
   },
-  helpBidTitle: { en: 'Bid or fold', mn: 'Мөрцөх үү, тарах уу' },
+  helpBidTitle: { en: 'Bid or fold', mn: 'Тоглох уу, хаях уу' },
   helpBidBody: {
     en: 'Before each round, players take turns choosing: bid (play the round) or fold.\nFolding keeps your score safe — but wins nothing.\nFold 3 rounds in a row and the next is haranhui: you must play it.',
-    mn: 'Үе бүрийн өмнө тоглогчид ээлжээрээ сонгоно: мөрцөх үү, тарах уу.\nТарвал оноо чинь хөдлөхгүй — гэхдээ юу ч хожихгүй.\n3 удаа дараалан тарвал дараагийнх нь харанхуй: заавал тоглоно.',
+    mn: 'Үе бүрийн эхэнд тоглогчид ээлжээр тоглох эсвэл хаях сонголтоо хийнэ.\nХөзрөө хаявал тухайн үед оноо хөдлөхгүй боловч хөзөр идэх боломжгүй болно.\nДараалан 3 үе хаявал дараагийн үед заавал харанхуй тоглоно (хаях эрхгүй).',
   },
   helpSwapTitle: { en: 'The draw & navshih', mn: 'Солилт ба навших' },
   helpSwapBody: {
     en: 'Bidders may trade up to 5 cards with the stock, in turn order.\nThe dealer has one extra move: take the face-up trump card in exchange for any hand card — navshih.',
-    mn: 'Мөрцсөн хүмүүс ээлжээрээ талаас 5 хүртэл хөзөр сольж болно.\nХуваагчид нэмэлт боломж бий: ил хөзрийг гарын нэг хөзрөөрөө солих — навших.',
+    mn: 'Тоглохоор үлдсэн тоглогчид ээлжээрээ талын хөзрөөс өөрийнхөө гарыг 5 хүртэл хөзрөөр солих замаар сайжруулж болно.\nХуваагчийн хувьд дэлгээтэй байгаа модны ил хөзрийг гарынхаа дурын хөзрөөр сольж авах нэмэлт боломж байх бөгөөд үүнийг навших гэнэ.',
   },
-  helpTrickTitle: { en: 'Playing tricks', mn: 'Нүд авалцах' },
+  helpTrickTitle: { en: 'Playing tricks', mn: 'Хөзөр идэх' },
   helpTrickBody: {
     en: 'Follow the led suit if you can — and beat the highest card on the table if you can.\nNo led suit in hand? You must play a trump if you hold one.\nOtherwise throw anything.\nHighest trump wins the trick; with no trump, the highest card of the led suit.',
-    mn: 'Гарсан өнгөөр явах ёстой — чадвал ширээн дээрх хамгийн өндрийг нь дарж.\nТэр өнгө байхгүй бол хөзрөөр явах ёстой.\nАль нь ч байхгүй бол дуртайгаа хая.\nХамгийн өндөр хөзөр нүд авна; хөзөргүй бол гарсан өнгөний хамгийн өндөр нь.',
+    mn: 'Тоглогчид гарсан хөзрийн өнгийг заавал дагах бөгөөд чадвал хамгийн өндөр хөзрийг дарах ёстой.\nХэрэв дагах өнгө гарт байхгүй бол заавал модоор (дамжин) явах ёстой.\nДагах өнгө болон мод байхгүй тохиолдолд дурын хөзрөө хаяж болно.\nҮеийн хамгийн өндөр модтой тоглогч хөзөр иднэ. Мод тавигдаагүй бол гарсан өнгөний хамгийн өндөр хөзөр иднэ.',
   },
   helpGlossaryTitle: { en: 'The words', mn: 'Үгсийн тайлбар' },
   helpGlossaryBody: {
     en: 'Muushig — bid but took no tricks: +5 points.\nNavshih — the dealer’s trump-card exchange.\nHaranhui — the forced round after 3 folds.\nAmankhuzuu — sits left of the dealer, acts first.\nTal — the 6-card face-down stock.',
-    mn: 'Муушиг — мөрцөөд нэг ч нүд аваагүй: +5 оноо.\nНавших — хуваагчийн ил хөзөр солих эрх.\nХаранхуй — 3 тарсны дараах албан тоглолт.\nАманхүзүү — хуваагчийн зүүн гарт, түрүүлж явна.\nТал — дарсан 6 хөзөр.',
+    mn: 'Муушиг — Тоглохоор үлдээд нэг ч хөзөр идээгүй тохиолдолд (+5 онооны торгууль).\nНавших — Хуваагч дэлгээтэй модны ил хөзрийг өөрийн гарын хөзрөөр солих боломж.\nХаранхуй — Дараалан 3 үе хөзрөө хаясан тоглогч дараагийн үед заавал тоглох дүрэм.\nАманхүзүү — Хуваагчийн зүүн гарт сууж буй, үед түрүүлж явах тоглогч.\nТал — Газарт доош харуулан тавьсан, солиход зориулагдсан үлдэгдэл 6 хөзөр.',
   },
 
   // ── Settings ──
@@ -192,7 +203,10 @@ const messages = {
   crashReload: { en: 'Reload', mn: 'Дахин ачаалах' },
 
   // ── Lobby / tables ──
-  lobbyTitle: { en: 'Welcome to the tavern', mn: 'Мууштай тавтай морил' },
+  homeLabel: { en: 'Home', mn: 'Нүүр' },
+  filterGameType: { en: 'Game Type', mn: 'Тоглоомын Төрөл' },
+  filterStakes: { en: 'Stakes', mn: 'Бооцоо' },
+  lobbyTitle: { en: 'Welcome to the tavern', mn: 'Мухлагт тавтай морил' },
   lobbySubtitle: { en: 'find a table to sit at', mn: 'суух ширээгээ сонго' },
   quickPlay: { en: 'Play', mn: 'Тоглох' },
   hostTable: { en: 'Host a table', mn: 'Ширээ гаргах' },
@@ -206,7 +220,7 @@ const messages = {
   backToLobby: { en: 'Back to the tavern', mn: 'Буцах' },
   kickedNotice: { en: 'You were removed from the table.', mn: 'Таныг ширээнээс гаргалаа.' },
   confirmKick: { en: 'Tap ✕ again to remove {name}', mn: '{name}-г гаргахын тулд ✕ дахин дар' },
-  leaveTable: { en: 'Leave table', mn: 'Ширээ орхих' },
+  leaveTable: { en: 'Leave table', mn: 'Ширээнээс гарах' },
   openTables: { en: 'Open tables', mn: 'Нээлттэй ширээнүүд' },
   refreshTables: { en: 'Refresh', mn: 'Шинэчлэх' },
   noTablesYet: { en: 'No tables yet — start one with Play.', mn: 'Ширээ алга — Тоглох дар.' },
@@ -216,16 +230,16 @@ const messages = {
   unnamedTable: { en: '{host}’s table', mn: '{host}-н ширээ' },
   tableNamePlaceholder: { en: 'Table name (optional)', mn: 'Ширээний нэр (заавал биш)' },
   privateToggle: { en: 'Private (join by code)', mn: 'Хаалттай (кодоор орно)' },
-  premiumOnly: { en: 'Hosting tables is a premium perk.', mn: 'Ширээ гаргах нь premium эрх.' },
+  premiumOnly: { en: 'Hosting tables is a premium perk.', mn: 'Ширээ үүсгэх нь премиум боломж.' },
 
   // ── First-game hints ──
   hintDecision: {
     en: 'Weak hand? Folding costs nothing — bidding and losing every trick costs +5.',
-    mn: 'Гар муу бол тарахад алдах юмгүй — мөрцөөд нүд авахгүй бол +5.',
+    mn: 'Гар муу бол хөзрөө хаяхад алдах юмгүй — тоглоод хөзөр идээгүй тохиолдолд +5 онооны торгуультай.',
   },
   hintSwap: {
     en: 'Trade away low off-suit cards; keep trumps and high cards.',
-    mn: 'Бага өнгөний хөзрөө соль; хөзөр болон өндөр хөзрөө үлдээ.',
+    mn: 'Бага өнгөний хөзрөө соль; мод болон өндөр хөзрөө үлдээ.',
   },
   hintPlay: {
     en: 'You must follow the led suit — and beat the table if you can.',
@@ -234,10 +248,46 @@ const messages = {
 
   // ── Post-game recap ──
   recapTitle: { en: 'Your game', mn: 'Таны тоглолт' },
-  recapStayed: { en: 'Bid {stayed}/{total} rounds', mn: '{total} үеэс {stayed}-д мөрцсөн' },
-  recapTricks: { en: '{n} tricks', mn: '{n} нүд авсан' },
+  recapStayed: { en: 'Bid {stayed}/{total} rounds', mn: '{total} үеэс {stayed}-д тоглосон' },
+  recapTricks: { en: '{n} tricks', mn: '{n} хөзөр идсэн' },
   recapMuushigd: { en: 'muushig’d ×{n}', mn: '×{n} муушиг болсон' },
-  recapPerfect: { en: 'perfect round ×{n}', mn: '×{n} бүх нүд авсан' },
+  recapPerfect: { en: 'perfect round ×{n}', mn: '×{n} бүгдийг идсэн' },
+
+  // ── Newly Added Keys ──
+  closeScoresheet: { en: 'Close scoresheet', mn: 'Онооны хуудас хаах' },
+  scoresheetEmpty: {
+    en: 'No rounds scored yet — the board starts at 15.',
+    mn: 'Тоглолт хараахан эхлээгүй байна — 15 оноотой эхэлнэ.',
+  },
+  scoresheetFooter: {
+    en: 'Start at 15, count down to 0. “-” = folded that round.',
+    mn: '15-аас эхлэн 0 хүртэл тоолно. “-” = тухайн үед хаясан.',
+  },
+  signInToPlay: { en: 'Sign in to play', mn: 'Тоглохын тулд нэвтрэх' },
+  signInSubtitle: {
+    en: 'Track your games, wins, and match history.',
+    mn: 'Тоглолт, хожил болон түүхээ хянах.',
+  },
+  continueDiscord: { en: 'Continue with Discord', mn: 'Discord-оор үргэлжлүүлэх' },
+  continueGoogle: { en: 'Continue with Google', mn: 'Google-ээр үргэлжлүүлэх' },
+  continueFacebook: { en: 'Continue with Facebook', mn: 'Facebook-ээр үргэлжлүүлэх' },
+  youName: { en: 'You', mn: 'Та' },
+  openProfile: { en: 'Open profile', mn: 'Хувийн мэдээлэл' },
+  signOut: { en: 'Sign out', mn: 'Гарах' },
+  tavernSubtitle: { en: 'Mongolian Tavern Card Game', mn: 'Монгол мухлагийн хөзрийн тоглоом' },
+  faceDownCard: { en: 'Face-down card', mn: 'Доош нь харуулсан хөзөр' },
+  cardDesc: { en: '{rank} of {suit}', mn: '{suit}-ийн {rank}' },
+  Spades: { en: 'Spades', mn: 'Гил' },
+  Hearts: { en: 'Hearts', mn: 'Бундан' },
+  Diamonds: { en: 'Diamonds', mn: 'Дөрвөлжин' },
+  Clubs: { en: 'Clubs', mn: 'Цэцэг' },
+  tableEmpty: { en: 'Empty', mn: 'Сул' },
+  tableWaiting: { en: 'Waiting', mn: 'Хүлээж байна' },
+  tablePlaying: { en: 'Playing', mn: 'Тоглож байна' },
+  J: { en: 'Jack', mn: 'Боов' },
+  Q: { en: 'Queen', mn: 'Хатан' },
+  K: { en: 'King', mn: 'Ноён' },
+  A: { en: 'Ace', mn: 'Тамга' },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type MsgKey = keyof typeof messages;

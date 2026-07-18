@@ -34,6 +34,7 @@ interface Props {
   state: GameState;
   sessionId: string | null;
   send: (type: string, payload?: unknown) => void;
+  onLeaveTable?: () => void;
 }
 
 const MIN_PLAYERS = 2;
@@ -178,7 +179,7 @@ function MessagePanel({ title, subtitle }: { title: string; subtitle: string }) 
   );
 }
 
-export function Table({ state, sessionId, send }: Props) {
+export function Table({ state, sessionId, send, onLeaveTable: onLeaveProp }: Props) {
   const phase = state.phase as Phase;
   useLocale(); // re-render the whole table when the language flips
   const isCompact = useIsCompact();
@@ -215,6 +216,7 @@ export function Table({ state, sessionId, send }: Props) {
       isDealer: id === state.dealerId,
       isAmankhuzuu: id === state.amankhuzuuId,
       seatNumber: index + 1,
+      trumpAceDead: p?.trumpAceDead ?? false,
     });
   });
 
@@ -328,7 +330,11 @@ export function Table({ state, sessionId, send }: Props) {
   const onStart = () => act(() => send('start'));
   const onAddBot = () => act(() => send('addBot'));
   const onRemoveBot = (id: string) => act(() => send('removeBot', { id }));
-  const onLeaveTable = () => act(() => send('leaveTable'));
+  const onLeaveTable = () =>
+    act(() => {
+      send('leaveTable');
+      onLeaveProp?.();
+    });
 
   // Kicking a human takes a second tap on the same ✕ within a short window.
   const [armedKickId, setArmedKickId] = useState<string | null>(null);

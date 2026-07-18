@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { ColyseusTestServer, boot } from '@colyseus/testing';
-import { MuushigEngine, Card, HAND_SIZE } from '@muushig/shared';
+import { MuushigEngine, MuushigBot, Card, HAND_SIZE } from '@muushig/shared';
 import type { MatchRecord } from '../src/stats/StatsCollector';
 import appConfig from '../app.config';
 
@@ -757,5 +757,208 @@ describe('MuushigRoom — round flow', () => {
     expect(room.state.winners.length).toBeGreaterThanOrEqual(1);
     await waitUntil(() => gameOver !== null);
     expect(gameOver!.winners.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('MuushigRoom — bot navshih', () => {
+  test('a bot dealer exchanges the trump card during its swap turn', async () => {
+    // Slow bot beat so the test can probe the chooser before the bot acts.
+    const room = await createRoom({ botDelay: 200 });
+    const human = await colyseus.connectTo(room);
+    await waitUntil(() => room.state.players.size === 1);
+    human.send('addBot');
+    await waitUntil(() => room.state.players.size === 2);
+    const botId = [...room.state.seatOrder].find((id) => id.startsWith('bot-'))!;
+
+    human.send('ready');
+    await waitUntil(() => room.state.players.get(human.sessionId)!.isReady);
+    human.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    // Deterministic setup: the bot deals this round, and the haranhui cap
+    // forces it to stay regardless of hand strength.
+    room.state.dealerId = botId;
+    room.state.players.get(botId)!.consecutiveFolds = 99;
+
+    await waitUntil(
+      () => room.state.currentTurn === human.sessionId || room.state.phase !== 'decision',
+    );
+    if (room.state.phase === 'decision') human.send('stay');
+    await waitUntil(() => room.state.phase === 'swap', 8000);
+
+    const me = () => room.state.players.get(human.sessionId)!;
+    await waitUntil(
+      () =>
+        (room.state.currentTurn === human.sessionId && !me().hasSwapped) ||
+        room.state.currentTurn === botId ||
+        room.state.phase !== 'swap',
+    );
+    if (
+      room.state.phase === 'swap' &&
+      room.state.currentTurn === human.sessionId &&
+      !me().hasSwapped
+    ) {
+      human.send('swap', { indices: [] });
+    }
+
+    // Probe the chooser the moment the bot's swap turn opens (well inside its
+    // 200ms beat) — the room must land exactly on the chooser's verdict.
+    await waitUntil(() => room.state.currentTurn === botId && room.state.phase === 'swap', 8000);
+    const verdict = room.state.trumpExchanged
+      ? null // already exchanged before we probed — counts as a navshih
+      : MuushigBot.chooseTrumpExchange(room.state, botId);
+    const expectExchange = room.state.trumpExchanged || verdict !== null;
+
+    await waitUntil(() => room.state.players.get(botId)!.hasSwapped, 8000);
+    expect(room.state.trumpExchanged).toBe(expectExchange);
+  });
+});
+
+describe('MuushigRoom — identity seat reclaim', () => {
+  test('the same account reclaims its seat from the bot and can play through the alias', async () => {
+    const room = await createRoom({ reconnectWindow: 1, botDelay: 5 });
+    const alice = await colyseus.connectTo(room, { accessToken: 'token-alice', username: 'Alice' });
+    const other = await colyseus.connectTo(room, { username: 'Bob' });
+    await waitUntil(() => room.state.players.size === 2);
+    for (const c of [alice, other]) c.send('ready');
+    await waitUntil(() =>
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+    );
+    alice.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    const seatId = alice.sessionId;
+    await alice.leave(false);
+    await waitUntil(() => room.state.players.get(seatId)?.isBot === true, 8000);
+
+    // Fresh session, same account → the seat comes back from the bot.
+    const aliceAgain = await colyseus.connectTo(room, {
+      accessToken: 'token-alice',
+      username: 'Alice',
+    });
+    const seatMsg = new Promise<string>((resolve) => {
+      aliceAgain.onMessage<{ seatId: string }>('seatId', (m) => resolve(m.seatId));
+    });
+    await waitUntil(
+      () =>
+        room.state.players.get(seatId)?.isBot === false &&
+        room.state.players.get(seatId)?.isConnected === true,
+      8000,
+    );
+    expect(room.state.spectators.has(aliceAgain.sessionId)).toBe(false);
+    expect(await seatMsg).toBe(seatId);
+
+    // The reclaimed client's messages route to the original seat: drive the
+    // game to Alice's turn and act from the NEW session.
+    if (room.state.phase === 'decision') {
+      await waitUntil(
+        () => room.state.currentTurn === other.sessionId || room.state.currentTurn === seatId,
+      );
+      if (room.state.currentTurn === other.sessionId) {
+        other.send('stay');
+        await waitUntil(() => room.state.currentTurn === seatId || room.state.phase !== 'decision');
+      }
+      if (room.state.phase === 'decision' && room.state.currentTurn === seatId) {
+        aliceAgain.send('stay');
+        await waitUntil(() => room.state.players.get(seatId)!.hasDecided === true, 8000);
+      }
+      expect(room.state.players.get(seatId)!.hasDecided).toBe(true);
+    }
+  });
+
+  test('a deliberate leave forfeits the claim — the returner spectates', async () => {
+    const room = await createRoom({ reconnectWindow: 1, botDelay: 5 });
+    const alice = await colyseus.connectTo(room, { accessToken: 'token-alice', username: 'Alice' });
+    const other = await colyseus.connectTo(room, { username: 'Bob' });
+    await waitUntil(() => room.state.players.size === 2);
+    for (const c of [alice, other]) c.send('ready');
+    await waitUntil(() =>
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+    );
+    alice.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    const seatId = alice.sessionId;
+    alice.send('leaveTable');
+    await waitUntil(() => room.state.players.get(seatId)?.isBot === true, 8000);
+
+    const aliceAgain = await colyseus.connectTo(room, {
+      accessToken: 'token-alice',
+      username: 'Alice',
+    });
+    await waitUntil(() => room.state.spectators.has(aliceAgain.sessionId), 8000);
+    expect(room.state.players.get(seatId)!.isBot).toBe(true);
+  });
+
+  test('a discordId identity reclaims without an account token', async () => {
+    const room = await createRoom({ reconnectWindow: 1, botDelay: 5 });
+    const disc = await colyseus.connectTo(room, { discordId: 'disc-777', username: 'Dorj' });
+    const other = await colyseus.connectTo(room, { username: 'Bob' });
+    await waitUntil(() => room.state.players.size === 2);
+    for (const c of [disc, other]) c.send('ready');
+    await waitUntil(() =>
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+    );
+    disc.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    const seatId = disc.sessionId;
+    await disc.leave(false);
+    await waitUntil(() => room.state.players.get(seatId)?.isBot === true, 8000);
+
+    await colyseus.connectTo(room, { discordId: 'disc-777', username: 'Dorj' });
+    await waitUntil(
+      () =>
+        room.state.players.get(seatId)?.isBot === false &&
+        room.state.players.get(seatId)?.isConnected === true,
+      8000,
+    );
+  });
+
+  test('a guest with no stable identity still lands as a spectator', async () => {
+    const room = await createRoom({ reconnectWindow: 1, botDelay: 5 });
+    const guest = await colyseus.connectTo(room, { username: 'Ghost' });
+    const other = await colyseus.connectTo(room, { username: 'Bob' });
+    await waitUntil(() => room.state.players.size === 2);
+    for (const c of [guest, other]) c.send('ready');
+    await waitUntil(() =>
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+    );
+    guest.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    const seatId = guest.sessionId;
+    await guest.leave(false);
+    await waitUntil(() => room.state.players.get(seatId)?.isBot === true, 8000);
+
+    const returner = await colyseus.connectTo(room, { username: 'Ghost' });
+    await waitUntil(() => room.state.spectators.has(returner.sessionId), 8000);
+    expect(room.state.players.get(seatId)!.isBot).toBe(true);
+  });
+
+  test('reclaims a seat that is still held (window not yet lapsed)', async () => {
+    const room = await createRoom({ reconnectWindow: 30, botDelay: 5 });
+    const alice = await colyseus.connectTo(room, { accessToken: 'token-alice', username: 'Alice' });
+    const other = await colyseus.connectTo(room, { username: 'Bob' });
+    await waitUntil(() => room.state.players.size === 2);
+    for (const c of [alice, other]) c.send('ready');
+    await waitUntil(() =>
+      [...room.state.seatOrder].every((id) => room.state.players.get(id)!.isReady),
+    );
+    alice.send('start');
+    await waitUntil(() => room.state.phase === 'decision');
+
+    const seatId = alice.sessionId;
+    await alice.leave(false);
+    await waitUntil(() => room.state.players.get(seatId)?.isConnected === false, 8000);
+    expect(room.state.players.get(seatId)!.isBot).toBe(false); // held, not yet a bot
+
+    const aliceAgain = await colyseus.connectTo(room, {
+      accessToken: 'token-alice',
+      username: 'Alice',
+    });
+    await waitUntil(() => room.state.players.get(seatId)?.isConnected === true, 8000);
+    expect(room.state.players.get(seatId)!.isBot).toBe(false);
+    expect(room.state.spectators.has(aliceAgain.sessionId)).toBe(false);
   });
 });

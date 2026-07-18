@@ -54,16 +54,45 @@ function Centered({ children }: { children: React.ReactNode }) {
 
 function AccountBar({ onProfile }: { onProfile: () => void }) {
   const { session, signOut } = useAuth();
+  const [coins, setCoins] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!supabase || !session?.user.id) {
+      setCoins(null);
+      return;
+    }
+    let active = true;
+    supabase
+      .from('profiles')
+      .select('coins')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data) {
+          setCoins((data as { coins?: number }).coins ?? 0);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [session?.user.id]);
+
   if (!session) return null;
   const m = (session.user.user_metadata ?? {}) as Record<string, string>;
   const avatar = m.avatar_url || m.picture || '';
-  const name = m.full_name || m.name || m.user_name || 'You';
+  const name = m.full_name || m.name || m.user_name || t('youName');
   return (
     <div className="fixed right-[max(0.75rem,var(--safe-right))] top-[max(0.75rem,var(--safe-top))] z-40 flex items-center gap-2 select-none">
+      {coins !== null && (
+        <div className="flex items-center gap-1.5 rounded-full border border-amber-deep/40 bg-parchment-deep px-2.5 py-1 text-sm font-bold text-ember shadow-sm">
+          <span>🪙</span>
+          <span className="font-hand text-sm">{coins}</span>
+        </div>
+      )}
       <button
         type="button"
         onClick={onProfile}
-        aria-label="Open profile"
+        aria-label={t('openProfile')}
         className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center font-hand text-lg text-ember"
         style={avatar ? { backgroundImage: `url("${avatar}")` } : undefined}
       >
@@ -74,7 +103,7 @@ function AccountBar({ onProfile }: { onProfile: () => void }) {
         onClick={signOut}
         className="rounded px-2 py-1 font-hand text-base text-cream/80 hover:text-cream"
       >
-        Sign out
+        {t('signOut')}
       </button>
     </div>
   );
@@ -131,11 +160,19 @@ function GameView({
   onExit: (notice: string | null) => void;
 }) {
   const { status, error, state, sessionId, send } = useRoom(intent);
-  const { session } = useAuth();
+  const { session, signOut } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   useLocale(); // re-render the shell when the language flips
+
+  useEffect(() => {
+    if (status === 'closed') {
+      onExit(null);
+    } else if (status === 'kicked') {
+      window.history.pushState(null, '', '/');
+    }
+  }, [status, onExit]);
 
   // First run: open the rules book once, when the player lands in a lobby.
   const inLobby = status === 'connected' && state?.phase === 'waiting';
@@ -210,11 +247,11 @@ function GameView({
         ))}
 
       {(status === 'connected' || status === 'reconnecting') && state && (
-        <Table state={state} sessionId={sessionId} send={send} />
+        <Table state={state} sessionId={sessionId} send={send} onLeaveTable={() => onExit(null)} />
       )}
 
       {showProfile && session && (
-        <Profile session={session} onClose={() => setShowProfile(false)} />
+        <Profile session={session} onClose={() => setShowProfile(false)} signOut={signOut} />
       )}
     </>
   );
@@ -247,18 +284,62 @@ function useCanHost(): boolean {
 }
 
 /** Picks the table (web Lobby) or auto-joins (Discord), then runs the game. */
-function TableRouter() {
+function TableRouter({ session, signOut }: { session: any; signOut?: () => Promise<void> }) {
   // Inside Discord the activity instance IS the table — always quick-join.
-  const [intent, setIntent] = useState<JoinIntent | null>(() =>
-    isEmbedded ? { mode: 'quick' } : readStoredIntent(),
-  );
+  const [intent, setIntent] = useState<JoinIntent | null>(() => {
+    if (isEmbedded) return { mode: 'quick' };
+
+    const pathMatch = window.location.pathname.match(/^\/table\/(\d+)$/);
+    if (pathMatch) {
+      const tableId = parseInt(pathMatch[1], 10);
+      if (tableId >= 1 && tableId <= 20) {
+        return { mode: 'table', tableId };
+      }
+    }
+
+    return readStoredIntent();
+  });
+
   const canHost = useCanHost();
   const [notice, setNotice] = useState<string | null>(null);
-  // Bumped on embedded exits so GameView remounts into a fresh join.
+  const getInitialTab = () => {
+    if (isEmbedded) return 'lobby';
+    const path = window.location.pathname;
+    if (path === '/profile') return 'profile';
+    if (path === '/shop') return 'shop';
+    if (path === '/settings') return 'settings';
+    return 'lobby';
+  };
+
+  const [activeTab, setActiveTab] = useState<'lobby' | 'profile' | 'shop' | 'settings'>(
+    getInitialTab(),
+  );
   const [nonce, setNonce] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   useLocale();
+
+  useEffect(() => {
+    if (isEmbedded) return;
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const pathMatch = path.match(/^\/table\/(\d+)$/);
+      if (pathMatch) {
+        const tableId = parseInt(pathMatch[1], 10);
+        if (tableId >= 1 && tableId <= 20) {
+          setIntent({ mode: 'table', tableId });
+          return;
+        }
+      }
+      setIntent(null);
+      if (path === '/profile') setActiveTab('profile');
+      else if (path === '/shop') setActiveTab('shop');
+      else if (path === '/settings') setActiveTab('settings');
+      else setActiveTab('lobby');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   if (!intent) {
     return (
@@ -279,10 +360,21 @@ function TableRouter() {
         <Lobby
           notice={notice}
           canHost={canHost}
+          activeTab={activeTab}
+          onNavigate={(tab) => {
+            setActiveTab(tab);
+            if (!isEmbedded) {
+              window.history.pushState(null, '', tab === 'lobby' ? '/' : `/${tab}`);
+            }
+          }}
           onJoin={(next) => {
             setNotice(null);
             setIntent(next);
+            if (next.mode === 'table') {
+              window.history.pushState(null, '', `/table/${next.tableId}`);
+            }
           }}
+          signOut={signOut}
         />
       </>
     );
@@ -298,6 +390,7 @@ function TableRouter() {
           setIntent({ mode: 'quick' });
           setNonce((n) => n + 1);
         } else {
+          window.history.pushState(null, '', '/');
           setNotice(message);
           setIntent(null);
         }
@@ -307,7 +400,7 @@ function TableRouter() {
 }
 
 export default function App() {
-  const { enabled, loading, session } = useAuth();
+  const { enabled, loading, session, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -332,5 +425,5 @@ export default function App() {
     );
   }
 
-  return <TableRouter />;
+  return <TableRouter session={session} signOut={signOut} />;
 }

@@ -21,7 +21,8 @@ export type JoinIntent =
   | { mode: 'quick' }
   | { mode: 'create'; maxPlayers: number; isPrivate: boolean; tableName?: string }
   | { mode: 'code'; code: string }
-  | { mode: 'room'; roomId: string };
+  | { mode: 'room'; roomId: string }
+  | { mode: 'table'; tableId: number };
 
 export interface RoomConnection {
   status: ConnStatus;
@@ -71,6 +72,7 @@ export function readStoredIntent(): JoinIntent | null {
     }
     if (parsed.mode === 'code' && typeof parsed.code === 'string') return parsed;
     if (parsed.mode === 'room' && typeof parsed.roomId === 'string') return parsed;
+    if (parsed.mode === 'table' && typeof parsed.tableId === 'number') return parsed;
     return null;
   } catch {
     return null;
@@ -115,8 +117,6 @@ async function findOpenTable(): Promise<string | null> {
   }
 }
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /**
  * Joins (or creates) a Muushig room per the given intent and keeps React in
  * sync with the synced GameState. The schema mutates in place, so we bump a
@@ -134,6 +134,9 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
   const [, setVersion] = useState(0);
   const roomRef = useRef<Room<GameState> | null>(null);
   const stateRef = useRef<GameState | null>(null);
+  /** The seat this connection controls — differs from sessionId after an
+   *  identity-based reclaim (the seat keeps its original key). */
+  const seatIdRef = useRef<string | null>(null);
 
   const rerender = useCallback(() => setVersion((v) => v + 1), []);
   const userId = session?.user.id;
@@ -153,6 +156,15 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
       writeToken(roomName, room.reconnectionToken);
       setStatus('connected');
       setError(null);
+      // Learn which seat is "us" (a reclaimed seat keeps its original key).
+      seatIdRef.current = null;
+      room.onMessage<{ seatId?: string }>('seatId', (msg) => {
+        if (msg?.seatId && msg.seatId !== seatIdRef.current) {
+          seatIdRef.current = msg.seatId;
+          rerender();
+        }
+      });
+      room.send('whoami');
       rerender();
 
       // A created PUBLIC table converts to a room intent right away; a private
@@ -194,6 +206,26 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
       });
     };
 
+    // Waking from a backgrounded tab or regaining network shouldn't sit out
+    // the rest of an exponential backoff — these events cut the wait short.
+    // (Discord mobile backgrounds the webview on every app switch.)
+    let cutBackoffShort: (() => void) | null = null;
+    const interruptibleDelay = (ms: number) =>
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(done, ms);
+        function done() {
+          clearTimeout(timer);
+          cutBackoffShort = null;
+          resolve();
+        }
+        cutBackoffShort = done;
+      });
+    const onWake = () => {
+      if (document.visibilityState === 'visible') cutBackoffShort?.();
+    };
+    window.addEventListener('online', onWake);
+    document.addEventListener('visibilitychange', onWake);
+
     /** After an abnormal drop: retry the held seat with backoff. */
     const rejoin = async () => {
       setStatus('reconnecting');
@@ -209,7 +241,7 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
           wire(room);
           return;
         } catch {
-          await delay(REJOIN_BASE_DELAY_MS * 2 ** attempt);
+          await interruptibleDelay(Math.min(8_000, REJOIN_BASE_DELAY_MS * 2 ** attempt));
         }
       }
       if (cancelled) return;
@@ -280,6 +312,12 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
           return null;
         }
       }
+      if (liveIntent.mode === 'table') {
+        return client.joinOrCreate<GameState>(roomName, {
+          ...identityOptions,
+          tableId: liveIntent.tableId,
+        });
+      }
 
       // Quick play. Inside Discord the activity instance is the table —
       // keep the instance-filtered joinOrCreate. On the web, matchmake
@@ -335,6 +373,8 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
 
     return () => {
       cancelled = true;
+      window.removeEventListener('online', onWake);
+      document.removeEventListener('visibilitychange', onWake);
       void roomRef.current?.leave();
       roomRef.current = null;
     };
@@ -350,7 +390,7 @@ export function useRoom(intent: JoinIntent, roomName = 'muushig'): RoomConnectio
     status,
     error,
     state: stateRef.current,
-    sessionId: roomRef.current?.sessionId ?? null,
+    sessionId: seatIdRef.current ?? roomRef.current?.sessionId ?? null,
     send,
   };
 }

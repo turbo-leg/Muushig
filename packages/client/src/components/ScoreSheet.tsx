@@ -39,7 +39,7 @@ export function ScoreSheet({ seats, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close scoresheet"
+            aria-label={t('closeScoresheet')}
             className="grid h-9 w-9 place-items-center rounded-full font-hand text-xl font-bold text-ember hover:bg-wood/10 hover:text-amber-deep"
           >
             ✕
@@ -47,14 +47,14 @@ export function ScoreSheet({ seats, onClose }: Props) {
         </div>
 
         <div className="overflow-auto px-4 py-3">
-          <table className="w-full border-collapse font-hand text-ink">
+          <table className="w-full table-fixed border-collapse font-hand text-ink">
             <thead>
               <tr className="border-b-2 border-ink">
-                <th className="px-2 py-1 text-left text-sm text-ink-soft">#</th>
+                <th className="w-8 px-1 py-1 text-left text-sm text-ink-soft">#</th>
                 {seats.map((s) => (
                   <th
                     key={s.id}
-                    className={`max-w-[88px] truncate px-2 py-1 text-center text-base font-bold ${
+                    className={`truncate px-1 py-1 text-center text-sm sm:text-base font-bold ${
                       s.isMe ? 'text-amber-deep' : 'text-ink'
                     }`}
                     title={s.username}
@@ -71,15 +71,15 @@ export function ScoreSheet({ seats, onClose }: Props) {
                     colSpan={seats.length + 1}
                     className="py-5 text-center font-hand text-base text-ink-soft"
                   >
-                    No rounds scored yet — the board starts at 15.
+                    {t('scoresheetEmpty')}
                   </td>
                 </tr>
               ) : (
                 Array.from({ length: rounds }).map((_, r) => (
                   <tr key={r} className="border-b border-[#d8bd92]">
-                    <td className="num px-2 py-1 text-left text-sm text-ink-soft">{r + 1}</td>
+                    <td className="num px-1 py-1 text-left text-sm text-ink-soft">{r + 1}</td>
                     {seats.map((s) => (
-                      <td key={s.id} className="num px-2 py-1 text-center text-base">
+                      <td key={s.id} className="num px-1 py-1 text-center text-sm sm:text-base">
                         {s.scoreLog[r] ?? ''}
                       </td>
                     ))}
@@ -89,13 +89,13 @@ export function ScoreSheet({ seats, onClose }: Props) {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-ink">
-                <td className="px-2 py-1 text-left text-sm font-bold text-ink-soft">
+                <td className="px-1 py-1 text-left text-sm font-bold text-ink-soft">
                   {t('nowRow')}
                 </td>
                 {seats.map((s) => (
                   <td
                     key={s.id}
-                    className="num px-2 py-1 text-center text-lg font-bold text-amber-deep"
+                    className="num px-1 py-1 text-center text-base sm:text-lg font-bold text-amber-deep"
                   >
                     {s.score}
                   </td>
@@ -106,7 +106,7 @@ export function ScoreSheet({ seats, onClose }: Props) {
         </div>
 
         <p className="border-t border-gild px-4 py-2 font-hand text-sm text-ink-soft">
-          Start at 15, count down to 0. “-” = folded that round.
+          {t('scoresheetFooter')}
         </p>
       </div>
     </div>
