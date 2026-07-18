@@ -64,14 +64,88 @@ function Slider({
   );
 }
 
-/** Gear modal: audio, language, rules. Values persist via the audio module. */
-export function Settings({ onClose, onOpenHelp }: { onClose: () => void; onOpenHelp: () => void }) {
-  // Local mirrors so the controls re-render; the modules hold the truth.
+export function SettingsForm({ onOpenHelp }: { onOpenHelp: () => void }) {
   const [muted, setMutedState] = useState(isMuted());
   const [sfx, setSfx] = useState(getSfxVolume());
   const [music, setMusic] = useState(getMusicVolume());
   const [musicOn, setMusicOn] = useState(isMusicOn());
 
+  return (
+    <div className="flex flex-col gap-3.5 text-[#332b25]">
+      <Row label={t('muteAll')}>
+        <Toggle
+          on={muted}
+          label={t('muteAll')}
+          onChange={() => {
+            initAudio();
+            setMutedState(toggleMuted());
+          }}
+        />
+      </Row>
+
+      <Row label={t('sfxVolume')}>
+        <Slider
+          value={sfx}
+          label={t('sfxVolume')}
+          onChange={(v) => {
+            initAudio();
+            setSfxVolume(v);
+            setSfx(v);
+            play('click');
+          }}
+        />
+      </Row>
+
+      <Row label={t('musicToggle')}>
+        <Toggle on={musicOn} label={t('musicToggle')} onChange={() => setMusicOn(toggleMusic())} />
+      </Row>
+
+      <Row label={t('musicVolume')}>
+        <Slider
+          value={music}
+          label={t('musicVolume')}
+          onChange={(v) => {
+            setMusicVolume(v);
+            setMusic(v);
+          }}
+        />
+      </Row>
+
+      <Row label={t('languageRow')}>
+        <button
+          type="button"
+          onClick={toggleLocale}
+          className="rounded-lg border border-ink/30 bg-[#faf6eb] hover:bg-[#faf6eb]/80 px-3 py-1 font-hand text-lg font-bold text-[#daaa3d] cursor-pointer"
+        >
+          {getLocale() === 'en' ? 'English → Монгол' : 'Монгол → English'}
+        </button>
+      </Row>
+
+      <Row label={t('rulesRow')}>
+        <button
+          type="button"
+          onClick={onOpenHelp}
+          className="grid h-8 w-8 place-items-center rounded-full border border-ink/30 bg-[#faf6eb] hover:bg-[#faf6eb]/80 font-hand text-lg font-bold text-[#daaa3d] cursor-pointer"
+          aria-label={t('helpOpen')}
+        >
+          ?
+        </button>
+      </Row>
+
+      <div className="mt-3 flex justify-center gap-4 text-sm text-[#c5bbae]">
+        <a href="/privacy" target="_blank" rel="noreferrer" className="underline hover:text-cream">
+          {t('privacyLink')}
+        </a>
+        <a href="/terms" target="_blank" rel="noreferrer" className="underline hover:text-cream">
+          {t('termsLink')}
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/** Gear modal: audio, language, rules. Values persist via the audio module. */
+export function Settings({ onClose, onOpenHelp }: { onClose: () => void; onOpenHelp: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 safe-pad"
@@ -81,93 +155,21 @@ export function Settings({ onClose, onOpenHelp }: { onClose: () => void; onOpenH
       aria-label={t('settingsTitle')}
     >
       <div
-        className="relative flex w-full max-w-sm flex-col rounded-[12px] border-2 border-ink bg-parchment px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.6)]"
+        className="relative flex w-full max-w-sm flex-col rounded-[12px] border-2 border-gild/40 bg-[#fdfbf7] px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label={t('cancel')}
-          className="absolute right-3 top-2 font-hand text-2xl text-ink-soft hover:text-ink"
+          className="absolute right-3 top-2 font-hand text-2xl text-ink-soft hover:text-ink cursor-pointer"
         >
           ✕
         </button>
-        <h2 className="mb-2 border-b-2 border-gild pb-2 font-display text-3xl font-bold text-ink">
+        <h2 className="mb-4 border-b-2 border-gild pb-2 font-display text-3xl font-bold text-[#4c1116] uppercase tracking-wider">
           {t('settingsTitle')}
         </h2>
-
-        <Row label={t('muteAll')}>
-          <Toggle
-            on={muted}
-            label={t('muteAll')}
-            onChange={() => {
-              initAudio();
-              setMutedState(toggleMuted());
-            }}
-          />
-        </Row>
-
-        <Row label={t('sfxVolume')}>
-          <Slider
-            value={sfx}
-            label={t('sfxVolume')}
-            onChange={(v) => {
-              initAudio();
-              setSfxVolume(v);
-              setSfx(v);
-              play('click');
-            }}
-          />
-        </Row>
-
-        <Row label={t('musicToggle')}>
-          <Toggle
-            on={musicOn}
-            label={t('musicToggle')}
-            onChange={() => setMusicOn(toggleMusic())}
-          />
-        </Row>
-
-        <Row label={t('musicVolume')}>
-          <Slider
-            value={music}
-            label={t('musicVolume')}
-            onChange={(v) => {
-              setMusicVolume(v);
-              setMusic(v);
-            }}
-          />
-        </Row>
-
-        <Row label={t('languageRow')}>
-          <button
-            type="button"
-            onClick={toggleLocale}
-            className="rounded-lg border border-ink/30 bg-parchment-deep/50 px-3 py-1 font-hand text-lg font-bold text-ember"
-          >
-            {getLocale() === 'en' ? 'English → Монгол' : 'Монгол → English'}
-          </button>
-        </Row>
-
-        <Row label={t('rulesRow')}>
-          <button
-            type="button"
-            onClick={onOpenHelp}
-            className="grid h-8 w-8 place-items-center rounded-full border border-ink/30 bg-parchment-deep/50 font-hand text-lg font-bold text-ember"
-            aria-label={t('helpOpen')}
-          >
-            ?
-          </button>
-        </Row>
-
-        <div className="mt-3 flex justify-center gap-4 text-sm text-ink-soft">
-          <a href="/privacy" target="_blank" rel="noreferrer" className="underline hover:text-ink">
-            {t('privacyLink')}
-          </a>
-          <a href="/terms" target="_blank" rel="noreferrer" className="underline hover:text-ink">
-            {t('termsLink')}
-          </a>
-        </div>
+        <SettingsForm onOpenHelp={onOpenHelp} />
       </div>
     </div>
   );

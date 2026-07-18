@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { identityFromSession } from '../auth/identity';
 import { t } from '../i18n';
+import { GoldCoinIcon } from './Icons';
 
 interface Stats {
   games_played: number;
@@ -71,8 +72,18 @@ function Sparkline({ values }: { values: number[] }) {
     )
     .join(' ');
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-7 w-[120px]" aria-label={t('ratingHistory')}>
-      <polyline points={pts} fill="none" stroke="#d98e04" strokeWidth="2" strokeLinejoin="round" />
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="h-7 w-[120px] filter drop-shadow-sm"
+      aria-label={t('ratingHistory')}
+    >
+      <polyline
+        points={pts}
+        fill="none"
+        stroke="#d98e04"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -97,7 +108,7 @@ function MatchRounds({ matchId }: { matchId: string }) {
     };
   }, [matchId]);
 
-  if (!rounds) return <p className="font-hand text-sm text-ink-soft">{t('loadingEllipsis')}</p>;
+  if (!rounds) return <p className="font-hand text-sm text-[#c5bbae]">{t('loadingEllipsis')}</p>;
 
   const byRound = new Map<number, RoundRow[]>();
   for (const r of rounds) {
@@ -107,16 +118,21 @@ function MatchRounds({ matchId }: { matchId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-0.5 pt-1">
+    <div className="flex flex-col gap-1.5 pt-2 border-t border-gild/10 mt-2">
       {[...byRound.entries()].map(([no, rows]) => (
         <div key={no} className="flex items-baseline gap-2 font-hand text-sm leading-tight">
-          <span className="w-7 shrink-0 text-ink-soft">{t('roundShort', { n: no })}</span>
+          <span className="w-8 shrink-0 text-[#c5bbae] font-semibold">
+            {t('roundShort', { n: no })}
+          </span>
           <span className="min-w-0 flex-1 truncate">
             {rows.map((r, i) => (
-              <span key={i} className={r.shut_out ? 'text-danger' : 'text-ink'}>
-                {i > 0 && <span className="text-ink-soft"> · </span>}
+              <span
+                key={i}
+                className={r.shut_out ? 'text-danger font-bold animate-pulse' : 'text-cream'}
+              >
+                {i > 0 && <span className="text-[#c5bbae]"> · </span>}
                 {r.seat}{' '}
-                <span className="text-ink-soft">
+                <span className="text-[#c5bbae]">
                   {r.stayed ? t('tricksShort', { n: r.tricks_won }) : t('foldedShort')}
                 </span>
               </span>
@@ -128,37 +144,59 @@ function MatchRounds({ matchId }: { matchId: string }) {
   );
 }
 
-/** Account profile: core + deep stats, rating sparkline, expandable history. */
-export function Profile({ session, onClose }: { session: Session; onClose: () => void }) {
+export function Profile({
+  session,
+  signOut,
+  onClose,
+}: {
+  session: Session;
+  signOut?: () => Promise<void>;
+  onClose?: () => void;
+}) {
   const me = identityFromSession(session);
   const [stats, setStats] = useState<Stats | null>(null);
   const [history, setHistory] = useState<MatchRow[]>([]);
+  const [coins, setCoins] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     let active = true;
     (async () => {
-      const [statsRes, histRes] = await Promise.all([
-        supabase
-          .from('player_stats')
-          .select(
-            'games_played, games_won, rounds_played, rounds_stayed, rounds_folded, tricks_won_total, shutouts_taken, shutouts_inflicted, navshih_count, haranhui_count, perfect_rounds, current_streak, best_win_streak, rating',
-          )
-          .eq('user_id', me.userId)
-          .maybeSingle(),
-        supabase
-          .from('match_results')
-          .select('match_id, won, score, placement, opponents, stats, created_at')
-          .eq('user_id', me.userId)
-          .order('created_at', { ascending: false })
-          .limit(20),
-      ]);
-      if (!active) return;
-      setStats({ ...EMPTY_STATS, ...((statsRes.data as Partial<Stats>) ?? {}) });
-      setHistory((histRes.data as MatchRow[]) ?? []);
-      setLoading(false);
+      try {
+        const [statsRes, histRes, profileRes] = await Promise.all([
+          supabase
+            .from('player_stats')
+            .select(
+              'games_played, games_won, rounds_played, rounds_stayed, rounds_folded, tricks_won_total, shutouts_taken, shutouts_inflicted, navshih_count, haranhui_count, perfect_rounds, current_streak, best_win_streak, rating',
+            )
+            .eq('user_id', me.userId)
+            .maybeSingle(),
+          supabase
+            .from('match_results')
+            .select('match_id, won, score, placement, opponents, stats, created_at')
+            .eq('user_id', me.userId)
+            .order('created_at', { ascending: false })
+            .limit(20),
+          supabase.from('profiles').select('coins').eq('id', me.userId).maybeSingle(),
+        ]);
+        if (!active) return;
+        setStats({ ...EMPTY_STATS, ...((statsRes.data as Partial<Stats>) ?? {}) });
+        setHistory((histRes.data as MatchRow[]) ?? []);
+
+        if (profileRes.data) {
+          const pData = profileRes.data as { coins?: number };
+          setCoins(pData.coins ?? 0);
+        }
+      } catch {
+        // Fallback silently and show empty stats/history
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
     return () => {
       active = false;
@@ -175,113 +213,193 @@ export function Profile({ session, onClose }: { session: Session; onClose: () =>
       : s.current_streak < 0
         ? `${s.current_streak}`
         : '0';
-  // Oldest → newest for the sparkline (history is newest-first).
+
   const ratingSeries = [...history]
     .reverse()
     .map((m) => m.stats?.rating_after)
     .filter((v): v is number => typeof v === 'number');
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 safe-pad">
-      <div className="parchment relative flex max-h-[90dvh] w-full max-w-md flex-col gap-4 overflow-y-auto px-6 py-6">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t('closeProfile')}
-          className="absolute right-3 top-2 font-hand text-2xl text-ink-soft hover:text-ink"
-        >
-          ✕
-        </button>
-
-        <header className="flex items-center gap-3">
+  const innerContent = (
+    <div className="w-full flex flex-col gap-6 p-1 sm:p-4 text-[#332b25]">
+      {/* Profile Header Card */}
+      <div className="bg-[#fdfbf7] border-2 border-gild/20 rounded-[24px] p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
+        <div className="flex items-center gap-4">
           <div
-            className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-deep bg-parchment-deep bg-cover bg-center grid place-items-center font-hand text-2xl text-ember"
+            className="h-16 w-16 shrink-0 rounded-full border-2 border-amber bg-parchment-deep bg-cover bg-center grid place-items-center font-hand text-3xl font-extrabold text-ember shadow-sm"
             style={me.avatarUrl ? { backgroundImage: `url("${me.avatarUrl}")` } : undefined}
           >
             {!me.avatarUrl && me.username.charAt(0).toUpperCase()}
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate font-display text-3xl font-bold text-ink">{me.username}</h2>
-            <p className="font-hand text-sm text-ink-soft">{t('muushigPlayer')}</p>
+          <div className="min-w-0">
+            <h2 className="font-display text-2xl font-extrabold text-ember tracking-wide leading-tight">
+              {me.username}
+            </h2>
+            <div className="flex items-center gap-2 font-hand text-sm text-[#c5bbae] mt-1 font-semibold">
+              <span>{t('muushigPlayer')}</span>
+              {coins !== null && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-amber">
+                    <GoldCoinIcon className="w-3.5 h-3.5" />
+                    <span>{coins}</span>
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 border-t border-gild/10 sm:border-t-0 pt-4 sm:pt-0">
+          <div className="text-right hidden sm:block">
+            <span className="font-hand text-xs text-[#c5bbae] block uppercase tracking-wider font-semibold">
+              Rating History
+            </span>
           </div>
           <Sparkline values={ratingSeries} />
-        </header>
-
-        <div className="grid grid-cols-5 gap-2 text-center">
-          <Stat label={t('statPlayed')} value={s.games_played} />
-          <Stat label={t('statWon')} value={s.games_won} />
-          <Stat label={t('statWinPct')} value={`${winPct}%`} />
-          <Stat label={t('statRating')} value={s.rating} />
-          <Stat label={t('statStreak')} value={streak} />
         </div>
+      </div>
 
-        <div>
-          <h3 className="mb-1 font-hand text-lg font-bold text-ink">{t('deepStatsTitle')}</h3>
-          <div className="grid grid-cols-4 gap-2 text-center">
-            <Stat
-              label={t('statFoldRate')}
-              value={s.rounds_played > 0 ? `${foldPct}%` : '—'}
-              small
-            />
-            <Stat label={t('statAvgTricks')} value={avgTricks} small />
-            <Stat label={t('statMuushigd')} value={s.shutouts_taken} small />
-            <Stat label={t('statMuushigdOthers')} value={s.shutouts_inflicted} small />
-            <Stat label={t('statNavshih')} value={s.navshih_count} small />
-            <Stat label={t('statHaranhui')} value={s.haranhui_count} small />
-            <Stat label={t('statPerfect')} value={s.perfect_rounds} small />
-            <Stat label={t('statBestStreak')} value={s.best_win_streak} small />
+      {/* Grid container: Stats & Matches split */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Stats Section */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          {/* Main stats block */}
+          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
+            <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+              {t('tabStats', { defaultValue: 'General Stats' })}
+            </h3>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-center select-none">
+              <Stat label={t('statPlayed')} value={s.games_played} />
+              <Stat label={t('statWon')} value={s.games_won} />
+              <Stat label={t('statWinPct')} value={`${winPct}%`} />
+              <Stat label={t('statRating')} value={s.rating} />
+              <Stat label={t('statStreak')} value={streak} />
+            </div>
+          </div>
+
+          {/* Deep stats block */}
+          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
+            <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+              {t('deepStatsTitle')}
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center select-none">
+              <Stat
+                label={t('statFoldRate')}
+                value={s.rounds_played > 0 ? `${foldPct}%` : '—'}
+                small
+              />
+              <Stat label={t('statAvgTricks')} value={avgTricks} small />
+              <Stat label={t('statMuushigd')} value={s.shutouts_taken} small />
+              <Stat label={t('statMuushigdOthers')} value={s.shutouts_inflicted} small />
+              <Stat label={t('statNavshih')} value={s.navshih_count} small />
+              <Stat label={t('statHaranhui')} value={s.haranhui_count} small />
+              <Stat label={t('statPerfect')} value={s.perfect_rounds} small />
+              <Stat label={t('statBestStreak')} value={s.best_win_streak} small />
+            </div>
           </div>
         </div>
 
-        <div>
-          <h3 className="mb-1 font-hand text-lg font-bold text-ink">{t('recentGames')}</h3>
-          {loading ? (
-            <p className="font-hand text-ink-soft">{t('loadingEllipsis')}</p>
-          ) : history.length === 0 ? (
-            <p className="font-hand text-ink-soft">{t('noGamesYet')}</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {history.slice(0, 10).map((m) => (
-                <li
-                  key={m.match_id}
-                  className="rounded border border-ink/15 bg-parchment-deep/40 px-3 py-1.5 font-hand text-base"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(expanded === m.match_id ? null : m.match_id)}
-                    className="flex w-full items-center justify-between text-left"
-                  >
-                    <span className={m.won ? 'font-bold text-success' : 'text-danger'}>
-                      {m.won ? t('winLabel') : t('lossLabel')}
-                    </span>
-                    <span className="mx-2 min-w-0 flex-1 truncate text-center text-ink-soft">
-                      {t('vsLabel', { names: m.opponents.join(', ') || '—' })}
-                    </span>
-                    {m.placement != null && (
-                      <span className="mr-2 text-ink-soft">
-                        {t('placementLabel', { n: m.placement })}
-                      </span>
-                    )}
-                    <span className="num text-ink">{m.score}</span>
-                  </button>
-                  {expanded === m.match_id && <MatchRounds matchId={m.match_id} />}
-                </li>
-              ))}
-            </ul>
-          )}
+        {/* Right Match History Section */}
+        <div className="lg:col-span-5">
+          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm flex flex-col h-full">
+            <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+              {t('recentGames')}
+            </h3>
+
+            <div className="flex-1 overflow-y-auto max-h-[400px] pr-1">
+              {loading ? (
+                <p className="font-hand text-[#c5bbae]">{t('loadingEllipsis')}</p>
+              ) : history.length === 0 ? (
+                <p className="font-hand text-[#c5bbae]">{t('noGamesYet')}</p>
+              ) : (
+                <ul className="flex flex-col gap-2.5">
+                  {history.slice(0, 10).map((m) => (
+                    <li
+                      key={m.match_id}
+                      className="rounded-xl border border-gild/15 bg-[#4c1116]/20 hover:bg-[#4c1116]/40 p-3.5 font-hand text-base transition-all duration-200"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setExpanded(expanded === m.match_id ? null : m.match_id)}
+                        className="flex w-full items-center justify-between text-left cursor-pointer"
+                      >
+                        <span
+                          className={
+                            m.won
+                              ? 'font-extrabold text-success text-base'
+                              : 'font-bold text-danger text-base'
+                          }
+                        >
+                          {m.won ? t('winLabel') : t('lossLabel')}
+                        </span>
+                        <span className="mx-3 min-w-0 flex-1 truncate text-center text-[#c5bbae] font-semibold text-sm">
+                          {t('vsLabel', { names: m.opponents.join(', ') || '—' })}
+                        </span>
+                        {m.placement != null && (
+                          <span className="mr-3 text-[#c5bbae] font-bold text-xs bg-gild/10 px-2 py-0.5 rounded-md">
+                            {t('placementLabel', { n: m.placement })}
+                          </span>
+                        )}
+                        <span className="num font-bold text-ember">{m.score}</span>
+                      </button>
+                      {expanded === m.match_id && <MatchRounds matchId={m.match_id} />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Sign Out option */}
+      {signOut && (
+        <div className="flex justify-end mt-4 select-none">
+          <button
+            type="button"
+            onClick={signOut}
+            className="w-full sm:w-auto sm:px-8 cursor-pointer rounded-xl border-2 border-danger/45 bg-[#4c1116] hover:bg-[#350e13] py-3 font-hand text-sm font-bold text-cream transition-all duration-300 active:scale-95 shadow-sm"
+          >
+            {t('signOut')}
+          </button>
+        </div>
+      )}
     </div>
   );
+
+  if (onClose) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 safe-pad"
+        onClick={onClose}
+      >
+        <div
+          className="parchment relative flex max-h-[90dvh] w-full max-w-2xl flex-col gap-4 overflow-y-auto px-6 py-6 border-2 border-gild/45 rounded-[24px] shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-3 font-hand text-2xl text-ink-soft hover:text-ink cursor-pointer"
+          >
+            ✕
+          </button>
+          {innerContent}
+        </div>
+      </div>
+    );
+  }
+
+  return innerContent;
 }
 
 function Stat({ label, value, small }: { label: string; value: number | string; small?: boolean }) {
   return (
-    <div className="rounded-lg border border-ink/15 bg-parchment-deep/40 py-2">
-      <div className={`num font-hand font-bold text-ember ${small ? 'text-lg' : 'text-2xl'}`}>
+    <div className="rounded-xl border border-gild/15 bg-[#4c1116]/40 py-2.5 shadow-sm">
+      <div className={`num font-hand font-extrabold text-ember ${small ? 'text-lg' : 'text-2xl'}`}>
         {value}
       </div>
-      <div className="font-hand text-xs uppercase tracking-wide text-ink-soft leading-tight">
+      <div className="font-hand text-[10px] uppercase tracking-wider text-[#c5bbae] leading-tight mt-1 font-bold">
         {label}
       </div>
     </div>

@@ -116,6 +116,7 @@ export class MuushigEngine {
       p.hasDecided = false;
       p.hasSwapped = false;
       p.hasResigned = false;
+      p.trumpAceDead = false;
     }
 
     // Deal HAND_SIZE cards to each seat in turn.
@@ -339,9 +340,41 @@ export class MuushigEngine {
    * Trump beats non-trump; within trumps and within the led suit, higher rank
    * wins; an off-suit non-trump card can never beat.
    */
-  static beats(candidate: Card, currentBest: Card, ledSuit: string, trumpSuit: string): boolean {
-    const candTrump = MuushigEngine.isTrump(candidate, trumpSuit);
-    const bestTrump = MuushigEngine.isTrump(currentBest, trumpSuit);
+  static beats(
+    candidate: Card,
+    currentBest: Card,
+    ledSuit: string,
+    trumpSuit: string,
+    candidatePlayer?: Player,
+    currentBestPlayer?: Player,
+  ): boolean {
+    const candTrump =
+      MuushigEngine.isTrump(candidate, trumpSuit) &&
+      !(candidate.suit === trumpSuit && candidate.rank === 14 && !!candidatePlayer?.trumpAceDead);
+    const bestTrump =
+      MuushigEngine.isTrump(currentBest, trumpSuit) &&
+      !(
+        currentBest.suit === trumpSuit &&
+        currentBest.rank === 14 &&
+        !!currentBestPlayer?.trumpAceDead
+      );
+
+    const candIsDeadAce =
+      candidate.suit === trumpSuit && candidate.rank === 14 && !!candidatePlayer?.trumpAceDead;
+    const bestIsDeadAce =
+      currentBest.suit === trumpSuit &&
+      currentBest.rank === 14 &&
+      !!currentBestPlayer?.trumpAceDead;
+
+    if (candIsDeadAce) {
+      return false;
+    }
+
+    if (bestIsDeadAce) {
+      if (candTrump) return true;
+      if (candidate.suit === ledSuit) return true;
+      return false;
+    }
 
     if (candTrump) {
       return bestTrump ? candidate.rank > currentBest.rank : true;
@@ -388,14 +421,21 @@ export class MuushigEngine {
     currentTrick: TrickPlay[],
     ledSuit: string,
     trumpSuit: string,
+    players?: Map<string, Player> | any,
   ): Card | undefined {
     if (currentTrick.length === 0) return undefined;
-    let best = currentTrick[0]!.card;
+    let bestPlay = currentTrick[0]!;
     for (let i = 1; i < currentTrick.length; i++) {
-      const c = currentTrick[i]!.card;
-      if (MuushigEngine.beats(c, best, ledSuit, trumpSuit)) best = c;
+      const play = currentTrick[i]!;
+      const candPlayer = players?.get(play.playerId);
+      const bestPlayer = players?.get(bestPlay.playerId);
+      if (
+        MuushigEngine.beats(play.card, bestPlay.card, ledSuit, trumpSuit, candPlayer, bestPlayer)
+      ) {
+        bestPlay = play;
+      }
     }
-    return best;
+    return bestPlay.card;
   }
 
   /** Next seat after `fromId` that is still active (not resigned). */
@@ -444,6 +484,15 @@ export class MuushigEngine {
       throw new Error('Illegal move: you must beat the current card if you can');
     }
 
+    // Dying Ace check: if starting a fresh trick, holds trump Ace, but plays something else, it dies.
+    if (state.currentTrick.length === 0) {
+      const hasTrumpAce = player.hand.some((c) => c.suit === state.trumpSuit && c.rank === 14);
+      const playingTrumpAce = card.suit === state.trumpSuit && card.rank === 14;
+      if (hasTrumpAce && !playingTrumpAce) {
+        player.trumpAceDead = true;
+      }
+    }
+
     const [played] = player.hand.splice(handIndex, 1);
     if (state.currentTrick.length === 0) state.ledSuit = played!.suit;
     state.currentTrick.push(new TrickPlay(playerId, played!));
@@ -464,7 +513,18 @@ export class MuushigEngine {
     let winning = state.currentTrick[0]!;
     for (let i = 1; i < state.currentTrick.length; i++) {
       const play = state.currentTrick[i]!;
-      if (MuushigEngine.beats(play.card, winning.card, state.ledSuit, state.trumpSuit)) {
+      const candPlayer = state.players.get(play.playerId);
+      const bestPlayer = state.players.get(winning.playerId);
+      if (
+        MuushigEngine.beats(
+          play.card,
+          winning.card,
+          state.ledSuit,
+          state.trumpSuit,
+          candPlayer,
+          bestPlayer,
+        )
+      ) {
         winning = play;
       }
     }

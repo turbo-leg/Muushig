@@ -21,6 +21,24 @@ describe('i18n', () => {
     expect(t('swapN')).toBe('Swap {n}'); // no vars supplied
   });
 
+  test('resolves new keys in both locales', () => {
+    setLocale('en');
+    expect(t('signOut')).toBe('Sign out');
+    expect(t('youName')).toBe('You');
+    expect(t('Spades')).toBe('Spades');
+    expect(t('Hearts')).toBe('Hearts');
+    expect(t('J')).toBe('Jack');
+    expect(t('fold')).toBe('Fold');
+
+    setLocale('mn');
+    expect(t('signOut')).toBe('Гарах');
+    expect(t('youName')).toBe('Та');
+    expect(t('Spades')).toBe('Гил');
+    expect(t('Hearts')).toBe('Бундан');
+    expect(t('J')).toBe('Боов');
+    expect(t('fold')).toBe('Хаях');
+  });
+
   test('toggleLocale flips between the two locales', () => {
     setLocale('en');
     toggleLocale();

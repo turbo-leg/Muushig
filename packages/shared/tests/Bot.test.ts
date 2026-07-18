@@ -151,3 +151,79 @@ describe('MuushigBot — trick play', () => {
     }
   });
 });
+
+describe('MuushigBot — navshih (trump exchange)', () => {
+  /** Swap-phase state where `dealer` holds `cards` and the turned trump is `trumpCard`. */
+  function navshihState(cards: ReturnType<typeof c>[], trumpCard: ReturnType<typeof c>): GameState {
+    const state = buildPlayingState(
+      { dealer: cards, other: [c(Suit.Spades, Rank.Seven)] },
+      trumpCard.suit as Suit,
+    );
+    state.phase = 'swap';
+    state.dealerId = 'dealer';
+    state.trumpExchanged = false;
+    state.trumpCard.suit = trumpCard.suit;
+    state.trumpCard.rank = trumpCard.rank;
+    return state;
+  }
+
+  test('gives up its worst off-suit card for the trump card', () => {
+    const state = navshihState(
+      [
+        c(Suit.Spades, Rank.Seven), // worst — index 0
+        c(Suit.Clubs, Rank.King),
+        c(Suit.Hearts, Rank.Ace),
+      ],
+      c(Suit.Hearts, Rank.Nine),
+    );
+    expect(MuushigBot.chooseTrumpExchange(state, 'dealer')).toBe(0);
+  });
+
+  test('upgrades a low trump when the turned card is higher', () => {
+    const state = navshihState(
+      [c(Suit.Hearts, Rank.Seven), c(Suit.Hearts, Rank.Eight)],
+      c(Suit.Hearts, Rank.Ace),
+    );
+    expect(MuushigBot.chooseTrumpExchange(state, 'dealer')).toBe(0);
+  });
+
+  test('declines when every card already beats the turned trump', () => {
+    const state = navshihState(
+      [c(Suit.Hearts, Rank.King), c(Suit.Hearts, Rank.Ace)],
+      c(Suit.Hearts, Rank.Seven),
+    );
+    expect(MuushigBot.chooseTrumpExchange(state, 'dealer')).toBeNull();
+  });
+
+  test('safe null when not dealer, wrong phase, or already exchanged', () => {
+    const base = () => navshihState([c(Suit.Spades, Rank.Seven)], c(Suit.Hearts, Rank.Ace));
+
+    expect(MuushigBot.chooseTrumpExchange(base(), 'other')).toBeNull();
+
+    const wrongPhase = base();
+    wrongPhase.phase = 'playing';
+    expect(MuushigBot.chooseTrumpExchange(wrongPhase, 'dealer')).toBeNull();
+
+    const spent = base();
+    spent.trumpExchanged = true;
+    expect(MuushigBot.chooseTrumpExchange(spent, 'dealer')).toBeNull();
+
+    const folded = base();
+    folded.players.get('dealer')!.hasResigned = true;
+    expect(MuushigBot.chooseTrumpExchange(folded, 'dealer')).toBeNull();
+  });
+
+  test('a full navshih through the engine keeps the hand legal', () => {
+    const state = navshihState(
+      [c(Suit.Spades, Rank.Seven), c(Suit.Clubs, Rank.Eight)],
+      c(Suit.Hearts, Rank.Jack),
+    );
+    const idx = MuushigBot.chooseTrumpExchange(state, 'dealer');
+    expect(idx).not.toBeNull();
+    MuushigEngine.exchangeTrump(state, 'dealer', idx!);
+    expect(state.trumpExchanged).toBe(true);
+    const hand = [...state.players.get('dealer')!.hand];
+    expect(hand.some((card) => card.suit === Suit.Hearts && card.rank === Rank.Jack)).toBe(true);
+    expect(hand).toHaveLength(2);
+  });
+});
