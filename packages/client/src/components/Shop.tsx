@@ -43,7 +43,7 @@ interface CoinPack {
 const COIN_PACKS: CoinPack[] = [
   { id: 'pack_small', coins: 500, price: '$4.99', desktopPrice: '$9.99' },
   { id: 'pack_medium', coins: 2500, price: '$19.99', desktopPrice: '$24.99', popular: true },
-  { id: 'pack_large', coins: 5000, coinsDisplay: '2500 Coins', price: '$49.99', desktopPrice: '$49.99' } as any, // Mapped to match mockup exactly
+  { id: 'pack_large', coins: 5000, price: '$49.99', desktopPrice: '$49.99' },
 ];
 
 export function Shop({ session }: { session: Session }) {
@@ -167,7 +167,6 @@ export function Shop({ session }: { session: Session }) {
     return unlockedCosmetics.split(',').includes(item.id);
   };
 
-  // Render lists based on active tab
   const getRenderItems = () => {
     if (activeTab === 'decks') {
       return CATALOG_ITEMS.filter((i) => i.type === 'deck');
@@ -186,19 +185,29 @@ export function Shop({ session }: { session: Session }) {
         <div className="col-span-9 flex flex-col gap-5">
           {/* Tabs Menu */}
           <div className="flex items-center gap-3 bg-[#4c1116]/20 p-2 rounded-2xl border border-gild/15 select-none">
-            {(['featured', 'decks', 'cosmetics', 'currency'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-2 rounded-xl font-hand font-extrabold text-sm border transition-all cursor-pointer ${
-                  activeTab === tab
-                    ? 'bg-amber border-amber-deep text-[#1d1503] shadow-md'
-                    : 'bg-transparent border-transparent text-cream hover:bg-[#4c1116]/40'
-                }`}
-              >
-                [{tab.replace('_', ' ').toUpperCase()}]
-              </button>
-            ))}
+            {(['featured', 'decks', 'cosmetics', 'currency'] as const).map((tab) => {
+              const label =
+                tab === 'featured'
+                  ? t('newAndFeatured')
+                  : tab === 'decks'
+                    ? t('decks')
+                    : tab === 'cosmetics'
+                      ? t('cosmetics')
+                      : t('currency');
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2 rounded-xl font-hand font-extrabold text-sm border transition-all cursor-pointer ${
+                    activeTab === tab
+                      ? 'bg-amber border-amber-deep text-[#1d1503] shadow-md'
+                      : 'bg-transparent border-transparent text-cream hover:bg-[#4c1116]/40'
+                  }`}
+                >
+                  [{label.toUpperCase()}]
+                </button>
+              );
+            })}
           </div>
 
           {activeTab === 'featured' && (
@@ -215,9 +224,9 @@ export function Shop({ session }: { session: Session }) {
                     PREMIUM
                   </span>
                   <h2 className="font-display text-2xl font-black text-[#faf8f4] tracking-wide uppercase mt-3">
-                    THE IMPERIAL COURT
+                    {t('imperialCourt')}
                   </h2>
-                  <p className="font-hand text-sm text-amber mt-1">SUPREME COLLECTION</p>
+                  <p className="font-hand text-sm text-amber mt-1">{t('supremeCollection')}</p>
                 </div>
                 <div className="relative z-10 flex gap-4 pr-4">
                   <div className="w-16 h-22 rounded-lg border border-amber/40 bg-parchment-deep shadow-lg transform rotate-[-8deg]" />
@@ -229,10 +238,9 @@ export function Shop({ session }: { session: Session }) {
               {/* Featured items catalog section */}
               <div className="flex flex-col">
                 <h3 className="font-display text-lg font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
-                  Featured Items
+                  {t('featuredItems')}
                 </h3>
                 <div className="grid grid-cols-3 gap-5">
-                  {/* Jade Bisiir Deck */}
                   {CATALOG_ITEMS.filter((i) => ['jade_bisiir', 'shamanic_dance', 'nomadic_warrior'].includes(i.id)).map((item) => {
                     const unlocked = isUnlocked(item);
                     return (
@@ -255,7 +263,7 @@ export function Shop({ session }: { session: Session }) {
                             onClick={() => item.type === 'deck' && handleEquip(item.id)}
                             className="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber to-amber-deep text-[#1d1503] font-hand text-xs font-bold shadow-sm hover:brightness-110 active:scale-98 cursor-pointer"
                           >
-                            {activeBack === item.id ? 'ACTIVE' : 'EQUIP'}
+                            {activeBack === item.id ? t('activeLabel') : t('equipAction')}
                           </button>
                         ) : (
                           <button
@@ -304,7 +312,7 @@ export function Shop({ session }: { session: Session }) {
                         onClick={() => item.type === 'deck' && handleEquip(item.id)}
                         className="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber to-amber-deep text-[#1d1503] font-hand text-xs font-bold shadow-sm hover:brightness-110 active:scale-98 cursor-pointer"
                       >
-                        {activeBack === item.id ? 'ACTIVE' : 'EQUIP'}
+                        {activeBack === item.id ? t('activeLabel') : t('equipAction')}
                       </button>
                     ) : (
                       <button
@@ -331,17 +339,19 @@ export function Shop({ session }: { session: Session }) {
                 >
                   {pack.popular && (
                     <span className="absolute -top-3 left-1/2 transform -translate-x-1/2 text-[9px] font-bold text-[#faf8f4] bg-amber border border-amber-deep px-3 py-0.5 rounded-full uppercase">
-                      Best Deal
+                      {t('coinsPackPopular')}
                     </span>
                   )}
                   <div className="text-4xl my-4">🪙</div>
-                  <h4 className="font-display text-base font-extrabold text-ember">{pack.coins} Coins</h4>
-                  <p className="text-xs text-[#736357] mt-1 font-medium">Standard currency bundle</p>
+                  <h4 className="font-display text-base font-extrabold text-ember">
+                    {t('coinsPack', { n: pack.coins })}
+                  </h4>
+                  <p className="text-xs text-[#736357] mt-1 font-medium">{t('coinsPackDesc')}</p>
                   <button
                     onClick={() => handleBuyCoins(pack.coins)}
                     className="mt-5 w-full py-2.5 rounded-xl bg-[#4c1116] hover:bg-[#350e13] text-cream font-hand text-xs font-bold transition-all cursor-pointer"
                   >
-                    Buy for {pack.desktopPrice}
+                    {t('buyForPrice', { price: pack.desktopPrice })}
                   </button>
                 </div>
               ))}
@@ -354,18 +364,18 @@ export function Shop({ session }: { session: Session }) {
           {/* Shopping Cart card */}
           <div className="bg-parchment-deep/80 border border-gild/30 rounded-[20px] p-5 shadow-sm select-none">
             <h3 className="font-display text-base font-extrabold text-ember border-b border-gild/15 pb-2 mb-4">
-              Shopping Cart
+              {t('shoppingCart')}
             </h3>
             <div className="flex flex-col items-center justify-center py-6 text-[#736357] text-xs font-semibold">
               <span className="text-2xl mb-2">🛒</span>
-              <p>Your cart is empty</p>
+              <p>{t('cartEmpty')}</p>
             </div>
           </div>
 
           {/* Quick Currency store card */}
           <div className="bg-parchment-deep/80 border border-gild/30 rounded-[20px] p-5 shadow-sm flex flex-col gap-4 select-none">
             <h3 className="font-display text-base font-extrabold text-ember border-b border-gild/15 pb-2">
-              Currency Store
+              {t('currencyStore')}
             </h3>
 
             {COIN_PACKS.map((pack) => (
@@ -377,7 +387,7 @@ export function Shop({ session }: { session: Session }) {
                   <span className="text-lg">🪙</span>
                   <div className="text-left leading-tight">
                     <span className="font-display text-xs font-extrabold text-[#332b25]">
-                      {pack.coins} Coins
+                      {t('coinsPack', { n: pack.coins })}
                     </span>
                   </div>
                 </div>
@@ -398,7 +408,7 @@ export function Shop({ session }: { session: Session }) {
         {/* Daily Deals Section */}
         <div>
           <h3 className="font-display text-base font-extrabold text-ember border-b border-gild/15 pb-1.5 mb-3">
-            DAILY DEALS
+            {t('dailyDeals')}
           </h3>
 
           <div className="grid grid-cols-2 gap-4">
@@ -426,7 +436,7 @@ export function Shop({ session }: { session: Session }) {
                       onClick={() => item.type === 'deck' && handleEquip(item.id)}
                       className="mt-3 w-full py-2 rounded-xl bg-gradient-to-r from-amber to-amber-deep text-[#1d1503] font-hand text-xs font-bold shadow-sm cursor-pointer"
                     >
-                      {activeBack === item.id ? 'ACTIVE' : 'EQUIP'}
+                      {activeBack === item.id ? t('activeLabel') : t('equipAction')}
                     </button>
                   ) : (
                     <button
@@ -446,7 +456,7 @@ export function Shop({ session }: { session: Session }) {
         {/* Currency Packs Section */}
         <div>
           <h3 className="font-display text-base font-extrabold text-ember border-b border-gild/15 pb-1.5 mb-3">
-            CURRENCY PACKS
+            {t('currencyPacks')}
           </h3>
 
           <div className="grid grid-cols-2 gap-4">
@@ -456,12 +466,14 @@ export function Shop({ session }: { session: Session }) {
                 className="rounded-xl border border-gild/20 bg-parchment-deep/80 p-4 flex flex-col items-center text-center relative"
               >
                 <div className="text-3xl my-2">🪙</div>
-                <h4 className="font-display text-xs font-extrabold text-ember">{pack.coins} Coins</h4>
+                <h4 className="font-display text-xs font-extrabold text-ember">
+                  {t('coinsPack', { n: pack.coins })}
+                </h4>
                 <button
                   onClick={() => handleBuyCoins(pack.coins)}
                   className="mt-3.5 w-full py-2 rounded-xl bg-[#4c1116] text-cream font-hand text-xs font-bold hover:bg-[#350e13] transition-all cursor-pointer"
                 >
-                  Buy for {pack.price}
+                  {t('buyForPrice', { price: pack.price })}
                 </button>
               </div>
             ))}

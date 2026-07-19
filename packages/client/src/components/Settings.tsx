@@ -239,19 +239,19 @@ export function SettingsDashboard({
       {/* ──────────────────────────── DESKTOP VIEW ──────────────────────────── */}
       <div className="hidden lg:flex flex-col gap-4">
         <h2 className="font-display text-2xl font-black text-cream uppercase tracking-widest border-b border-gild/15 pb-2 mb-2 select-none text-left">
-          ACCOUNT SETTINGS DASHBOARD
+          {t('accountSettingsDashboard')}
         </h2>
 
         <div className="grid grid-cols-12 gap-6 select-none">
           {/* Left Sidebar Menu */}
           <div className="col-span-4 flex flex-col gap-2 bg-[#4c1116]/30 p-3.5 rounded-[20px] border border-gild/15">
             {[
-              ['profile', 'PROFILE'],
-              ['security', 'ACCOUNT SECURITY'],
-              ['preferences', 'PREFERENCES'],
-              ['subscriptions', 'SUBSCRIPTIONS'],
-              ['history', 'HISTORY'],
-              ['support', 'SUPPORT'],
+              ['profile', t('tabProfile')],
+              ['security', t('tabSecurity')],
+              ['preferences', t('tabPreferences')],
+              ['subscriptions', t('tabSubscriptions')],
+              ['history', t('tabHistory')],
+              ['support', t('tabSupport')],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -262,14 +262,13 @@ export function SettingsDashboard({
                     : 'bg-transparent border-transparent text-cream hover:bg-[#4c1116]/50'
                 }`}
               >
-                [{label}]
+                [{label.toUpperCase()}]
               </button>
             ))}
           </div>
 
           {/* Right Dashboard Preferences Card */}
           <div className="col-span-8 bg-[#faf8f4] border-2 border-[#e5c158] rounded-[24px] p-8 shadow-md relative min-h-[400px]">
-            {/* Corner decoration */}
             <div className="absolute top-0 right-0 w-24 h-24 opacity-10 pointer-events-none text-amber">
               <svg viewBox="0 0 160 100" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M40 70 C 40 50, 60 40, 80 40 C 100 40, 120 50, 120 70" />
@@ -278,24 +277,24 @@ export function SettingsDashboard({
 
             {activeSidebar === 'preferences' ? (
               <div className="flex flex-col gap-6">
-                <div>
+                <div className="text-left">
                   <h3 className="font-display text-base font-extrabold text-[#4c1116] border-b border-gild/20 pb-2 mb-5">
-                    PREFERENCES
+                    {t('tabPreferences')}
                   </h3>
 
                   <div className="flex flex-col gap-5">
                     {/* Master Volume */}
                     <div className="flex flex-col gap-1.5">
-                      <span className="font-hand text-sm font-extrabold text-[#736357]">Sound & Audio</span>
+                      <span className="font-hand text-sm font-extrabold text-[#736357]">{t('soundAndAudio')}</span>
                       <div className="flex items-center justify-between gap-4">
-                        <span className="font-hand text-base text-black font-semibold w-32">Master Volume</span>
+                        <span className="font-hand text-base text-black font-semibold w-32">{t('masterVolume')}</span>
                         <input
                           type="range"
                           min={0}
                           max={100}
                           value={masterVolume}
                           onChange={(e) => setMasterVolume(parseInt(e.target.value, 10))}
-                          className="flex-1 accent-[#d98e04] cursor-pointer"
+                          className="flex-grow accent-[#d98e04] cursor-pointer"
                         />
                         <span className="num font-bold text-amber-deep w-8 text-right">{masterVolume}</span>
                       </div>
@@ -303,35 +302,35 @@ export function SettingsDashboard({
 
                     {/* Music Volume */}
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-hand text-base text-black font-semibold w-32">Music Volume</span>
+                      <span className="font-hand text-base text-black font-semibold w-32">{t('musicVolumeLabel')}</span>
                       <input
                         type="range"
                         min={0}
                         max={100}
                         value={musicVolume}
                         onChange={(e) => handleMusicChange(parseInt(e.target.value, 10))}
-                        className="flex-1 accent-[#d98e04] cursor-pointer"
+                        className="flex-grow accent-[#d98e04] cursor-pointer"
                       />
                       <span className="num font-bold text-amber-deep w-8 text-right">{musicVolume}</span>
                     </div>
 
                     {/* SFX Volume */}
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-hand text-base text-black font-semibold w-32">Sound Effects Volume</span>
+                      <span className="font-hand text-base text-black font-semibold w-32">{t('sfxVolumeLabel')}</span>
                       <input
                         type="range"
                         min={0}
                         max={100}
                         value={sfxVolume}
                         onChange={(e) => handleSfxChange(parseInt(e.target.value, 10))}
-                        className="flex-1 accent-[#d98e04] cursor-pointer"
+                        className="flex-grow accent-[#d98e04] cursor-pointer"
                       />
                       <span className="num font-bold text-amber-deep w-8 text-right">{sfxVolume}</span>
                     </div>
 
                     {/* Language Dropdown */}
                     <div className="flex items-center justify-between gap-4 border-t border-gild/10 pt-4 mt-2">
-                      <span className="font-hand text-base text-black font-semibold">Language</span>
+                      <span className="font-hand text-base text-black font-semibold">{t('languageLabel')}</span>
                       <select
                         value={getLocale()}
                         onChange={toggleLocale}
@@ -344,9 +343,9 @@ export function SettingsDashboard({
 
                     {/* Subscription Management */}
                     <div className="flex items-center justify-between gap-4 border-t border-gild/10 pt-4 mt-2">
-                      <span className="font-hand text-base text-black font-semibold">Subscription Management</span>
+                      <span className="font-hand text-base text-black font-semibold">{t('subscriptionManagement')}</span>
                       <button className="rounded-lg border border-gild/30 bg-[#faf6eb] hover:bg-[#faf6eb]/80 px-4 py-1.5 font-hand text-xs font-bold text-[#daaa3d] cursor-pointer">
-                        Manage Subscriptions
+                        {t('manageSubscriptions')}
                       </button>
                     </div>
                   </div>
@@ -356,9 +355,9 @@ export function SettingsDashboard({
               <div className="flex flex-col items-center justify-center min-h-[300px] text-[#736357]">
                 <span className="text-4xl">⚙️</span>
                 <h4 className="font-display text-base font-extrabold text-[#4c1116] uppercase mt-4">
-                  {activeSidebar.toUpperCase()} PANEL
+                  {activeSidebar.toUpperCase()}
                 </h4>
-                <p className="font-hand text-xs text-[#c5bbae] mt-1">This section is currently under development</p>
+                <p className="font-hand text-xs text-[#c5bbae] mt-1">{t('underDevelopment')}</p>
               </div>
             )}
           </div>
@@ -377,7 +376,7 @@ export function SettingsDashboard({
               {!me.avatarUrl && me.username.charAt(0).toUpperCase()}
             </div>
             <h2 className="font-display text-sm font-extrabold text-cream leading-tight">
-              {me.username}'s Settings
+              {t('mobileSettingsHeader', { username: me.username })}
             </h2>
           </div>
           {coins !== null && (
@@ -393,7 +392,7 @@ export function SettingsDashboard({
           {/* 1. Account Settings Group */}
           <div>
             <h3 className="text-[10px] font-bold text-[#736357] tracking-widest uppercase mb-1.5 pl-1">
-              ACCOUNT SETTINGS
+              {t('accountSettingsDashboard').split(' ')[0]} {t('accountSettingsDashboard').split(' ')[1]}
             </h3>
             <div className="rounded-xl border border-gild/20 bg-[#faf8f4] overflow-hidden">
               {/* Profile Info */}
@@ -401,12 +400,12 @@ export function SettingsDashboard({
                 onClick={() => setMobileExpandedSection(mobileExpandedSection === 'profile' ? null : 'profile')}
                 className="w-full flex items-center justify-between px-4 py-3 border-b border-gild/10"
               >
-                <span className="font-hand text-sm font-semibold text-black">Profile Information</span>
+                <span className="font-hand text-sm font-semibold text-black">{t('profileInformation')}</span>
                 <span className="text-xs text-[#736357]">{mobileExpandedSection === 'profile' ? '▼' : '▶'}</span>
               </button>
               {mobileExpandedSection === 'profile' && (
                 <div className="p-4 bg-[#fdfbf7] text-xs text-[#736357] leading-relaxed border-b border-gild/10">
-                  <p><strong>Username:</strong> {me.username}</p>
+                  <p><strong>{t('usernameLabel')}:</strong> {me.username}</p>
                   <p className="mt-1"><strong>ID:</strong> #{me.userId.slice(0, 8)}</p>
                 </div>
               )}
@@ -416,12 +415,12 @@ export function SettingsDashboard({
                 onClick={() => setMobileExpandedSection(mobileExpandedSection === 'security' ? null : 'security')}
                 className="w-full flex items-center justify-between px-4 py-3"
               >
-                <span className="font-hand text-sm font-semibold text-black">Security & Login</span>
+                <span className="font-hand text-sm font-semibold text-black">{t('securityAndLogin')}</span>
                 <span className="text-xs text-[#736357]">{mobileExpandedSection === 'security' ? '▼' : '▶'}</span>
               </button>
               {mobileExpandedSection === 'security' && (
                 <div className="p-4 bg-[#fdfbf7] text-xs text-[#736357] leading-relaxed">
-                  <p>Contact support to reset your passwords or change security emails.</p>
+                  <p>{t('underDevelopment')}</p>
                 </div>
               )}
             </div>
@@ -430,7 +429,7 @@ export function SettingsDashboard({
           {/* 2. Game Preferences Group */}
           <div>
             <h3 className="text-[10px] font-bold text-[#736357] tracking-widest uppercase mb-1.5 pl-1">
-              GAME PREFERENCES
+              {t('tabPreferences')}
             </h3>
             <div className="rounded-xl border border-gild/20 bg-[#faf8f4] overflow-hidden">
               {/* Sound & Audio sliders */}
@@ -438,13 +437,13 @@ export function SettingsDashboard({
                 onClick={() => setMobileExpandedSection(mobileExpandedSection === 'sound' ? null : 'sound')}
                 className="w-full flex items-center justify-between px-4 py-3 border-b border-gild/10"
               >
-                <span className="font-hand text-sm font-semibold text-black">Sound & Audio</span>
+                <span className="font-hand text-sm font-semibold text-black">{t('soundAndAudio')}</span>
                 <span className="text-xs text-[#736357]">{mobileExpandedSection === 'sound' ? '▼' : '▶'}</span>
               </button>
               {mobileExpandedSection === 'sound' && (
                 <div className="p-4 bg-[#fdfbf7] flex flex-col gap-4 border-b border-gild/10 text-xs">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-hand font-semibold w-24">Music Volume</span>
+                    <span className="font-hand font-semibold w-24">{t('musicVolumeLabel')}</span>
                     <input
                       type="range"
                       min={0}
@@ -456,7 +455,7 @@ export function SettingsDashboard({
                     <span className="num font-bold text-amber-deep w-6 text-right">{musicVolume}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-hand font-semibold w-24">Effects Volume</span>
+                    <span className="font-hand font-semibold w-24">{t('sfxVolumeLabel')}</span>
                     <input
                       type="range"
                       min={0}
@@ -475,12 +474,12 @@ export function SettingsDashboard({
                 onClick={() => setMobileExpandedSection(mobileExpandedSection === 'lang' ? null : 'lang')}
                 className="w-full flex items-center justify-between px-4 py-3 border-b border-gild/10"
               >
-                <span className="font-hand text-sm font-semibold text-black">Language</span>
+                <span className="font-hand text-sm font-semibold text-black">{t('languageLabel')}</span>
                 <span className="text-xs text-[#736357]">{mobileExpandedSection === 'lang' ? '▼' : '▶'}</span>
               </button>
               {mobileExpandedSection === 'lang' && (
                 <div className="p-4 bg-[#fdfbf7] flex items-center justify-between border-b border-gild/10 text-xs">
-                  <span className="font-semibold">Switch Language</span>
+                  <span className="font-semibold">Switch Language / Хэл солих</span>
                   <button
                     onClick={toggleLocale}
                     className="rounded-lg border border-gild/30 bg-[#faf6eb] px-3.5 py-1 font-hand font-bold text-[#daaa3d]"
@@ -490,17 +489,17 @@ export function SettingsDashboard({
                 </div>
               )}
 
-              {/* Push Notifications placeholder */}
+              {/* Push Notifications */}
               <button
                 onClick={() => setMobileExpandedSection(mobileExpandedSection === 'push' ? null : 'push')}
                 className="w-full flex items-center justify-between px-4 py-3"
               >
-                <span className="font-hand text-sm font-semibold text-black">Push Notifications</span>
+                <span className="font-hand text-sm font-semibold text-black">{t('pushNotifications')}</span>
                 <span className="text-xs text-[#736357]">{mobileExpandedSection === 'push' ? '▼' : '▶'}</span>
               </button>
               {mobileExpandedSection === 'push' && (
-                <div className="p-4 bg-[#fdfbf7] text-xs text-[#736357]">
-                  <p>Turn on push notifications to alert you when public tables fill or private lobbies start.</p>
+                <div className="p-4 bg-[#fdfbf7] text-xs text-[#736357] leading-relaxed">
+                  <p>{t('pushNotificationsDesc')}</p>
                 </div>
               )}
             </div>
@@ -514,7 +513,7 @@ export function SettingsDashboard({
             <div className="rounded-xl border border-gild/20 bg-[#faf8f4] overflow-hidden">
               {/* Help Center */}
               <a href="#help" className="w-full flex items-center justify-between px-4 py-3 border-b border-gild/10">
-                <span className="font-hand text-sm font-semibold text-black">Help Center</span>
+                <span className="font-hand text-sm font-semibold text-black">{t('helpCenter')}</span>
                 <span className="text-xs text-[#c5bbae]">▶</span>
               </a>
 
@@ -525,14 +524,14 @@ export function SettingsDashboard({
                 rel="noreferrer"
                 className="w-full flex items-center justify-between px-4 py-3 border-b border-gild/10"
               >
-                <span className="font-hand text-sm font-semibold text-black">Privacy Policy</span>
+                <span className="font-hand text-sm font-semibold text-black">{t('privacyLink')}</span>
                 <span className="text-xs text-[#c5bbae]">▶</span>
               </a>
 
               {/* Sign Out option */}
               {signOut && (
                 <button onClick={signOut} className="w-full flex items-center justify-between px-4 py-3 text-[#b91c1c]">
-                  <span className="font-hand text-sm font-bold">Log Out</span>
+                  <span className="font-hand text-sm font-bold">{t('logOut')}</span>
                   <span className="text-xs">▶</span>
                 </button>
               )}

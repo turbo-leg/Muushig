@@ -26,7 +26,6 @@ export function Login() {
           throw new Error('Username is required');
         }
         await signUpWithEmail(email, password, username);
-        // Automatically sign in or alert user to check confirmation email
         alert('Registration successful! Please check your email for confirmation.');
         setMode('login');
       }
@@ -52,7 +51,6 @@ export function Login() {
       <div className="hidden lg:grid grid-cols-12 max-w-5xl w-full rounded-[32px] border-2 border-[#e5c158]/50 bg-[#3d0d12] shadow-[0_20px_60px_rgba(0,0,0,0.85)] overflow-hidden">
         {/* Left Side: Yurt Illustration & Branding */}
         <div className="col-span-6 relative flex flex-col justify-center items-center p-8 bg-cover bg-center overflow-hidden min-h-[550px]">
-          {/* Yurt Background Image */}
           <img
             src="/assets/home_illustration.png"
             alt="Mongolian Yurt Card Scene"
@@ -96,7 +94,7 @@ export function Login() {
           {/* Parchment Panel */}
           <div className="w-full max-w-sm rounded-[24px] border-2 border-[#e5c158] bg-[#faf8f4] px-7 py-8 shadow-[0_10px_35px_rgba(0,0,0,0.55)] text-[#332b25]">
             <h2 className="text-center font-display text-2xl font-black text-[#4c1116] uppercase tracking-wide border-b border-gild/20 pb-3 mb-6 select-none">
-              {mode === 'login' ? 'Log In to Your Account' : 'Create Your Account'}
+              {mode === 'login' ? t('loginTitle') : t('registerTitle')}
             </h2>
 
             {error && (
@@ -109,14 +107,14 @@ export function Login() {
               {mode === 'register' && (
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-extrabold uppercase text-[#736357]" htmlFor="reg-username">
-                    Username
+                    {t('usernameLabel')}
                   </label>
                   <div className="relative">
                     <input
                       id="reg-username"
                       type="text"
                       required
-                      placeholder="Enter username"
+                      placeholder={t('usernamePlaceholder')}
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="w-full rounded-xl border border-[#c5bbae]/60 bg-[#fefbf7] px-4 py-2.5 text-sm outline-none focus:border-[#d4af37]"
@@ -127,7 +125,7 @@ export function Login() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-extrabold uppercase text-[#736357]" htmlFor="auth-email">
-                  Username / Email
+                  {t('emailLabel')}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-3 text-[#736357] text-sm">👤</span>
@@ -135,7 +133,7 @@ export function Login() {
                     id="auth-email"
                     type="email"
                     required
-                    placeholder="Username / Email"
+                    placeholder={t('emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-xl border border-[#c5bbae]/60 bg-[#fefbf7] pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#d4af37]"
@@ -145,7 +143,7 @@ export function Login() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-extrabold uppercase text-[#736357]" htmlFor="auth-password">
-                  Password
+                  {t('passwordLabel')}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-3.5 text-[#736357] text-xs">🔒</span>
@@ -153,7 +151,7 @@ export function Login() {
                     id="auth-password"
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="Password"
+                    placeholder={t('passwordPlaceholder')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-xl border border-[#c5bbae]/60 bg-[#fefbf7] pl-10 pr-10 py-2.5 text-sm outline-none focus:border-[#d4af37]"
@@ -176,10 +174,10 @@ export function Login() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="accent-[#d4af37] w-4 h-4 cursor-pointer"
                   />
-                  <span>Remember Me</span>
+                  <span>{t('rememberMe')}</span>
                 </label>
                 <a href="#forgot" className="hover:underline hover:text-[#4c1116]">
-                  Forgot Password?
+                  {t('forgotPassword')}
                 </a>
               </div>
 
@@ -188,14 +186,14 @@ export function Login() {
                 disabled={loading}
                 className="mt-2 w-full rounded-xl bg-gradient-to-r from-amber to-amber-deep py-3 text-[#1d1503] font-hand font-extrabold text-base shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer"
               >
-                {loading ? 'PROCESSING...' : mode === 'login' ? 'LOG IN' : 'SIGN UP'}
+                {loading ? t('processing') : mode === 'login' ? t('loginButton') : t('signUpButton')}
               </button>
             </form>
 
             {/* Social Logins Divider */}
             <div className="relative flex py-4 items-center select-none text-xs text-[#c5bbae]">
               <div className="flex-grow border-t border-gild/15"></div>
-              <span className="flex-shrink mx-3 text-[#736357] font-semibold">Or log in with...</span>
+              <span className="flex-shrink mx-3 text-[#736357] font-semibold">{t('orLogInWith')}</span>
               <div className="flex-grow border-t border-gild/15"></div>
             </div>
 
@@ -213,7 +211,7 @@ export function Login() {
                 👤
               </button>
               <button
-                onClick={() => handleOAuth('discord')} // Replaces Apple as standard Discord integration
+                onClick={() => handleOAuth('discord')}
                 className="flex items-center justify-center w-11 h-11 rounded-full border border-[#c5bbae]/60 bg-[#fefbf7] hover:bg-parchment-deep text-lg cursor-pointer shadow-sm active:scale-95 transition-all"
               >
                 👾
@@ -223,7 +221,7 @@ export function Login() {
             <div className="mt-5 text-center text-xs font-semibold text-[#736357]">
               {mode === 'login' ? (
                 <>
-                  Not a member?{' '}
+                  {t('notAMember').split('?')[0]}?{' '}
                   <button
                     onClick={() => {
                       setMode('register');
@@ -231,12 +229,12 @@ export function Login() {
                     }}
                     className="text-[#4c1116] underline hover:text-[#d4af37] font-bold cursor-pointer"
                   >
-                    Sign Up
+                    {t('notAMember').split('?')[1]?.trim() || 'Sign Up'}
                   </button>
                 </>
               ) : (
                 <>
-                  Already have an account?{' '}
+                  {t('alreadyHaveAccount').split('?')[0]}?{' '}
                   <button
                     onClick={() => {
                       setMode('login');
@@ -244,7 +242,7 @@ export function Login() {
                     }}
                     className="text-[#4c1116] underline hover:text-[#d4af37] font-bold cursor-pointer"
                   >
-                    Log In
+                    {t('alreadyHaveAccount').split('?')[1]?.trim() || 'Log In'}
                   </button>
                 </>
               )}
@@ -270,8 +268,8 @@ export function Login() {
         {/* Character Illustration Card */}
         <div className="relative w-full aspect-[2.1/1] overflow-hidden rounded-2xl border-2 border-[#e5c158] bg-[#3d0d12] shadow-md flex items-center justify-between px-6 mb-4 select-none">
           <div className="text-left max-w-[60%]">
-            <h2 className="font-display text-lg font-bold text-[#faf8f4]">Welcome back, player!</h2>
-            <p className="font-hand text-xs text-amber mt-1">Ready for a hand of Muushig?</p>
+            <h2 className="font-display text-lg font-bold text-[#faf8f4]">{t('welcomeBackPlayer')}</h2>
+            <p className="font-hand text-xs text-amber mt-1">{t('readyForHand')}</p>
           </div>
           <img
             src="/assets/mongolian_boy.png"
@@ -294,7 +292,7 @@ export function Login() {
                 <input
                   type="text"
                   required
-                  placeholder="Username"
+                  placeholder={t('usernameLabel')}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full rounded-xl border border-gild/20 bg-[#2d090c] px-4 py-2.5 text-sm text-[#faf8f4] placeholder-[#736357] outline-none focus:border-[#d4af37]"
@@ -306,7 +304,7 @@ export function Login() {
               <input
                 type="email"
                 required
-                placeholder="Username or Email"
+                placeholder={t('emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-xl border border-gild/20 bg-[#2d090c] px-4 py-2.5 text-sm text-[#faf8f4] placeholder-[#736357] outline-none focus:border-[#d4af37]"
@@ -317,7 +315,7 @@ export function Login() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
-                placeholder="Password"
+                placeholder={t('passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-gild/20 bg-[#2d090c] pl-4 pr-10 py-2.5 text-sm text-[#faf8f4] placeholder-[#736357] outline-none focus:border-[#d4af37]"
@@ -333,7 +331,7 @@ export function Login() {
 
             <div className="flex justify-end text-xs font-bold text-amber select-none">
               <a href="#forgot" className="hover:underline">
-                Forgot Password?
+                {t('forgotPassword')}
               </a>
             </div>
 
@@ -342,14 +340,14 @@ export function Login() {
               disabled={loading}
               className="mt-1 w-full rounded-xl bg-gradient-to-r from-amber to-amber-deep py-2.5 text-[#1d1503] font-hand font-extrabold text-base shadow-sm hover:brightness-110 active:scale-98 transition-all cursor-pointer"
             >
-              {loading ? 'PROCESSING...' : mode === 'login' ? 'LOG IN' : 'SIGN UP'}
+              {loading ? t('processing') : mode === 'login' ? t('loginButton') : t('signUpButton')}
             </button>
           </form>
 
           {/* Social Logins Divider */}
           <div className="relative flex py-3 items-center select-none text-xs text-gild/30">
             <div className="flex-grow border-t border-gild/15"></div>
-            <span className="flex-shrink mx-3 font-semibold text-[#736357]">Or log in with...</span>
+            <span className="flex-shrink mx-3 font-semibold text-[#736357]">{t('orLogInWith')}</span>
             <div className="flex-grow border-t border-gild/15"></div>
           </div>
 
@@ -377,7 +375,7 @@ export function Login() {
           <div className="mt-4 text-center text-xs font-semibold text-[#736357]">
             {mode === 'login' ? (
               <>
-                Don't have an account?{' '}
+                {t('notAMember').split('?')[0]}?{' '}
                 <button
                   onClick={() => {
                     setMode('register');
@@ -385,12 +383,12 @@ export function Login() {
                   }}
                   className="text-amber underline font-bold cursor-pointer"
                 >
-                  Sign Up
+                  {t('notAMember').split('?')[1]?.trim() || 'Sign Up'}
                 </button>
               </>
             ) : (
               <>
-                Already have an account?{' '}
+                {t('alreadyHaveAccount').split('?')[0]}?{' '}
                 <button
                   onClick={() => {
                     setMode('login');
@@ -398,7 +396,7 @@ export function Login() {
                   }}
                   className="text-amber underline font-bold cursor-pointer"
                 >
-                  Log In
+                  {t('alreadyHaveAccount').split('?')[1]?.trim() || 'Log In'}
                 </button>
               </>
             )}
