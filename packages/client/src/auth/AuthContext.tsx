@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js';
 import { supabase, isAuthEnabled } from '../lib/supabase';
 
-export type OAuthProvider = 'discord' | 'google' | 'facebook';
+export type OAuthProvider = 'discord' | 'google' | 'facebook' | 'apple';
 
 interface AuthValue {
   session: Session | null;
@@ -10,6 +10,8 @@ interface AuthValue {
   /** Whether a Supabase project is configured (else the app runs guest-only). */
   enabled: boolean;
   signIn: (provider: OAuthProvider) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -39,12 +41,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const signInWithEmail = async (email: string, password: string) => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  const signUpWithEmail = async (email: string, password: string, username: string) => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username: username,
+          full_name: username,
+        },
+      },
+    });
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     await supabase?.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ session, loading, enabled: isAuthEnabled, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        loading,
+        enabled: isAuthEnabled,
+        signIn,
+        signInWithEmail,
+        signUpWithEmail,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

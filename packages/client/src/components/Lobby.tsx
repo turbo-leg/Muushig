@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 import { MongolianCloud } from './MongolianCloud';
 import { Profile } from './Profile';
 import { Shop } from './Shop';
-import { SettingsForm } from './Settings';
+import { SettingsDashboard } from './Settings';
 import { HelpBook } from './HelpBook';
 import { GoldCoinIcon, LobbyIcon, ProfileIcon, ShopIcon, SettingsIcon, SwordIcon } from './Icons';
 
@@ -464,12 +464,7 @@ export function Lobby({
           ) : activeTab === 'shop' ? (
             session && <Shop session={session} />
           ) : (
-            <div className="bg-[#fdfbf7] border border-gild/20 rounded-[20px] p-6 shadow-sm max-w-md mx-auto">
-              <h2 className="mb-4 border-b-2 border-gild/45 pb-2 font-display text-3xl font-bold text-[#4c1116] uppercase tracking-wider select-none">
-                {t('settingsTitle')}
-              </h2>
-              <SettingsForm onOpenHelp={() => setShowHelp(true)} />
-            </div>
+            session && <SettingsDashboard session={session} signOut={signOut} />
           )}
         </main>
       </div>
@@ -611,12 +606,7 @@ export function Lobby({
         ) : activeTab === 'shop' ? (
           session && <Shop session={session} />
         ) : (
-          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm mb-6">
-            <h2 className="mb-4 border-b-2 border-gild/45 pb-2 font-display text-2xl font-bold text-ember uppercase tracking-wider select-none">
-              {t('settingsTitle')}
-            </h2>
-            <SettingsForm onOpenHelp={() => setShowHelp(true)} />
-          </div>
+          session && <SettingsDashboard session={session} signOut={signOut} />
         )}
 
         {/* Mobile Bottom Navigation Bar */}
