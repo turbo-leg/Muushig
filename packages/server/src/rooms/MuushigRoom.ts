@@ -20,7 +20,7 @@ const DEFAULT_SWAP_TIME_MS = 60_000;
 const DEFAULT_DECISION_TIME_MS = 45_000;
 // How long a mid-game seat is held for the same client to reconnect (Discord
 // iframe reloads are routine: device rotation, client updates, network blips).
-const DEFAULT_RECONNECT_WINDOW_S = 60;
+const DEFAULT_RECONNECT_WINDOW_S = 120;
 // A beat before a bot acts, so its moves read as play rather than a glitch.
 const BOT_ACT_DELAY_MS = 900;
 const BOT_NAMES = ['Баатар', 'Сараа', 'Дорж', 'Оюунаа', 'Тэмүүлэн'];
@@ -74,6 +74,7 @@ interface CreateOptions extends JoinOptions {
    *  privateTable. Quick-play auto-creation sets neither flag and stays free. */
   customTable?: boolean;
   tableName?: string;
+  tableId?: number | string;
 }
 
 /**
@@ -113,6 +114,21 @@ export class MuushigRoom extends Room<GameState> {
   /** Sessions that chose Leave table — their seat is not held for reconnection. */
   private deliberateLeaves = new Set<string>();
   /**
+   * The stable identity that owns each seat (seat id → Supabase userId /
+   * discordId), recorded when the seat is taken. This is the reclaim ticket:
+   * if the reconnection window lapses and a bot takes the seat over, the same
+   * account (any device, fresh session) gets the seat back on join. Cleared
+   * on deliberate leaves — quitting on purpose forfeits the seat. Guests have
+   * no stable ids and can only return via the Colyseus reconnection token.
+   */
+  private seatClaims = new Map<string, { userId?: string; discordId?: string }>();
+  /**
+   * Reclaimed seats keep their original key (seatOrder, dealerId, currentTurn
+   * and trick plays all reference it); this maps the reclaiming client's new
+   * sessionId onto that seat. Resolved via {@link seatIdFor} in every handler.
+   */
+  private sessionToSeat = new Map<string, string>();
+  /**
    * Verified Supabase identities by sessionId. Server-side only — auth UUIDs
    * never go on the synced schema, where every client (spectators included)
    * would see them. Reconnection reuses the sessionId, so entries survive
@@ -123,6 +139,7 @@ export class MuushigRoom extends Room<GameState> {
   private recorder: MatchRecorderFn | null = null;
   /** Display name for hosted tables (lobby browser). */
   private tableName = '';
+  private tableId: number | null = null;
 
   async onCreate(options: CreateOptions = {}): Promise<void> {
     this.setState(new GameState());
@@ -162,6 +179,10 @@ export class MuushigRoom extends Room<GameState> {
         throw new Error('Hosting tables requires a premium account');
       }
       this.tableName = sanitizeUsername(options.tableName).slice(0, 24);
+    }
+
+    if (options.tableId != null) {
+      this.tableId = parseInt(String(options.tableId), 10);
     }
 
     // Private, code-joined table: hidden from matchmaking; friends resolve the
@@ -210,6 +231,11 @@ export class MuushigRoom extends Room<GameState> {
     this.onMessage('ping', (client, msg: { clientTime?: number }) => {
       client.send('pong', { clientTime: msg?.clientTime, serverTime: Date.now() });
     });
+    // Which seat is "me"? Usually the sessionId, but a reclaimed seat keeps
+    // its original key. Pull-based so the client can't miss the join-time push.
+    this.onMessage('whoami', (client) => {
+      client.send('seatId', { seatId: this.seatIdFor(client) });
+    });
   }
 
   async onJoin(client: Client, options: JoinOptions = {}): Promise<void> {
@@ -237,8 +263,34 @@ export class MuushigRoom extends Room<GameState> {
       authed: !!authed,
     });
 
-    // Mid-game joiners watch from the rail and are seated for the next game.
     if (this.state.phase !== 'waiting') {
+      // Same account coming back after a drop (lost token, other device, or
+      // even after the bot took over)? The seat claim reunites them.
+      const seatId = this.findReclaimableSeat(authed?.id, discordId);
+      if (seatId) {
+        const seat = this.state.players.get(seatId)!;
+        seat.isBot = false;
+        seat.isConnected = true;
+        seat.username = username || seat.username;
+        const avatarUrl = sanitizeString(options.avatarUrl, 256);
+        if (avatarUrl) seat.avatarUrl = avatarUrl;
+        this.sessionToSeat.set(client.sessionId, seatId);
+        if (authed) {
+          this.identities.set(seatId, authed);
+          this.identities.delete(client.sessionId);
+        }
+        client.send('seatId', { seatId });
+        this.syncMetadata();
+        this.maybeActBot(); // the seat may sit on turn — clear any bot timer
+        log('info', 'seat_reclaimed', {
+          roomId: this.roomId,
+          sessionId: client.sessionId,
+          seatId,
+        });
+        return;
+      }
+
+      // Mid-game joiners watch from the rail and are seated for the next game.
       this.spectatorProfiles.set(client.sessionId, {
         username,
         avatarUrl: sanitizeString(options.avatarUrl, 256),
@@ -261,8 +313,38 @@ export class MuushigRoom extends Room<GameState> {
     this.state.players.set(client.sessionId, player);
     this.state.seatOrder.push(client.sessionId);
     if (!this.state.hostId) this.state.hostId = client.sessionId;
+    if (authed?.id || discordId) {
+      this.seatClaims.set(client.sessionId, {
+        userId: authed?.id,
+        discordId: discordId || undefined,
+      });
+    }
 
     this.syncMetadata();
+  }
+
+  /** The seat id a message from this client acts on (reclaimed seats keep their original key). */
+  private seatIdFor(client: Client): string {
+    return this.sessionToSeat.get(client.sessionId) ?? client.sessionId;
+  }
+
+  /**
+   * A seat this identity may take back: claimed by the same stable id and
+   * currently unmanned (bot-held after the window lapsed, or still held
+   * disconnected). A seat whose human is connected never matches — a second
+   * tab from the same account spectates instead of hijacking.
+   */
+  private findReclaimableSeat(userId?: string, discordId?: string): string | null {
+    if (!userId && !discordId) return null;
+    for (const [seatId, claim] of this.seatClaims) {
+      const seat = this.state.players.get(seatId);
+      if (!seat) continue;
+      if (seat.isConnected && !seat.isBot) continue;
+      if ((userId && claim.userId === userId) || (discordId && claim.discordId === discordId)) {
+        return seatId;
+      }
+    }
+    return null;
   }
 
   async onLeave(client: Client, _consented?: boolean): Promise<void> {
@@ -276,17 +358,20 @@ export class MuushigRoom extends Room<GameState> {
       return;
     }
 
-    const player = this.state.players.get(client.sessionId);
+    const seatId = this.seatIdFor(client);
+    const player = this.state.players.get(seatId);
     if (!player) return;
     player.isConnected = false;
 
     // Before the game starts, free the seat entirely.
     if (this.state.phase === 'waiting') {
-      this.identities.delete(client.sessionId);
-      this.state.players.delete(client.sessionId);
-      const idx = this.state.seatOrder.indexOf(client.sessionId);
+      this.identities.delete(seatId);
+      this.seatClaims.delete(seatId);
+      this.sessionToSeat.delete(client.sessionId);
+      this.state.players.delete(seatId);
+      const idx = this.state.seatOrder.indexOf(seatId);
       if (idx !== -1) this.state.seatOrder.splice(idx, 1);
-      if (this.state.hostId === client.sessionId) {
+      if (this.state.hostId === seatId) {
         // Bots can't press Deal — hand the host role to the first human.
         this.state.hostId =
           this.state.seatOrder.find((id) => !this.state.players.get(id)!.isBot) ?? '';
@@ -295,12 +380,14 @@ export class MuushigRoom extends Room<GameState> {
       return;
     }
 
-    // A deliberate Leave-table is final: no reconnection hold, a bot takes the
-    // seat over immediately (the match record still credits the leaver — the
-    // anti-rage-quit policy from the stats work).
+    // A deliberate Leave-table is final: no reconnection hold, no reclaim —
+    // a bot takes the seat over immediately (the match record still credits
+    // the leaver — the anti-rage-quit policy from the stats work).
     if (deliberate) {
       player.isBot = true;
-      this.identities.delete(client.sessionId);
+      this.identities.delete(seatId);
+      this.seatClaims.delete(seatId);
+      this.sessionToSeat.delete(client.sessionId);
       this.syncMetadata();
       this.maybeActBot();
       return;
@@ -314,18 +401,21 @@ export class MuushigRoom extends Room<GameState> {
     if (this.reconnectWindow <= 0) return;
     try {
       await this.allowReconnection(client, this.reconnectWindow);
-      const rejoined = this.state.players.get(client.sessionId);
+      const rejoined = this.state.players.get(seatId);
       if (rejoined) {
         rejoined.isConnected = true;
+        rejoined.isBot = false; // token beat the identity path — take it back
         this.syncMetadata();
       }
     } catch {
       // Window expired (or room disposed) — a bot takes the seat over so the
-      // table stops sitting out this player's full clock every turn.
-      const abandoned = this.state.players.get(client.sessionId);
+      // table stops sitting out this player's full clock every turn. The seat
+      // claim and identity are kept: the same account reclaims the seat from
+      // the bot by simply joining again (see onJoin).
+      const abandoned = this.state.players.get(seatId);
       if (abandoned && !abandoned.isConnected && this.state.phase !== 'waiting') {
         abandoned.isBot = true;
-        log('info', 'bot_takeover', { roomId: this.roomId, sessionId: client.sessionId });
+        log('info', 'bot_takeover', { roomId: this.roomId, sessionId: client.sessionId, seatId });
         this.maybeActBot();
       }
     }
@@ -349,14 +439,14 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleReady(client: Client): void {
     if (this.state.phase !== 'waiting') return;
-    const player = this.state.players.get(client.sessionId);
+    const player = this.state.players.get(this.seatIdFor(client));
     if (!player) return;
     player.isReady = !player.isReady;
   }
 
   private handleStart(client: Client): void {
     if (this.state.phase !== 'waiting') return;
-    if (client.sessionId !== this.state.hostId) return;
+    if (this.seatIdFor(client) !== this.state.hostId) return;
     if (this.state.players.size < MIN_PLAYERS) return;
     for (const id of this.state.seatOrder) {
       if (!this.state.players.get(id)!.isReady) return;
@@ -366,10 +456,11 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleDecide(client: Client, stay: boolean): void {
     if (this.state.phase !== 'decision') return;
+    const seatId = this.seatIdFor(client);
     // Decisions go in order, clockwise from the amankhuzuu.
-    if (this.state.currentTurn !== client.sessionId) return;
+    if (this.state.currentTurn !== seatId) return;
     try {
-      MuushigEngine.decide(this.state, client.sessionId, stay);
+      MuushigEngine.decide(this.state, seatId, stay);
     } catch {
       return;
     }
@@ -378,11 +469,12 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleSwap(client: Client, msg: unknown): void {
     if (this.state.phase !== 'swap') return;
+    const seatId = this.seatIdFor(client);
     // Swaps go in order, clockwise from the amankhuzuu.
-    if (this.state.currentTurn !== client.sessionId) return;
+    if (this.state.currentTurn !== seatId) return;
     const indices = parseIndices((msg as { indices?: unknown })?.indices);
     try {
-      MuushigEngine.swapCards(this.state, client.sessionId, indices);
+      MuushigEngine.swapCards(this.state, seatId, indices);
     } catch {
       return; // illegal swap (already swapped / resigned) — ignore
     }
@@ -395,7 +487,7 @@ export class MuushigRoom extends Room<GameState> {
     const raw = (msg as { index?: unknown })?.index;
     const index = typeof raw === 'number' && Number.isInteger(raw) ? raw : -1;
     try {
-      MuushigEngine.exchangeTrump(this.state, client.sessionId, index);
+      MuushigEngine.exchangeTrump(this.state, this.seatIdFor(client), index);
     } catch {
       return; // not the dealer / already exchanged / bad index — ignore
     }
@@ -404,11 +496,12 @@ export class MuushigRoom extends Room<GameState> {
   private handlePlayCard(client: Client, msg: unknown): void {
     if (this.state.phase !== 'playing') return;
     if (this.trickResolving) return; // full trick on display — nothing to play into
-    if (this.state.currentTurn !== client.sessionId) return;
+    const seatId = this.seatIdFor(client);
+    if (this.state.currentTurn !== seatId) return;
     const card = parseCard(msg);
     if (!card) return;
     try {
-      MuushigEngine.playCard(this.state, client.sessionId, card);
+      MuushigEngine.playCard(this.state, seatId, card);
     } catch {
       return; // illegal move — ignore and let the client retry
     }
@@ -417,8 +510,9 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleRematch(client: Client): void {
     if (this.state.phase !== 'finished') return;
-    if (!this.state.players.has(client.sessionId)) return;
-    this.rematchVotes.add(client.sessionId);
+    const seatId = this.seatIdFor(client);
+    if (!this.state.players.has(seatId)) return;
+    this.rematchVotes.add(seatId);
     // Bots don't vote — a rematch needs every human at the table.
     const humans = [...this.state.seatOrder].filter((id) => !this.state.players.get(id)!.isBot);
     if (this.rematchVotes.size >= humans.length) {
@@ -460,7 +554,7 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleAddBot(client: Client): void {
     if (this.state.phase !== 'waiting') return;
-    if (client.sessionId !== this.state.hostId) return;
+    if (this.seatIdFor(client) !== this.state.hostId) return;
     if (this.state.players.size >= this.state.maxPlayers) return;
 
     const id = `bot-${++this.botCounter}`;
@@ -479,9 +573,10 @@ export class MuushigRoom extends Room<GameState> {
    *  path, and a mid-game kick would invite griefing. */
   private handleKick(client: Client, msg: unknown): void {
     if (this.state.phase !== 'waiting') return;
-    if (client.sessionId !== this.state.hostId) return;
+    const hostSeat = this.seatIdFor(client);
+    if (hostSeat !== this.state.hostId) return;
     const targetId = sanitizeString((msg as { id?: unknown })?.id);
-    if (!targetId || targetId === client.sessionId) return;
+    if (!targetId || targetId === hostSeat) return;
     const target = this.state.players.get(targetId);
     if (!target || target.isBot) return;
 
@@ -495,6 +590,7 @@ export class MuushigRoom extends Room<GameState> {
     const idx = this.state.seatOrder.indexOf(targetId);
     if (idx !== -1) this.state.seatOrder.splice(idx, 1);
     this.identities.delete(targetId);
+    this.seatClaims.delete(targetId);
     this.syncMetadata();
 
     log('info', 'kick', { roomId: this.roomId, by: client.sessionId, target: targetId });
@@ -510,7 +606,7 @@ export class MuushigRoom extends Room<GameState> {
 
   private handleRemoveBot(client: Client, msg: unknown): void {
     if (this.state.phase !== 'waiting') return;
-    if (client.sessionId !== this.state.hostId) return;
+    if (this.seatIdFor(client) !== this.state.hostId) return;
     const id = sanitizeString((msg as { id?: unknown })?.id);
     const bot = id ? this.state.players.get(id) : undefined;
     if (!bot?.isBot) return;
@@ -772,6 +868,16 @@ export class MuushigRoom extends Room<GameState> {
       this.afterDecision();
     } else if (this.state.phase === 'swap') {
       if (!player.hasSwapped && !player.hasResigned) {
+        // A bot dealer considers navshih first, so the swap below already
+        // sees the upgraded hand. The chooser itself guards dealer/phase.
+        const navshih = MuushigBot.chooseTrumpExchange(this.state, id);
+        if (navshih !== null) {
+          try {
+            MuushigEngine.exchangeTrump(this.state, id, navshih);
+          } catch {
+            /* fall through — the plain swap still runs */
+          }
+        }
         try {
           MuushigEngine.swapCards(this.state, id, MuushigBot.chooseSwapIndices(this.state, id));
         } catch {
@@ -824,6 +930,7 @@ export class MuushigRoom extends Room<GameState> {
   }
 
   private syncMetadata(): void {
+    const playerNames = [...this.state.players.values()].map((p) => p.username);
     this.setMetadata({
       discordInstanceId: this.discordInstanceId,
       maxPlayers: this.state.maxPlayers,
@@ -832,6 +939,8 @@ export class MuushigRoom extends Room<GameState> {
       phase: this.state.phase,
       joinCode: this.state.joinCode || undefined,
       tableName: this.tableName || undefined,
+      tableId: this.tableId || undefined,
+      playerNames: playerNames.length > 0 ? playerNames : undefined,
       hostName: this.state.hostId
         ? (this.state.players.get(this.state.hostId)?.username ?? undefined)
         : undefined,

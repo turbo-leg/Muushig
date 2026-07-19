@@ -140,6 +140,16 @@ export function Seat({ seat, phase, onRemove, removeArmed }: Props) {
           </div>
         )}
 
+        {/* Dying Ace indicator (Үхсэн тамга) */}
+        {seat.trumpAceDead && (
+          <div
+            title={t('deadAceTooltip')}
+            className="absolute -right-1.5 -top-1 z-20 grid h-5 w-5 select-none place-items-center rounded-full border border-danger/60 bg-parchment-deep text-[10px] shadow-sm animate-pulse"
+          >
+            ☠️
+          </div>
+        )}
+
         {/* Host-only: dismiss a lobby bot / kick a human (armed = second tap fires) */}
         {onRemove && (
           <button

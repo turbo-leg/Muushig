@@ -39,6 +39,9 @@ export class Player extends Schema {
   /** Server-driven seat: a lobby-added bot, or a takeover of an abandoned seat. */
   @type('boolean') isBot: boolean = false;
 
+  /** Dying Ace rule: true when the player failed to open a trick with the trump Ace. */
+  @type('boolean') trumpAceDead: boolean = false;
+
   constructor(id: string = '') {
     super();
     this.id = id;

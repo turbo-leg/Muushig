@@ -31,6 +31,7 @@ export interface SeatVM {
   /** The amankhuzuu — first player to swap cards this round. */
   isAmankhuzuu: boolean;
   seatNumber?: number;
+  trumpAceDead?: boolean;
 }
 
 export interface TrickPlayVM {

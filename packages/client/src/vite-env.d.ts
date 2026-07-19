@@ -8,3 +8,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// The SVG-only lottie build ships untyped; it has the same API as the default.
+declare module 'lottie-web/build/player/lottie_light' {
+  import lottie from 'lottie-web';
+  export default lottie;
+}

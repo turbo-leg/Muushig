@@ -1,4 +1,29 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({
+    enabled: true,
+    loading: false,
+    session: {
+      user: { id: 'test-user', email: 'test@example.com' },
+    },
+    signOut: vi.fn(),
+  }),
+}));
+
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+        }),
+      }),
+    }),
+  },
+  isAuthEnabled: true,
+}));
 
 // Node 22 exposes a global `localStorage` stub (inert without
 // --experimental-webstorage) that shadows jsdom's working implementation.

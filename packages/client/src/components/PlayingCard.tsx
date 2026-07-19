@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { cardArt, cardBackArt } from '../game/cardArt';
+import { t, type MsgKey } from '../i18n';
 
 export const SUIT_GLYPH: Record<string, string> = {
   Spades: '♠',
@@ -60,21 +61,31 @@ export function PlayingCard({
       ? ({ '--card-back': `url("${backArt}")` } as CSSProperties)
       : undefined;
 
+  const activeBack = className.includes('back-')
+    ? ''
+    : typeof window !== 'undefined'
+      ? localStorage.getItem('muushig_card_back') || 'emerald'
+      : 'emerald';
+
   const cls = [
     'playing-card',
-    faceDown ? 'playing-card--back' : '',
+    faceDown ? `playing-card--back ${activeBack ? `back-${activeBack}` : ''}`.trim() : '',
     trump ? 'playing-card--trump' : '',
     className,
   ]
     .filter(Boolean)
     .join(' ');
 
+  const rankText = ['J', 'Q', 'K', 'A'].includes(label) ? t(label as MsgKey) : label;
+
   return (
     <div
       className={cls}
       style={style}
       role="img"
-      aria-label={faceDown ? 'Face-down card' : `${label} of ${suit}`}
+      aria-label={
+        faceDown ? t('faceDownCard') : t('cardDesc', { rank: rankText, suit: t(suit as MsgKey) })
+      }
     >
       {faceDown ? (
         backArt ? null : (

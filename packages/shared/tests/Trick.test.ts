@@ -248,3 +248,96 @@ describe('resolveTrick()', () => {
     expect(result.winningCard.key).toBe('Spades:7');
   });
 });
+
+describe('Dying Ace rule', () => {
+  test('does not die if leader plays the Ace of trumps on fresh turn', () => {
+    const state = buildPlayingState(
+      {
+        a: [c(Suit.Spades, Rank.Ace)], // Trump Ace (Spades is TRUMP)
+        b: [c(Suit.Hearts, Rank.Seven)],
+      },
+      TRUMP,
+    );
+    expect(state.players.get('a')!.trumpAceDead).toBe(false);
+    MuushigEngine.playCard(state, 'a', c(Suit.Spades, Rank.Ace));
+    expect(state.players.get('a')!.trumpAceDead).toBe(false);
+  });
+
+  test('dies if leader holds the Ace of trumps but opens with a different card', () => {
+    const state = buildPlayingState(
+      {
+        a: [c(Suit.Spades, Rank.Ace), c(Suit.Hearts, Rank.Eight)],
+        b: [c(Suit.Hearts, Rank.Seven)],
+      },
+      TRUMP,
+    );
+    expect(state.players.get('a')!.trumpAceDead).toBe(false);
+    MuushigEngine.playCard(state, 'a', c(Suit.Hearts, Rank.Eight));
+    expect(state.players.get('a')!.trumpAceDead).toBe(true);
+  });
+
+  test('a dead Ace is beaten by a lower trump card', () => {
+    const state = buildPlayingState(
+      {
+        a: [c(Suit.Spades, Rank.Ace), c(Suit.Hearts, Rank.Eight)],
+        b: [c(Suit.Hearts, Rank.Seven), c(Suit.Spades, Rank.Seven)],
+      },
+      TRUMP,
+    );
+    // Player a leads Hearts:8, holding Spades:Ace -> Spades:Ace dies!
+    MuushigEngine.playCard(state, 'a', c(Suit.Hearts, Rank.Eight));
+    MuushigEngine.playCard(state, 'b', c(Suit.Hearts, Rank.Seven));
+
+    // Resolve trick 1
+    MuushigEngine.resolveTrick(state);
+
+    // Trick 2: Player a leads the dead Spades:Ace. Player b plays Spades:7
+    MuushigEngine.playCard(state, 'a', c(Suit.Spades, Rank.Ace));
+    MuushigEngine.playCard(state, 'b', c(Suit.Spades, Rank.Seven));
+
+    const result = MuushigEngine.resolveTrick(state);
+    expect(result.winnerId).toBe('b'); // The 7 of Spades (trump) beats the dead Ace of Spades!
+  });
+
+  test('a dead Ace led is beaten by a card of the led suit', () => {
+    const state = buildPlayingState(
+      {
+        a: [c(Suit.Spades, Rank.Ace), c(Suit.Hearts, Rank.Eight)],
+        b: [c(Suit.Hearts, Rank.Seven), c(Suit.Spades, Rank.Ten)],
+      },
+      TRUMP,
+    );
+    // Player a leads Hearts:8, holding Spades:Ace -> Spades:Ace dies!
+    MuushigEngine.playCard(state, 'a', c(Suit.Hearts, Rank.Eight));
+    MuushigEngine.playCard(state, 'b', c(Suit.Hearts, Rank.Seven));
+    MuushigEngine.resolveTrick(state);
+
+    // Trick 2: Player a leads the dead Spades:Ace. Player b plays Spades:10 (following suit)
+    MuushigEngine.playCard(state, 'a', c(Suit.Spades, Rank.Ace));
+    MuushigEngine.playCard(state, 'b', c(Suit.Spades, Rank.Ten));
+
+    const result = MuushigEngine.resolveTrick(state);
+    expect(result.winnerId).toBe('b'); // The 10 of Spades beats the dead Ace of Spades!
+  });
+
+  test('a dead Ace led wins if everyone else plays off-suit cards', () => {
+    const state = buildPlayingState(
+      {
+        a: [c(Suit.Spades, Rank.Ace), c(Suit.Hearts, Rank.Eight)],
+        b: [c(Suit.Hearts, Rank.Seven), c(Suit.Diamonds, Rank.Ten)], // b has no Spades
+      },
+      TRUMP,
+    );
+    // Player a leads Hearts:8, holding Spades:Ace -> Spades:Ace dies!
+    MuushigEngine.playCard(state, 'a', c(Suit.Hearts, Rank.Eight));
+    MuushigEngine.playCard(state, 'b', c(Suit.Hearts, Rank.Seven));
+    MuushigEngine.resolveTrick(state);
+
+    // Trick 2: Player a leads the dead Spades:Ace. Player b plays Diamonds:10 (sloughs off-suit)
+    MuushigEngine.playCard(state, 'a', c(Suit.Spades, Rank.Ace));
+    MuushigEngine.playCard(state, 'b', c(Suit.Diamonds, Rank.Ten));
+
+    const result = MuushigEngine.resolveTrick(state);
+    expect(result.winnerId).toBe('a'); // Dead Ace led still wins if everyone plays off-suit cards
+  });
+});

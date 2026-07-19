@@ -19,7 +19,9 @@ export default config({
     : {},
 
   initializeGameServer: (gameServer) => {
-    gameServer.define('muushig', MuushigRoom).filterBy(['discordInstanceId', 'maxPlayers']);
+    gameServer
+      .define('muushig', MuushigRoom)
+      .filterBy(['discordInstanceId', 'maxPlayers', 'tableId']);
   },
 
   initializeExpress: (app) => {
@@ -89,41 +91,78 @@ export default config({
       return res.json({ ok: true });
     });
 
-    // Public web tables for the lobby browser. Private (code) tables and
-    // Discord activity-instance rooms are excluded — the latter belong to
-    // their voice channel, not the open web.
     app.get('/api/lobbies', async (_req, res) => {
       try {
         const rooms = await matchMaker.query({ name: 'muushig', private: false });
-        const lobbies = rooms
-          .map((r) => {
-            const m = (r.metadata ?? {}) as {
+        const lobbies = Array.from({ length: 20 }, (_, i) => ({
+          roomId: null as string | null,
+          tableId: i + 1,
+          name: `Table ${i + 1}`,
+          host: null as string | null,
+          phase: 'waiting',
+          playerCount: 0,
+          maxPlayers: 5,
+          spectatorCount: 0,
+          playerNames: [] as string[],
+        }));
+
+        const unassignedRooms = [];
+        for (const room of rooms) {
+          const m = room.metadata as { tableId?: number };
+          const tid = m?.tableId;
+          if (typeof tid === 'number' && tid >= 1 && tid <= 20) {
+            const mData = room.metadata as {
               tableName?: string;
               hostName?: string;
               phase?: string;
               playerCount?: number;
               maxPlayers?: number;
               spectatorCount?: number;
-              discordInstanceId?: string | null;
+              playerNames?: string[];
             };
-            return {
-              roomId: r.roomId,
-              name: m.tableName ?? null,
-              host: m.hostName ?? null,
-              phase: m.phase ?? 'waiting',
-              playerCount: m.playerCount ?? 0,
-              maxPlayers: m.maxPlayers ?? 5,
-              spectatorCount: m.spectatorCount ?? 0,
-              discord:
-                !!m.discordInstanceId &&
-                m.discordInstanceId !== 'web' &&
-                m.discordInstanceId !== 'local-dev',
+            lobbies[tid - 1] = {
+              roomId: room.roomId,
+              tableId: tid,
+              name: mData.tableName || `Table ${tid}`,
+              host: mData.hostName ?? null,
+              phase: mData.phase ?? 'waiting',
+              playerCount: mData.playerCount ?? 0,
+              maxPlayers: mData.maxPlayers ?? 5,
+              spectatorCount: mData.spectatorCount ?? 0,
+              playerNames: mData.playerNames ?? [],
             };
-          })
-          .filter((l) => !l.discord)
-          .sort((a, b) => (a.phase === 'waiting' ? 0 : 1) - (b.phase === 'waiting' ? 0 : 1))
-          .slice(0, 50)
-          .map(({ discord: _discord, ...rest }) => rest);
+          } else {
+            unassignedRooms.push(room);
+          }
+        }
+
+        for (const room of unassignedRooms) {
+          const emptySlotIndex = lobbies.findIndex((l) => l.roomId === null);
+          if (emptySlotIndex !== -1) {
+            const tid = emptySlotIndex + 1;
+            const mData = room.metadata as {
+              tableName?: string;
+              hostName?: string;
+              phase?: string;
+              playerCount?: number;
+              maxPlayers?: number;
+              spectatorCount?: number;
+              playerNames?: string[];
+            };
+            lobbies[emptySlotIndex] = {
+              roomId: room.roomId,
+              tableId: tid,
+              name: mData.tableName || `Table ${tid}`,
+              host: mData.hostName ?? null,
+              phase: mData.phase ?? 'waiting',
+              playerCount: mData.playerCount ?? 0,
+              maxPlayers: mData.maxPlayers ?? 5,
+              spectatorCount: mData.spectatorCount ?? 0,
+              playerNames: mData.playerNames ?? [],
+            };
+          }
+        }
+
         return res.json({ lobbies });
       } catch {
         return res.status(500).json({ error: 'lookup failed' });

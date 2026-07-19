@@ -53,6 +53,34 @@ export class MuushigBot {
   }
 
   /**
+   * Navshih (dealer's trump exchange): the hand index to give up for the
+   * turned-up trump card, or null to decline. Only meaningful for the dealer
+   * during the swap phase while the exchange is still available; any other
+   * situation returns null. Exchanges whenever the worst card in hand is
+   * worth strictly less than the trump card on the {@link handStrength}
+   * scale — that covers both off-suit junk and upgrading a low trump.
+   */
+  static chooseTrumpExchange(state: GameState, playerId: string): number | null {
+    const player = state.players.get(playerId);
+    if (!player || player.hand.length === 0) return null;
+    if (state.phase !== 'swap') return null;
+    if (playerId !== state.dealerId) return null;
+    if (state.trumpExchanged || player.hasResigned) return null;
+    const trumpCard = state.trumpCard;
+    if (!trumpCard) return null;
+
+    const value = (c: Card) =>
+      c.suit === state.trumpSuit ? c.rank + 10 : Math.max(0, c.rank - 10);
+
+    let worstIndex = 0;
+    ([...player.hand] as Card[]).forEach((card, index) => {
+      if (value(card) < value(player.hand[worstIndex] as Card)) worstIndex = index;
+    });
+    const worth = value(player.hand[worstIndex] as Card);
+    return worth < trumpCard.rank + 10 ? worstIndex : null;
+  }
+
+  /**
    * Card to throw on the bot's turn. Leads its highest card (tricks are pure
    * upside); otherwise wins as cheaply as possible, or sloughs its lowest.
    * Returns null when the bot has no hand (nothing to do).
@@ -76,10 +104,16 @@ export class MuushigBot {
       [...state.currentTrick] as TrickPlay[],
       state.ledSuit,
       state.trumpSuit,
+      state.players,
     )!;
-    const cheapestWinner = byRank.find((c) =>
-      MuushigEngine.beats(c, best, state.ledSuit, state.trumpSuit),
-    );
+    const cheapestWinner = byRank.find((c) => {
+      const mePlayer = state.players.get(playerId);
+      const bestPlay = state.currentTrick.find(
+        (p) => p.card.suit === best.suit && p.card.rank === best.rank,
+      );
+      const bestPlayer = bestPlay ? state.players.get(bestPlay.playerId) : undefined;
+      return MuushigEngine.beats(c, best, state.ledSuit, state.trumpSuit, mePlayer, bestPlayer);
+    });
     return cheapestWinner ?? byRank[0]!;
   }
 }
