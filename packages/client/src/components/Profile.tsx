@@ -158,11 +158,13 @@ export function Profile({
   signOut,
   onClose,
 }: {
-  session: Session;
+  session: Session | null;
   signOut?: () => Promise<void>;
   onClose?: () => void;
 }) {
-  const me = identityFromSession(session);
+  const me = session
+    ? identityFromSession(session)
+    : { username: t('youName'), userId: 'guest', avatarUrl: '' };
   const [stats, setStats] = useState<Stats | null>(null);
   const [history, setHistory] = useState<MatchRow[]>([]);
   const [coins, setCoins] = useState<number | null>(null);
@@ -175,7 +177,7 @@ export function Profile({
   const [mobileLeaders, setMobileLeaders] = useState<LeaderboardRow[] | null>(null);
 
   useEffect(() => {
-    if (!supabase) {
+    if (!supabase || !session) {
       setLoading(false);
       return;
     }

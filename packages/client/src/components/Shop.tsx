@@ -46,8 +46,10 @@ const COIN_PACKS: CoinPack[] = [
   { id: 'pack_large', coins: 5000, price: '$49.99', desktopPrice: '$49.99' },
 ];
 
-export function Shop({ session }: { session: Session }) {
-  const me = identityFromSession(session);
+export function Shop({ session }: { session: Session | null }) {
+  const me = session
+    ? identityFromSession(session)
+    : { username: t('youName'), userId: 'guest', avatarUrl: '' };
   const [coins, setCoins] = useState<number | null>(null);
   const [activeBack, setActiveBack] = useState<string>('emerald');
   const [unlockedBacks, setUnlockedBacks] = useState<string>('emerald');
@@ -57,7 +59,8 @@ export function Shop({ session }: { session: Session }) {
 
   // Sync state with database
   useEffect(() => {
-    if (!supabase) {
+    if (!supabase || !session) {
+      setCoins(1000); // Mock coins for guest sandbox
       setLoading(false);
       return;
     }

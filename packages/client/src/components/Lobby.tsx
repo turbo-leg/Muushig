@@ -460,11 +460,11 @@ export function Lobby({
               </div>
             </div>
           ) : activeTab === 'profile' ? (
-            session && <Profile session={session} signOut={signOut} />
+            <Profile session={session} signOut={signOut} />
           ) : activeTab === 'shop' ? (
-            session && <Shop session={session} />
+            <Shop session={session} />
           ) : (
-            session && <SettingsDashboard session={session} signOut={signOut} />
+            <SettingsDashboard session={session} signOut={signOut} />
           )}
         </main>
       </div>
@@ -602,11 +602,11 @@ export function Lobby({
             </div>
           </>
         ) : activeTab === 'profile' ? (
-          session && <Profile session={session} signOut={signOut} />
+          <Profile session={session} signOut={signOut} />
         ) : activeTab === 'shop' ? (
-          session && <Shop session={session} />
+          <Shop session={session} />
         ) : (
-          session && <SettingsDashboard session={session} signOut={signOut} />
+          <SettingsDashboard session={session} signOut={signOut} />
         )}
 
         {/* Mobile Bottom Navigation Bar */}

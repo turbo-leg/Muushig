@@ -194,10 +194,12 @@ export function SettingsDashboard({
   session,
   signOut,
 }: {
-  session: Session;
+  session: Session | null;
   signOut?: () => Promise<void>;
 }) {
-  const me = identityFromSession(session);
+  const me = session
+    ? identityFromSession(session)
+    : { username: t('youName'), userId: 'guest', avatarUrl: '' };
   const [coins, setCoins] = useState<number | null>(null);
   const [activeSidebar, setActiveSidebar] = useState<
     'profile' | 'security' | 'preferences' | 'subscriptions' | 'history' | 'support'
@@ -212,7 +214,10 @@ export function SettingsDashboard({
   const [mobileExpandedSection, setMobileExpandedSection] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !session) {
+      setCoins(0);
+      return;
+    }
     supabase
       .from('profiles')
       .select('coins')
@@ -221,7 +226,7 @@ export function SettingsDashboard({
       .then(({ data }) => {
         if (data) setCoins((data as { coins?: number }).coins ?? 0);
       });
-  }, [me.userId]);
+  }, [me.userId, session]);
 
   const handleMusicChange = (val: number) => {
     setMusicVolumeState(val);
