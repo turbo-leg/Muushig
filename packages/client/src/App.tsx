@@ -213,8 +213,6 @@ function GameView({
       <GlobalSVGDefs />
       <Background />
       <AccountBar onProfile={() => setShowProfile(true)} />
-      {supabase && <LeaderboardButton onClick={() => setShowLeaderboard(true)} />}
-      <HelpCornerButton onClick={() => setShowHelp(true)} />
       {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
       {showHelp && <HelpBook onClose={closeHelp} />}
 
@@ -350,8 +348,6 @@ function TableRouter({ session, signOut }: { session: any; signOut?: () => Promi
       <>
         <GlobalSVGDefs />
         <Background />
-        {supabase && <LeaderboardButton onClick={() => setShowLeaderboard(true)} />}
-        <HelpCornerButton onClick={() => setShowHelp(true)} />
         {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
         {showHelp && (
           <HelpBook

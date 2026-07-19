@@ -57,6 +57,15 @@ interface RoundRow {
   shut_out: boolean;
 }
 
+interface LeaderboardRow {
+  username: string;
+  avatar_url: string | null;
+  rating: number;
+  games_played: number;
+  games_won: number;
+  best_win_streak: number;
+}
+
 /** Tiny inline rating sparkline (oldest → newest, left → right). */
 function Sparkline({ values }: { values: number[] }) {
   if (values.length < 2) return null;
@@ -160,6 +169,11 @@ export function Profile({
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  // Relocated leaderboard states
+  const [activeSubTab, setActiveSubTab] = useState<'stats' | 'leaderboard'>('stats');
+  const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[] | null>(null);
+  const [mobileLeaders, setMobileLeaders] = useState<LeaderboardRow[] | null>(null);
+
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -168,7 +182,7 @@ export function Profile({
     let active = true;
     (async () => {
       try {
-        const [statsRes, histRes, profileRes] = await Promise.all([
+        const [statsRes, histRes, profileRes, leadersRes] = await Promise.all([
           supabase
             .from('player_stats')
             .select(
@@ -183,17 +197,23 @@ export function Profile({
             .order('created_at', { ascending: false })
             .limit(20),
           supabase.from('profiles').select('coins').eq('id', me.userId).maybeSingle(),
+          // Pre-fetch top 5 for mobile card
+          supabase
+            .from('leaderboard')
+            .select('username, avatar_url, rating, games_played, games_won, best_win_streak')
+            .limit(5),
         ]);
         if (!active) return;
         setStats({ ...EMPTY_STATS, ...((statsRes.data as Partial<Stats>) ?? {}) });
         setHistory((histRes.data as MatchRow[]) ?? []);
+        setMobileLeaders((leadersRes.data as LeaderboardRow[]) ?? []);
 
         if (profileRes.data) {
           const pData = profileRes.data as { coins?: number };
           setCoins(pData.coins ?? 0);
         }
       } catch {
-        // Fallback silently and show empty stats/history
+        // Fallback silently
       } finally {
         if (active) setLoading(false);
       }
@@ -202,6 +222,22 @@ export function Profile({
       active = false;
     };
   }, [me.userId]);
+
+  // Lazy-load full leaderboard for desktop sub-tab
+  useEffect(() => {
+    if (activeSubTab !== 'leaderboard' || !supabase) return;
+    let active = true;
+    void supabase
+      .from('leaderboard')
+      .select('username, avatar_url, rating, games_played, games_won, best_win_streak')
+      .limit(20)
+      .then(({ data }) => {
+        if (active) setLeaderboardRows((data as LeaderboardRow[]) ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeSubTab]);
 
   const s = stats ?? EMPTY_STATS;
   const winPct = s.games_played > 0 ? Math.round((s.games_won / s.games_played) * 100) : 0;
@@ -259,97 +295,192 @@ export function Profile({
         </div>
       </div>
 
-      {/* Grid container: Stats & Matches split */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Stats Section */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          {/* Main stats block */}
-          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
-            <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
-              {t('tabStats', { defaultValue: 'General Stats' })}
-            </h3>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-center select-none">
-              <Stat label={t('statPlayed')} value={s.games_played} />
-              <Stat label={t('statWon')} value={s.games_won} />
-              <Stat label={t('statWinPct')} value={`${winPct}%`} />
-              <Stat label={t('statRating')} value={s.rating} />
-              <Stat label={t('statStreak')} value={streak} />
+      {/* Desktop Sub-navigation Tabs */}
+      <div className="hidden lg:flex items-center gap-6 border-b border-gild/20 pb-1 select-none">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('stats')}
+          className={`font-hand text-lg font-bold pb-2 border-b-2 transition-all cursor-pointer ${
+            activeSubTab === 'stats'
+              ? 'border-amber text-amber'
+              : 'border-transparent text-[#5c4a3b] hover:text-amber'
+          }`}
+        >
+          {t('tabStats', { defaultValue: 'My Stats' })}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('leaderboard')}
+          className={`font-hand text-lg font-bold pb-2 border-b-2 transition-all cursor-pointer ${
+            activeSubTab === 'leaderboard'
+              ? 'border-amber text-amber'
+              : 'border-transparent text-[#5c4a3b] hover:text-amber'
+          }`}
+        >
+          {t('leaderboardTitle', { defaultValue: 'Leaderboard' })}
+        </button>
+      </div>
+
+      {/* Main Tab Render Area */}
+      <div>
+        {activeSubTab === 'stats' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Stats Section */}
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              {/* Main stats block */}
+              <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
+                <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+                  {t('tabStats', { defaultValue: 'General Stats' })}
+                </h3>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-center select-none">
+                  <Stat label={t('statPlayed')} value={s.games_played} />
+                  <Stat label={t('statWon')} value={s.games_won} />
+                  <Stat label={t('statWinPct')} value={`${winPct}%`} />
+                  <Stat label={t('statRating')} value={s.rating} />
+                  <Stat label={t('statStreak')} value={streak} />
+                </div>
+              </div>
+
+              {/* Deep stats block */}
+              <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
+                <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+                  {t('deepStatsTitle')}
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center select-none">
+                  <Stat
+                    label={t('statFoldRate')}
+                    value={s.rounds_played > 0 ? `${foldPct}%` : '—'}
+                    small
+                  />
+                  <Stat label={t('statAvgTricks')} value={avgTricks} small />
+                  <Stat label={t('statMuushigd')} value={s.shutouts_taken} small />
+                  <Stat label={t('statMuushigdOthers')} value={s.shutouts_inflicted} small />
+                  <Stat label={t('statNavshih')} value={s.navshih_count} small />
+                  <Stat label={t('statHaranhui')} value={s.haranhui_count} small />
+                  <Stat label={t('statPerfect')} value={s.perfect_rounds} small />
+                  <Stat label={t('statBestStreak')} value={s.best_win_streak} small />
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Deep stats block */}
-          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
-            <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
-              {t('deepStatsTitle')}
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center select-none">
-              <Stat
-                label={t('statFoldRate')}
-                value={s.rounds_played > 0 ? `${foldPct}%` : '—'}
-                small
-              />
-              <Stat label={t('statAvgTricks')} value={avgTricks} small />
-              <Stat label={t('statMuushigd')} value={s.shutouts_taken} small />
-              <Stat label={t('statMuushigdOthers')} value={s.shutouts_inflicted} small />
-              <Stat label={t('statNavshih')} value={s.navshih_count} small />
-              <Stat label={t('statHaranhui')} value={s.haranhui_count} small />
-              <Stat label={t('statPerfect')} value={s.perfect_rounds} small />
-              <Stat label={t('statBestStreak')} value={s.best_win_streak} small />
-            </div>
-          </div>
-        </div>
+            {/* Right Match History Section */}
+            <div className="lg:col-span-5 flex flex-col gap-6">
+              <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm flex flex-col h-full">
+                <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+                  {t('recentGames')}
+                </h3>
 
-        {/* Right Match History Section */}
-        <div className="lg:col-span-5">
-          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm flex flex-col h-full">
-            <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
-              {t('recentGames')}
-            </h3>
-
-            <div className="flex-1 overflow-y-auto max-h-[400px] pr-1">
-              {loading ? (
-                <p className="font-hand text-[#c5bbae]">{t('loadingEllipsis')}</p>
-              ) : history.length === 0 ? (
-                <p className="font-hand text-[#c5bbae]">{t('noGamesYet')}</p>
-              ) : (
-                <ul className="flex flex-col gap-2.5">
-                  {history.slice(0, 10).map((m) => (
-                    <li
-                      key={m.match_id}
-                      className="rounded-xl border border-gild/15 bg-[#4c1116]/20 hover:bg-[#4c1116]/40 p-3.5 font-hand text-base transition-all duration-200"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setExpanded(expanded === m.match_id ? null : m.match_id)}
-                        className="flex w-full items-center justify-between text-left cursor-pointer"
-                      >
-                        <span
-                          className={
-                            m.won
-                              ? 'font-extrabold text-success text-base'
-                              : 'font-bold text-danger text-base'
-                          }
+                <div className="flex-1 overflow-y-auto max-h-[360px] pr-1">
+                  {loading ? (
+                    <p className="font-hand text-[#c5bbae]">{t('loadingEllipsis')}</p>
+                  ) : history.length === 0 ? (
+                    <p className="font-hand text-[#c5bbae]">{t('noGamesYet')}</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2.5">
+                      {history.slice(0, 10).map((m) => (
+                        <li
+                          key={m.match_id}
+                          className="rounded-xl border border-gild/15 bg-[#4c1116]/20 hover:bg-[#4c1116]/40 p-3.5 font-hand text-base transition-all duration-200"
                         >
-                          {m.won ? t('winLabel') : t('lossLabel')}
+                          <button
+                            type="button"
+                            onClick={() => setExpanded(expanded === m.match_id ? null : m.match_id)}
+                            className="flex w-full items-center justify-between text-left cursor-pointer"
+                          >
+                            <span
+                              className={
+                                m.won
+                                  ? 'font-extrabold text-success text-base'
+                                  : 'font-bold text-danger text-base'
+                              }
+                            >
+                              {m.won ? t('winLabel') : t('lossLabel')}
+                            </span>
+                            <span className="mx-3 min-w-0 flex-1 truncate text-center text-[#c5bbae] font-semibold text-sm">
+                              {t('vsLabel', { names: m.opponents.join(', ') || '—' })}
+                            </span>
+                            {m.placement != null && (
+                              <span className="mr-3 text-[#c5bbae] font-bold text-xs bg-gild/10 px-2 py-0.5 rounded-md">
+                                {t('placementLabel', { n: m.placement })}
+                              </span>
+                            )}
+                            <span className="num font-bold text-ember">{m.score}</span>
+                          </button>
+                          {expanded === m.match_id && <MatchRounds matchId={m.match_id} />}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile-only Top Players Card (Appears under history on mobile views) */}
+              <div className="block lg:hidden bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
+                <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+                  {t('leaderboardTitle', { defaultValue: 'Top Players' })}
+                </h3>
+                {!mobileLeaders ? (
+                  <p className="font-hand text-[#c5bbae]">{t('loadingEllipsis')}</p>
+                ) : mobileLeaders.length === 0 ? (
+                  <p className="font-hand text-[#c5bbae]">{t('leaderboardEmpty')}</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {mobileLeaders.map((r, i) => (
+                      <li
+                        key={`${r.username}-${i}`}
+                        className="flex items-center gap-3 rounded-xl border border-gild/15 bg-[#4c1116]/10 px-3 py-2 font-hand text-sm"
+                      >
+                        <span className="num w-5 shrink-0 text-right font-extrabold text-ember">{i + 1}</span>
+                        <div
+                          className="h-6 w-6 rounded-full border border-amber/40 bg-parchment bg-cover bg-center shrink-0"
+                          style={r.avatar_url ? { backgroundImage: `url("${r.avatar_url}")` } : undefined}
+                        />
+                        <span className="min-w-0 flex-1 truncate font-bold text-[#332b25]">{r.username}</span>
+                        <span className="num w-12 shrink-0 text-right font-extrabold text-amber-deep">
+                          {r.rating}
                         </span>
-                        <span className="mx-3 min-w-0 flex-1 truncate text-center text-[#c5bbae] font-semibold text-sm">
-                          {t('vsLabel', { names: m.opponents.join(', ') || '—' })}
-                        </span>
-                        {m.placement != null && (
-                          <span className="mr-3 text-[#c5bbae] font-bold text-xs bg-gild/10 px-2 py-0.5 rounded-md">
-                            {t('placementLabel', { n: m.placement })}
-                          </span>
-                        )}
-                        <span className="num font-bold text-ember">{m.score}</span>
-                      </button>
-                      {expanded === m.match_id && <MatchRounds matchId={m.match_id} />}
-                    </li>
-                  ))}
-                </ul>
-              )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          /* Desktop Leaderboard sub-tab */
+          <div className="bg-parchment-deep/80 backdrop-blur-sm border border-gild/30 rounded-[20px] p-5 shadow-sm">
+            <h3 className="font-display text-base font-bold text-ember border-b border-gild/15 pb-2 mb-4 select-none">
+              {t('leaderboardTitle', { defaultValue: 'Leaderboard' })}
+            </h3>
+            {!leaderboardRows ? (
+              <p className="font-hand text-[#c5bbae]">{t('loadingEllipsis')}</p>
+            ) : leaderboardRows.length === 0 ? (
+              <p className="font-hand text-[#c5bbae]">{t('leaderboardEmpty')}</p>
+            ) : (
+              <ul className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-1">
+                {leaderboardRows.map((r, i) => (
+                  <li
+                    key={`${r.username}-${i}`}
+                    className="flex items-center gap-3 rounded-xl border border-gild/15 bg-[#4c1116]/10 px-4 py-2.5 font-hand text-base"
+                  >
+                    <span className="num w-6 shrink-0 text-right font-extrabold text-ember">{i + 1}</span>
+                    <div
+                      className="h-7 w-7 rounded-full border border-amber/40 bg-parchment bg-cover bg-center shrink-0"
+                      style={r.avatar_url ? { backgroundImage: `url("${r.avatar_url}")` } : undefined}
+                    />
+                    <span className="min-w-0 flex-1 truncate font-bold text-[#332b25]">{r.username}</span>
+                    <span className="shrink-0 text-sm text-[#c5bbae] font-semibold">
+                      {r.games_won}/{r.games_played} {t('colGames', { defaultValue: 'games' }).toLowerCase()}
+                    </span>
+                    <span className="num w-16 shrink-0 text-right text-lg font-extrabold text-amber-deep">
+                      {r.rating}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Sign Out option */}

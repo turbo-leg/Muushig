@@ -216,22 +216,32 @@ export function Lobby({
               {t('settingsTitle')}
             </button>
           </nav>
-          {me && (
-            <div
-              onClick={() => onNavigate('profile')}
-              className="flex items-center gap-2.5 rounded-full border border-gild/45 bg-[#4c1116]/80 px-4 py-1 hover:bg-[#4c1116] transition-all duration-200 cursor-pointer select-none"
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setShowHelp(true)}
+              aria-label={t('helpOpen')}
+              className="grid h-8 w-8 place-items-center rounded-full border border-amber/40 bg-[#4c1116]/80 text-[#faf8f4] font-hand text-lg font-bold hover:bg-[#4c1116] cursor-pointer shadow-sm select-none"
             >
-              <div className="h-6 w-6 rounded-full border border-amber bg-parchment-deep grid place-items-center font-hand text-xs font-bold text-ember">
-                {me.username.charAt(0).toUpperCase()}
+              ?
+            </button>
+            {me && (
+              <div
+                onClick={() => onNavigate('profile')}
+                className="flex items-center gap-2.5 rounded-full border border-gild/45 bg-[#4c1116]/80 px-4 py-1 hover:bg-[#4c1116] transition-all duration-200 cursor-pointer select-none"
+              >
+                <div className="h-6 w-6 rounded-full border border-amber bg-parchment-deep grid place-items-center font-hand text-xs font-bold text-ember">
+                  {me.username.charAt(0).toUpperCase()}
+                </div>
+                <span className="font-hand text-sm font-semibold text-cream">{me.username}</span>
+                {coins !== null && (
+                  <span className="font-hand text-xs text-amber font-bold flex items-center gap-1">
+                    <GoldCoinIcon className="w-3.5 h-3.5" /> {coins}
+                  </span>
+                )}
               </div>
-              <span className="font-hand text-sm font-semibold text-cream">{me.username}</span>
-              {coins !== null && (
-                <span className="font-hand text-xs text-amber font-bold flex items-center gap-1">
-                  <GoldCoinIcon className="w-3.5 h-3.5" /> {coins}
-                </span>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
         {/* Main Content Area */}
