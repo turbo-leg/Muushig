@@ -46,7 +46,9 @@ export function ScoreSheet({ seats, onClose }: Props) {
           </button>
         </div>
 
-        <div className="overflow-auto px-4 py-3">
+        {/* table-fixed: player columns share the width and names truncate, so
+            the sheet never scrolls sideways no matter the player count. */}
+        <div className="overflow-y-auto overflow-x-hidden px-4 py-3">
           <table className="w-full table-fixed border-collapse font-hand text-ink">
             <thead>
               <tr className="border-b-2 border-ink">
